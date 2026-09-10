@@ -1,0 +1,32 @@
+import {Link, useRoute} from 'wouter'
+import {NAV_ROUTES, NAME} from './routes'
+
+const LINK = 'pointer-events-auto no-underline tracking-[0.12em] transition-opacity duration-300'
+
+function NavLink({path, label}: {path: string; label: string}) {
+  const [isActive] = useRoute(path)
+  return (
+    <Link
+      href={path}
+      aria-current={isActive ? 'page' : undefined}
+      className={`${LINK} opacity-55 hover:opacity-100 focus-visible:opacity-100 aria-[current=page]:opacity-100`}
+    >
+      {label}
+    </Link>
+  )
+}
+
+export function Nav() {
+  return (
+    <nav className="pointer-events-none fixed inset-x-0 top-0 z-10 box-border flex min-h-(--spacing-nav) items-baseline justify-between gap-4 border-b border-white/10 bg-black/35 px-8 py-6 backdrop-blur-[14px] max-sm:px-5 max-sm:py-4">
+      <Link href="/" className={`${LINK} text-sm`}>
+        {NAME}
+      </Link>
+      <div className="flex gap-6 text-xs max-sm:gap-4 max-sm:text-[0.6875rem]">
+        {NAV_ROUTES.map(({path, label}) => (
+          <NavLink key={path} path={path} label={label!} />
+        ))}
+      </div>
+    </nav>
+  )
+}

@@ -1,0 +1,33 @@
+{
+  "name": "mypage2026",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "engines": {
+    "node": "^20.19.0 || >=22.12.0"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build && node scripts/prerender.js",
+    "lint": "oxlint src vite.config.ts",
+    "format": "oxfmt src vite.config.ts",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "glaku": "^0.5.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "wouter": "^3.11.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/react": "^18.3.10",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^6.1.1",
+    "oxfmt": "^0.66.0",
+    "oxlint": "^1.81.0",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^7.0.2",
+    "vite": "^8.2.2"
+  }
+}

@@ -1,0 +1,70 @@
+/* トークン、下地、utility で書けないもの（スクロールバーの擬似要素）だけを置く。
+   独自のクラス名は定義しない。Tailwind の utility 名と衝突しうるため。 */
+
+@import 'tailwindcss';
+
+/* サイトのトークン。@theme に置いた値はそのまま CSS 変数になり、
+   Tailwind の utility（bg-ground など）からも参照できる。 */
+@theme {
+  /* 地の色。純黒だと写真の黒と見分けが付かないのでわずかに持ち上げる。
+     canvas のクリア色もこの値を読んで合わせる（Hero が worker へ渡す） */
+  --color-ground: #101010;
+  --color-ink: #fdfdfd;
+
+  /* 固定ナビの高さ。hero が写真をこのぶん下げて重なりを避ける */
+  --spacing-nav: 4.5rem;
+
+  --font-sans: system-ui, sans-serif;
+}
+
+/* 画面が狭いときのトークン上書き。utility 側は var を参照しているのでこれだけで効く */
+@media (max-width: 640px) {
+  :root {
+    --spacing-nav: 3.5rem;
+  }
+}
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--color-ground);
+  color: var(--color-ink);
+  font: 400 16px/1.7 var(--font-sans);
+}
+
+html {
+  /* スクロールバーの出現でレイアウトが横にずれるのを防ぐ。
+     macOS のようにスクロールバーが領域を取らない環境では何も予約しないので副作用がない */
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  /* つまみ / 溝。溝は透明にして地の色に溶かす */
+  scrollbar-color: color-mix(in srgb, var(--color-ink) 22%, transparent) transparent;
+}
+
+/* scrollbar-width に未対応のブラウザ（Safari 18.2 未満）向け。
+   対応済みの環境で二重に効かないよう @supports で分ける */
+@supports not (scrollbar-width: thin) {
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--color-ink) 22%, transparent);
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in srgb, var(--color-ink) 40%, transparent);
+  }
+}
+
+a {
+  color: inherit;
+}

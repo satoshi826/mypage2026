@@ -1,0 +1,220 @@
+import {useCallback, useEffect, useRef, useState} from 'react'
+import {useCanvas, useCanvasResize, useAnimationFrame} from './useCanvas'
+import {
+  advance,
+  cycleProgress,
+  frameOf,
+  initialState,
+  jumpTo,
+  morphRatio,
+  settle,
+  type Frame,
+  type SequenceState,
+  type Timing
+} from './sequence'
+import {PHOTOS} from './photos'
+import {ControlPanel} from './ControlPanel'
+import {DevPanel} from './DevPanel'
+import {LAYOUT_PARAMS, LAYOUT_PRESETS, chooseDirection, type Layout} from './layout'
+import {SOURCE_H, SOURCE_W} from './table'
+import {DEFAULT_TUNING, TUNING_PARAMS, type Tuning} from './tuning'
+import Worker from './worker?worker'
+
+const timingOf = ({cycleSeconds, dwellRatio}: Tuning): Timing => ({cycleSeconds, dwellRatio})
+
+export function Hero() {
+  const sectionRef = useRef<HTMLElement | null>(null)
+  const progressRef = useRef<HTMLDivElement>(null)
+  const stateRef = useRef<SequenceState>(initialState(PHOTOS.length))
+  const timingRef = useRef<Timing>(timingOf(DEFAULT_TUNING))
+  const lastFrame = useRef<Frame>({from: -1, to: -1, phase: -1})
+  const lastTime = useRef(0)
+  const visibleRef = useRef(true)
+
+  const [index, setIndex] = useState(0)
+  // 並べ方は画面の形で決める。写真が大きくなるほうを選ぶ
+  const viewport = useViewport()
+  const direction = chooseDirection(viewport.width, viewport.height, PHOTOS.length)
+  // 開発用パネルで触っているあいだだけ上書きする
+  const [override, setOverride] = useState<Layout | null>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
+  const preset = LAYOUT_PRESETS[direction]
+  const layout = override ?? preset
+  const content = useContentRect(sectionRef)
+  const panelSize = useContentRect(panelRef)
+  const reduced = useMediaQuery('(prefers-reduced-motion: reduce)')
+  // 動きを減らす設定の人には自動では動かさない。初期値だけで判断し、
+  // あとはトグルに委ねる（押せば動かせる）
+  const [autoplay, setAutoplay] = useState(!reduced)
+
+  const {canvas, post, ref} = useCanvas(Worker)
+  useCanvasResize(post, ref)
+
+  useEffect(() => {
+    // canvas の余白をページ背景に合わせる。worker から CSS は読めないので値を渡す
+    const ground = getComputedStyle(document.documentElement).getPropertyValue('--color-ground')
+    post({photos: PHOTOS.map(({src}) => src), ground})
+  }, [post])
+
+  // 画面外では時計を止める。下のセクションを読んでいる間 GPU を回す意味がない
+  useEffect(() => {
+    const section = sectionRef.current
+    if (!section) return
+    const observer = new IntersectionObserver(([entry]) => {
+      visibleRef.current = entry.isIntersecting
+    })
+    observer.observe(section)
+    return () => observer.disconnect()
+  }, [])
+
+  const applyTuning = useCallback(
+    (tuning: Tuning) => {
+      timingRef.current = timingOf(tuning)
+      post({tuning})
+    },
+    [post]
+  )
+
+  useAnimationFrame(
+    useCallback(() => {
+      const now = performance.now()
+      const delta = Math.min((now - (lastTime.current || now)) / 1000, 0.1) // タブ復帰時の巨大な差分は捨てる
+      lastTime.current = now
+
+      const timing = timingRef.current
+      if (visibleRef.current) {
+        if (autoplay) {
+          stateRef.current = advance(stateRef.current, delta, PHOTOS.length, timing)
+        } else {
+          // 自動再生を切っても進行中の遷移は完走させる
+          stateRef.current = settle(stateRef.current, delta, timing)
+        }
+      }
+
+      const {from, to, phase: linear} = frameOf(stateRef.current, timing)
+      // 動きを減らす設定では中点で切り替えるだけにして、粒子の移動を見せない
+      const phase = reduced ? (linear < 0.5 ? 0 : 1) : linear
+
+      const previous = lastFrame.current
+      if (from !== previous.from || to !== previous.to || phase !== previous.phase) {
+        lastFrame.current = {from, to, phase}
+        post({render: {from, to, phase}})
+        // 丸は遷移の開始で動かす。粒子が飛んでいるあいだに次の番号へ移る
+        setIndex(phase > 0 ? to : from)
+      }
+      // 進み具合も帯の境目も、バーの一番外側に CSS 変数として書く。
+      // 中の3枚（遷移帯・静止帯・通過ぶん）はそれを継承して描き分ける
+      const bar = progressRef.current
+      if (bar) {
+        bar.style.setProperty('--progress', String(cycleProgress(stateRef.current, timing)))
+        bar.style.setProperty('--morph', `${morphRatio(timing) * 100}%`)
+      }
+    }, [autoplay, post, reduced])
+  )
+
+  // 写真の枠は JS で寸法を決める。canvas を写真ぴったりにすると、
+  // 中でレターボックスされず、写真の端＝canvas の端になって配置が読める
+  const photo = fitPhoto(
+    content,
+    direction === 'side' ? panelSize.width + GAP : 0,
+    direction === 'side' ? 0 : panelSize.height
+  )
+
+  return (
+    <section
+      ref={sectionRef}
+      className={`flex h-[100svh] items-center justify-center gap-10 px-8 pt-[calc(var(--spacing-nav)+1.5rem)] pb-8 ${
+        direction === 'side' ? 'flex-row' : 'flex-col'
+      }`}
+    >
+      <div className="relative flex shrink-0" style={{width: photo.width, height: photo.height}}>
+        {canvas}
+      </div>
+      <ControlPanel
+        ref={panelRef}
+        index={index}
+        autoplay={autoplay}
+        layout={layout}
+        direction={direction}
+        onToggle={() => setAutoplay(!autoplay)}
+        onSelect={(target) => {
+          stateRef.current = jumpTo(stateRef.current, target, timingRef.current)
+        }}
+        progressRef={progressRef}
+      />
+      {import.meta.env.DEV && (
+        <div className="pointer-events-none fixed top-16 left-4 z-10 flex flex-col gap-2">
+          <DevPanel
+            title="粒子パラメータ"
+            typeName="Tuning"
+            constName="DEFAULT_TUNING"
+            params={TUNING_PARAMS}
+            defaults={DEFAULT_TUNING}
+            storageKey="mypage2026.tuning"
+            onChange={applyTuning}
+          />
+          {/* 並べ方が変わったら key で作り直し、その並べ方用の値を読み込ませる */}
+          <DevPanel
+            key={direction}
+            title={direction === 'side' ? 'パネルの寸法（横並び）' : 'パネルの寸法（縦並び）'}
+            typeName="Layout"
+            constName={direction === 'side' ? 'SIDE_LAYOUT' : 'STACKED_LAYOUT'}
+            params={LAYOUT_PARAMS}
+            defaults={preset}
+            storageKey={`mypage2026.layout.${direction}`}
+            onChange={setOverride}
+          />
+        </div>
+      )}
+    </section>
+  )
+}
+
+/** 写真とパネルのあいだ、および外周の余白 px。section の gap / px-8 と合わせる */
+const GAP = 32
+
+/** 使える領域から、3:2 を保った最大の枠を出す */
+function fitPhoto({width, height}: {width: number; height: number}, takenX: number, takenY: number) {
+  const aspect = SOURCE_W / SOURCE_H
+  const w = Math.max(0, width - takenX)
+  const h = Math.max(0, height - takenY)
+  const fitted = Math.min(w, h * aspect)
+  return {width: Math.round(fitted), height: Math.round(fitted / aspect)}
+}
+
+/** 要素のコンテンツ領域（padding を除いた大きさ）を測る */
+function useContentRect(ref: {current: HTMLElement | null}) {
+  const [size, setSize] = useState({width: 0, height: 0})
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const observer = new ResizeObserver(([entry]) => {
+      const {width, height} = entry.contentRect
+      setSize({width, height})
+    })
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [ref])
+  return size
+}
+
+function useViewport() {
+  const [size, setSize] = useState(() => ({width: innerWidth, height: innerHeight}))
+  useEffect(() => {
+    const onResize = () => setSize({width: innerWidth, height: innerHeight})
+    addEventListener('resize', onResize)
+    return () => removeEventListener('resize', onResize)
+  }, [])
+  return size
+}
+
+function useMediaQuery(query: string) {
+  const [matches, setMatches] = useState(() => matchMedia(query).matches)
+  useEffect(() => {
+    const media = matchMedia(query)
+    const onChange = () => setMatches(media.matches)
+    media.addEventListener('change', onChange)
+    return () => media.removeEventListener('change', onChange)
+  }, [query])
+  return matches
+}
