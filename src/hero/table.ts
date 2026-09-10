@@ -12,7 +12,10 @@ export type Grid = {width: number; height: number; count: number}
 const ASPECT = SOURCE_W / SOURCE_H
 /** これ以下に落とすと写真として成立しないという下限 */
 const MIN_HEIGHT = 256
-/** アトラス全体のバイト数の上限。枚数が増えると自動的にグリッドが下がる */
+/**
+ * アトラス全体のバイト数の上限。枚数が増えると自動的にグリッドが下がる。
+ * 実際の確保量は矩形に敷き詰めた分だけ数%上振れする（layoutFor 参照）。
+ */
 const VRAM_BUDGET = 96 * 1024 * 1024
 
 const gridOf = (height: number): Grid => {
@@ -99,20 +102,39 @@ export async function loadPixels(url: string, {width, height}: Grid) {
 /** アトラス上のブロック配置。レイヤ L は (L % cols, L / cols) 番目のブロックに入る */
 type AtlasLayout = {cols: number; width: number; height: number}
 
+/** 縦横比の偏り。1 で正方形 */
+const skewOf = ({width, height}: AtlasLayout) => Math.max(width / height, height / width)
+
 /**
  * ブロックを縦横に並べる配置を決める。
  *
  * 横一列に並べると幅がブロック幅 × 枚数 になり、MAX_TEXTURE_SIZE にすぐ当たる
  * （16384 の環境で21枚、4096 の環境では5枚）。縦にも積むことで上限が
  * 「横に入る数 × 縦に入る数」まで広がる。
+ *
+ * 列数は「確保するブロック数 cols * rows が最小になる」ものを選ぶ。横に詰められる
+ * だけ詰めると最後の行の空きがそのまま VRAM の無駄になるため（31枚を14列に置くと
+ * 42スロット確保して11スロットが空く）。同数なら正方形に近いほうを採る。
  */
 export function layoutFor(limit: number, count: number, grid: Grid): AtlasLayout {
-  const cols = Math.max(1, Math.min(count, Math.floor(limit / grid.width)))
-  const rows = Math.ceil(count / cols)
-  if (rows * grid.height > limit) {
-    throw new Error(`写真がテクスチャに収まらない: ${count}枚 / 上限 ${cols * Math.floor(limit / grid.height)}枚`)
+  const maxCols = Math.min(count, Math.floor(limit / grid.width))
+  const maxRows = Math.floor(limit / grid.height)
+
+  let best: AtlasLayout | null = null
+  let bestSlots = Infinity
+  for (let cols = 1; cols <= maxCols; cols++) {
+    const rows = Math.ceil(count / cols)
+    if (rows > maxRows) continue
+    const slots = cols * rows
+    if (slots > bestSlots) continue
+    const layout = {cols, width: cols * grid.width, height: rows * grid.height}
+    if (slots === bestSlots && best && skewOf(layout) >= skewOf(best)) continue
+    best = layout
+    bestSlots = slots
   }
-  return {cols, width: cols * grid.width, height: rows * grid.height}
+
+  if (!best) throw new Error(`写真がテクスチャに収まらない: ${count}枚 / 上限 ${maxCols * maxRows}枚`)
+  return best
 }
 
 export function packAtlas(tables: Uint8Array[], {cols, width, height}: AtlasLayout, grid: Grid) {
