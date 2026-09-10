@@ -93,16 +93,16 @@ export type Interaction = {
 
 export const DEFAULT_INTERACTION: Interaction = {
   radius: 0.15,
-  push: 0.05,
-  drag: 0.25,
-  massGain: 0.5,
-  spread: 0.5,
-  scatter: 0.3,
-  attack: 0.5,
-  release: 0.2,
-  returnSeconds: 0.5,
-  damping: 0.8,
-  stopBelow: 0.005
+  push: 0.25,
+  drag: 0,
+  massGain: -1,
+  spread: 0.4,
+  scatter: 0.2,
+  attack: 0.6,
+  release: 0.1,
+  returnSeconds: 0.7,
+  damping: 0.3,
+  stopBelow: 0
 }
 
 export const INTERACTION_PARAMS: SliderParam<Interaction>[] = [

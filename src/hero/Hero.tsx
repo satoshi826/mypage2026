@@ -142,10 +142,15 @@ export function Hero() {
 
       // 力が消えてもズレはバネで戻り続けるので、戻りきるまでは更新を回す。
       // ここで打ち切ると写真が歪んだまま固まる
+      // 画面外では更新しない。stopBelow が 0 のときは止まらない設定なので、
+      // ここで切らないと下のセクションを読んでいるあいだも GPU が回り続ける。
+      // 残り時間は減らさずに保つので、戻ってきたときに続きから戻りきる
       const speed = Math.abs(current.x) + Math.abs(current.y)
-      const forced = stopBelow <= 0 || speed > stopBelow
-      settling.current = forced ? (release + returnSeconds) * 4 : Math.max(0, settling.current - delta)
-      if (forced || settling.current > 0) {
+      const forced = visibleRef.current && (stopBelow <= 0 || speed > stopBelow)
+      if (visibleRef.current) {
+        settling.current = forced ? (release + returnSeconds) * 4 : Math.max(0, settling.current - delta)
+      }
+      if (forced || (visibleRef.current && settling.current > 0)) {
         command.pointer = {x: p.x, y: p.y, vx: current.x, vy: current.y}
         command.step = delta
       }
