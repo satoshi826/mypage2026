@@ -153,6 +153,8 @@ async function createScene(canvas: OffscreenCanvas, pixelRatio: number, photos: 
       u_push: 'float',
       u_drag: 'float',
       u_massGain: 'float',
+      u_spread: 'float',
+      u_scatter: 'float',
       u_stiffness: 'float',
       u_damping: 'float',
       u_dt: 'float'
@@ -169,8 +171,16 @@ async function createScene(canvas: OffscreenCanvas, pixelRatio: number, photos: 
       const vec2 TO_EVEN = vec2(1.0, 1.0 / ${imageAspect.toFixed(6)});
       const vec2 TO_NDC = vec2(1.0, ${imageAspect.toFixed(6)});
 
+      // 粒子ごとの、位置と相関しない乱数。輝度は画像なので空間的になめらかで、
+      // ばらつきの種には使えない
+      float hash(uint h) {
+        h = h * 747796405u + 2891336453u;
+        h = ((h >> ((h >> 28) + 4u)) ^ h) * 277803737u;
+        return float((h >> 22u) ^ h) / 4294967295.0;
+      }
+
       // ポインタ起点の「目標のズレ」。速度に比例し、距離で減衰する
-      vec2 targetOffset(vec2 pos, float lum) {
+      vec2 targetOffset(vec2 pos, float mass, float twist) {
         vec2 flow = u_pointerVelocity * TO_EVEN;
         float speed = length(flow);
         if (speed < 1e-4) return vec2(0.0);
@@ -180,8 +190,12 @@ async function createScene(canvas: OffscreenCanvas, pixelRatio: number, photos: 
         float falloff = exp(-dist2 / u_radius2);
         vec2 dir = dist2 > 1e-8 ? d * inversesqrt(dist2) : vec2(0.0);
 
-        // 重い粒子は同じ力でも動きにくい
-        float mass = clamp(1.0 + u_massGain * (2.0 * lum - 1.0), 0.2, 5.0);
+        // 押される向きを粒子ごとにずらす。放射状に整列していると膜のように見える
+        float angle = (twist - 0.5) * u_scatter;
+        float sn = sin(angle);
+        float cs = cos(angle);
+        dir = mat2(cs, sn, -sn, cs) * dir;
+
         return falloff * (u_push * dir * speed + u_drag * flow) * TO_NDC / mass;
       }
 
@@ -198,8 +212,15 @@ async function createScene(canvas: OffscreenCanvas, pixelRatio: number, photos: 
         vec2 offset = prev.xy;
         vec2 velocity = prev.zw;
 
-        // 目標のズレへバネで引かれる。力が消えれば目標は 0 になり、必ず写真に戻る
-        vec2 acceleration = (targetOffset(pos + offset, lum) - offset) * u_stiffness - velocity * u_damping;
+        // 重い粒子は同じ力でも動きにくい。輝度ぶんに粒子ごとのばらつきを掛ける
+        float mass = clamp(1.0 + u_massGain * (2.0 * lum - 1.0), 0.2, 5.0)
+                   * mix(1.0 - u_spread, 1.0 + u_spread, hash(uint(k)));
+
+        // 目標のズレへバネで引かれる。力が消えれば目標は 0 になり、必ず写真に戻る。
+        // 質量で加速度ごと割るので、固有振動数が 1/sqrt(mass)、減衰比が 1/sqrt(mass) に
+        // 散る。同じ力を受けても戻る速さと行き過ぎ方が粒子ごとに変わる
+        vec2 target = targetOffset(pos + offset, mass, hash(uint(k) + 1013904223u));
+        vec2 acceleration = ((target - offset) * u_stiffness - velocity * u_damping) / mass;
         velocity += acceleration * u_dt;
         offset += velocity * u_dt;
 
@@ -248,6 +269,8 @@ async function createScene(canvas: OffscreenCanvas, pixelRatio: number, photos: 
       u_push: interaction.push,
       u_drag: interaction.drag,
       u_massGain: interaction.massGain,
+      u_spread: interaction.spread,
+      u_scatter: interaction.scatter,
       u_stiffness: omega * omega,
       u_damping: 2 * interaction.damping * omega
     })

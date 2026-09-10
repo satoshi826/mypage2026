@@ -75,6 +75,10 @@ export type Interaction = {
   drag: number
   /** 輝度による質量差。正で明るいほど重い、負で暗いほど重い、0 で差なし */
   massGain: number
+  /** 粒子ごとの質量のばらつき。上げるほど戻る速さと行き過ぎ方が粒ごとに散る */
+  spread: number
+  /** 押される向きのゆらぎ(ラジアン)。0 で全粒子が放射状に揃う */
+  scatter: number
   /** 速度が上がるときの時定数(秒)。大きいほど力の立ち上がりが緩やか */
   attack: number
   /** 速度が下がるときの時定数(秒)。大きいほど余韻が長く残る */
@@ -92,6 +96,8 @@ export const DEFAULT_INTERACTION: Interaction = {
   push: 0.05,
   drag: 0.25,
   massGain: 0.5,
+  spread: 0.5,
+  scatter: 0.3,
   attack: 0.5,
   release: 0.2,
   returnSeconds: 0.5,
@@ -111,6 +117,8 @@ export const INTERACTION_PARAMS: SliderParam<Interaction>[] = [
     step: 0.05,
     hint: '正で明るいほど重い。0 で差なし'
   },
+  {key: 'spread', label: '重さのばらつき', min: 0, max: 0.9, step: 0.05, hint: '粒子ごとに質量を散らす'},
+  {key: 'scatter', label: '向きのゆらぎ', min: 0, max: 1.5, step: 0.05, hint: 'ラジアン。0 で放射状に揃う'},
   {key: 'attack', label: '立ち上がり', min: 0.01, max: 1, step: 0.01, hint: '秒。上げるほど力がゆっくり乗る'},
   {key: 'release', label: '余韻', min: 0.05, max: 3, step: 0.05, hint: '秒。上げるほど長く尾を引く'},
   {key: 'returnSeconds', label: '戻る速さ', min: 0.15, max: 3, step: 0.05, hint: '秒。小さいほど硬く速く戻る'},
