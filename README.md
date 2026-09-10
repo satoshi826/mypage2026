@@ -115,14 +115,16 @@ src/
 | ファイル | 役割 |
 |---|---|
 | `hero/table.ts`     | 配信解像度の定数、粒子グリッドの決定、縮小・輝度計算・カウントソート、アトラス配置 |
-| `hero/worker.ts`    | テクスチャ構築、シェーダ、描画。OffscreenCanvas 上で動く |
+| `hero/worker.ts`    | テクスチャ構築、シェーダ、描画と干渉の更新。OffscreenCanvas 上で動く |
 | `hero/sequence.ts`  | 自動再生の進行状態。次の1枚の抽選、静止帯と遷移帯の割り当て |
 | `hero/useCanvas.tsx`| canvas を worker へ譲渡する配線、resize 監視、rAF フック |
+| `hero/pointer.ts`   | ポインタを写真の枠基準の NDC で追う。マウスも指も同じ経路 |
 | `hero/Hero.tsx`     | 100svh の hero、時計の駆動 |
 | `hero/ControlPanel.tsx` | 自動再生の切り替え、番号、次までのプログレス |
 | `hero/photos.ts`    | 写真リストと表示名 |
 | `hero/tuning.ts`    | 調整値の既定と開発用パネルの定義 |
-| `hero/Tuner.tsx`    | 開発用パネル（`import.meta.env.DEV` の中でのみ描画） |
+| `hero/DevPanel.tsx` | 開発用パネル（`import.meta.env.DEV` の中でのみ描画） |
+| `hero/layout.ts`    | コントロールパネルの寸法と、写真との並べ方の決定 |
 | `app/routes.ts`     | ルート定義。ナビ・プリレンダ・title/description の唯一の出典 |
 | `app/pages/`        | 各ページ |
 | `scripts/encode-photos.sh` | 原本を配信解像度のグレースケール WebP に変換する |
@@ -130,6 +132,12 @@ src/
 
 Worker には `requestAnimationFrame` がないため、駆動はメインスレッドの rAF から。
 タブが非表示になると rAF が止まり、無駄な描画も止まる。
+
+粒子は写真上の位置に加えて「ズレ」を持つ。ズレは粒子1つにつき1テクセルの
+RGBA16F テクスチャ（ズレと速度）に入っていて、毎フレーム別のテクスチャへ書き
+ながら交互に入れ替える。ポインタが作る目標のズレへバネで引かれるので、干渉が
+止めば必ず元の写真に戻る。更新をフラグメントではなく頂点側で計算しているのは、
+フラグメントの sampler が lowp 既定で、半精度の状態を読むと精度が落ちるため。
 
 ## 制約
 

@@ -41,7 +41,7 @@ export function Hero() {
   const lastTime = useRef(0)
   const visibleRef = useRef(true)
   const velocity = useRef({x: 0, y: 0})
-  const wasMoving = useRef(false)
+  const settling = useRef(0)
 
   const [index, setIndex] = useState(0)
   // 並べ方は画面の形で決める。写真が大きくなるほうを選ぶ
@@ -131,7 +131,7 @@ export function Hero() {
       // 止めたあともしばらく尾を引く。exp を使うのはフレームレートに依存させないため
       const p = takePointer()
       const step = Math.max(delta, 1 / 240)
-      const {attack, release, stopBelow} = interactionRef.current
+      const {attack, release, returnSeconds, stopBelow} = interactionRef.current
       const targetX = p.active ? p.dx / step : 0
       const targetY = p.active ? p.dy / step : 0
       const current = velocity.current
@@ -140,13 +140,15 @@ export function Hero() {
       current.x += (targetX - current.x) * rate
       current.y += (targetY - current.y) * rate
 
-      // 止まったフレームも1回だけ送る。送らないと最後の変位が残ったままになる
+      // 力が消えてもズレはバネで戻り続けるので、戻りきるまでは更新を回す。
+      // ここで打ち切ると写真が歪んだまま固まる
       const speed = Math.abs(current.x) + Math.abs(current.y)
-      const moving = stopBelow <= 0 || speed > stopBelow
-      if (moving || wasMoving.current) {
+      const forced = stopBelow <= 0 || speed > stopBelow
+      settling.current = forced ? (release + returnSeconds) * 4 : Math.max(0, settling.current - delta)
+      if (forced || settling.current > 0) {
         command.pointer = {x: p.x, y: p.y, vx: current.x, vy: current.y}
+        command.step = delta
       }
-      wasMoving.current = moving
 
       if (command.render || command.pointer) post(command)
       // 進み具合も帯の境目も、バーの一番外側に CSS 変数として書く。

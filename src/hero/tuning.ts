@@ -79,6 +79,10 @@ export type Interaction = {
   attack: number
   /** 速度が下がるときの時定数(秒)。大きいほど余韻が長く残る */
   release: number
+  /** 写真へ戻りきる速さ(秒)。バネの周期で、小さいほど硬く速い */
+  returnSeconds: number
+  /** バネの減衰比。1 で行き過ぎなし、下げるほどしなって戻る */
+  damping: number
   /** 速度がこれを下回ったら描画を止める。0 にすると止めずに回し続ける */
   stopBelow: number
 }
@@ -90,6 +94,8 @@ export const DEFAULT_INTERACTION: Interaction = {
   massGain: 0.5,
   attack: 0.5,
   release: 0.2,
+  returnSeconds: 0.5,
+  damping: 0.8,
   stopBelow: 0.005
 }
 
@@ -107,6 +113,8 @@ export const INTERACTION_PARAMS: SliderParam<Interaction>[] = [
   },
   {key: 'attack', label: '立ち上がり', min: 0.01, max: 1, step: 0.01, hint: '秒。上げるほど力がゆっくり乗る'},
   {key: 'release', label: '余韻', min: 0.05, max: 3, step: 0.05, hint: '秒。上げるほど長く尾を引く'},
+  {key: 'returnSeconds', label: '戻る速さ', min: 0.15, max: 3, step: 0.05, hint: '秒。小さいほど硬く速く戻る'},
+  {key: 'damping', label: '減衰比', min: 0.2, max: 2, step: 0.05, hint: '1 で行き過ぎなし。下げるほどしなる'},
   {
     key: 'stopBelow',
     label: '描画を止める速度',

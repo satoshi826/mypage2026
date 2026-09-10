@@ -26,31 +26,31 @@ async function createScene(canvas: OffscreenCanvas, pixelRatio: number, photos: 
   const rankIndices = Float32Array.from({length: grid.count}, (_, i) => i)
   const vao = new Vao(core, {attributes: {a_rank: rankIndices as unknown as number[]}})
 
-  const program = new Program(core, {
-    attributeTypes: {a_rank: 'float'},
-    uniformTypes: {
-      u_from: 'int',
-      u_to: 'int',
-      u_phase: 'float',
-      u_fit: 'vec2',
-      u_pointSize: 'float',
-      u_staggerTotal: 'float',
-      u_toneCurve: 'float',
-      u_easePower: 'float',
-      u_pointer: 'vec2',
-      u_pointerVelocity: 'vec2',
-      u_radius2: 'float',
-      u_push: 'float',
-      u_drag: 'float',
-      u_massGain: 'float'
-    },
-    texture: {
-      t_table: core.createTexture({array: atlas, width: layout.width, height: layout.height, filter: 'NEAREST'})
-    },
-    primitive: 'POINTS',
-    vert: /* glsl */ `
-      out vec3 v_color;
+  // 干渉の状態（ズレと速度）を粒子1つにつき1テクセルで持つ。読みと書きで別の
+  // テクスチャが要るので2枚を交互に使う。半精度で足りるのは、値が 0 付近では
+  // 細かく、大きいところでも 0.3px 程度の分解能があるため
+  const canSimulate = !!(
+    core.gl.getExtension('EXT_color_buffer_float') || core.gl.getExtension('EXT_color_buffer_half_float')
+  )
+  const state = [0, 1].map((i) => {
+    const buffer = new Renderer(core, {
+      id: `state${i}`,
+      width: grid.width,
+      height: grid.height,
+      screenFit: false,
+      backgroundColor: [0, 0, 0, 0],
+      frameBuffer: [['RGBA16F', 'RGBA', 'HALF_FLOAT', 'NEAREST', 'CLAMP_TO_EDGE']]
+    })
+    // glaku の pixelRatio は core の値に掛かる倍率なので、実寸で作り直して
+    // 1テクセル = 1粒子にする
+    buffer.resize({width: grid.width, height: grid.height, pixelRatio: 1})
+    buffer.clear()
+    return buffer
+  })
+  let readIndex = 0
 
+  // 描画と更新が同じ式で基準位置を出すための共有部分。二重管理を作らないため1か所に置く
+  const shared = /* glsl */ `
       // RGB に入っている元画素のインデックス(24bit LE)を NDC 座標に戻す
       vec2 decodePosition(vec4 texel) {
         vec3 byte = floor(texel.rgb * 255.0 + 0.5);
@@ -74,15 +74,103 @@ async function createScene(canvas: OffscreenCanvas, pixelRatio: number, photos: 
         return t < 0.5 ? pow(2.0 * t, p) * 0.5 : 1.0 - pow(2.0 * (1.0 - t), p) * 0.5;
       }
 
+      // 干渉がないときの粒子 k の位置と輝度
+      void baseOf(int k, out vec2 pos, out float lum) {
+        int col = k % ${grid.width};
+        int row = k / ${grid.width};
+
+        // 1回のフェッチで座標と輝度の両方が取れる
+        vec4 texFrom = texelFetch(t_table, addressOf(u_from, col, row), 0);
+        vec4 texTo   = texelFetch(t_table, addressOf(u_to,   col, row), 0);
+
+        // 両端の平均を取った「暗さ」。暗いほど 1 に近い。
+        // 平均にすることで逆再生でも同じ順序を辿る
+        float darkness = 1.0 - (texFrom.a + texTo.a) * 0.5;
+
+        // 暗い粒子ほど遅れて出発する。光が先に抜け、闇が後から追う
+        float delay = pow(darkness, u_toneCurve) * u_staggerTotal;
+        // 分母が 0 にならないよう、1粒子あたりの移動時間には下限を置く
+        float span = max(1.0 - u_staggerTotal, 0.05);
+        float local = easeInOut(clamp((u_phase - delay) / span, 0.0, 1.0), u_easePower);
+
+        pos = mix(decodePosition(texFrom), decodePosition(texTo), local);
+        lum = mix(texFrom.a, texTo.a, local);
+      }`
+
+  /** 基準位置の計算に要る uniform。描画と更新の両方が持つ */
+  const morphUniforms = {
+    u_from: 'int',
+    u_to: 'int',
+    u_phase: 'float',
+    u_staggerTotal: 'float',
+    u_toneCurve: 'float',
+    u_easePower: 'float'
+  } as const
+
+  const table = core.createTexture({array: atlas, width: layout.width, height: layout.height, filter: 'NEAREST'})
+
+  const program = new Program(core, {
+    id: 'draw',
+    attributeTypes: {a_rank: 'float'},
+    uniformTypes: {...morphUniforms, u_fit: 'vec2', u_pointSize: 'float'},
+    texture: {t_table: table, t_state: state[0].renderTexture[0]},
+    primitive: 'POINTS',
+    vert: /* glsl */ `
+      out vec3 v_color;
+      ${shared}
+
+      void main() {
+        int k = int(a_rank);
+        vec2 pos;
+        float lum;
+        baseOf(k, pos, lum);
+
+        // 干渉によるズレ。更新パスが書いた値をそのまま足す
+        vec2 offset = texelFetch(t_state, ivec2(k % ${grid.width}, k / ${grid.width}), 0).xy;
+
+        v_color = vec3(lum);
+        gl_Position = vec4((pos + offset) * u_fit, 0.0, 1.0);
+        gl_PointSize = u_pointSize;
+      }`,
+    frag: /* glsl */ `
+      in vec3 v_color;
+      out vec4 o_color;
+      void main() {
+        o_color = vec4(v_color, 1.0);
+      }`
+  })
+
+  // 粒子1つにつき1テクセルを更新する。フラグメントではなく頂点側で計算するのは、
+  // フラグメントの sampler が lowp 既定で、16F の状態を読むと精度が落ちるため
+  const update = new Program(core, {
+    id: 'update',
+    attributeTypes: {a_rank: 'float'},
+    uniformTypes: {
+      ...morphUniforms,
+      u_pointer: 'vec2',
+      u_pointerVelocity: 'vec2',
+      u_radius2: 'float',
+      u_push: 'float',
+      u_drag: 'float',
+      u_massGain: 'float',
+      u_stiffness: 'float',
+      u_damping: 'float',
+      u_dt: 'float'
+    },
+    texture: {t_table: table, t_state: state[0].renderTexture[0]},
+    primitive: 'POINTS',
+    vert: /* glsl */ `
+      flat out vec4 v_state;
+      ${shared}
+
       // 粒子の座標は写真の縦横それぞれで正規化されているので、そのまま距離を測ると
       // 縦1目盛りが横1目盛りより短くなり、力の効く範囲が横長の楕円になる。
       // 半幅を単位とする等方な空間で計算し、変位だけ元の空間へ戻す
       const vec2 TO_EVEN = vec2(1.0, 1.0 / ${imageAspect.toFixed(6)});
       const vec2 TO_NDC = vec2(1.0, ${imageAspect.toFixed(6)});
 
-      // ポインタ起点の変位。速度に比例し、距離で減衰する。
-      // まだ状態を持たないので、ポインタが止まれば即座に元の位置へ戻る
-      vec2 disturbance(vec2 pos, float lum) {
+      // ポインタ起点の「目標のズレ」。速度に比例し、距離で減衰する
+      vec2 targetOffset(vec2 pos, float lum) {
         vec2 flow = u_pointerVelocity * TO_EVEN;
         float speed = length(flow);
         if (speed < 1e-4) return vec2(0.0);
@@ -101,65 +189,84 @@ async function createScene(canvas: OffscreenCanvas, pixelRatio: number, photos: 
         int k = int(a_rank);
         int col = k % ${grid.width};
         int row = k / ${grid.width};
-        ivec2 addrFrom = addressOf(u_from, col, row);
-        ivec2 addrTo   = addressOf(u_to,   col, row);
 
-        // 1回のフェッチで座標と輝度の両方が取れる
-        vec4 texFrom = texelFetch(t_table, addrFrom, 0);
-        vec4 texTo   = texelFetch(t_table, addrTo,   0);
-        vec2 pFrom = decodePosition(texFrom);
-        vec2 pTo   = decodePosition(texTo);
+        vec2 pos;
+        float lum;
+        baseOf(k, pos, lum);
 
-        // 両端の平均を取った「暗さ」。暗いほど 1 に近い。
-        // 平均にすることで逆再生でも同じ順序を辿る
-        float darkness = 1.0 - (texFrom.a + texTo.a) * 0.5;
+        vec4 prev = texelFetch(t_state, ivec2(col, row), 0);
+        vec2 offset = prev.xy;
+        vec2 velocity = prev.zw;
 
-        // 暗い粒子ほど遅れて出発する。光が先に抜け、闇が後から追う
-        float delay = pow(darkness, u_toneCurve) * u_staggerTotal;
-        // 分母が 0 にならないよう、1粒子あたりの移動時間には下限を置く
-        float span = max(1.0 - u_staggerTotal, 0.05);
-        float local = easeInOut(clamp((u_phase - delay) / span, 0.0, 1.0), u_easePower);
+        // 目標のズレへバネで引かれる。力が消えれば目標は 0 になり、必ず写真に戻る
+        vec2 acceleration = (targetOffset(pos + offset, lum) - offset) * u_stiffness - velocity * u_damping;
+        velocity += acceleration * u_dt;
+        offset += velocity * u_dt;
 
-        float lum = mix(texFrom.a, texTo.a, local);
-        v_color = vec3(lum);
-
-        vec2 pos = mix(pFrom, pTo, local);
-        gl_Position = vec4((pos + disturbance(pos, lum)) * u_fit, 0.0, 1.0);
-        gl_PointSize = u_pointSize;
+        v_state = vec4(offset, velocity);
+        // 自分のテクセルの中心へ打つ
+        gl_Position = vec4(
+          (float(col) + 0.5) / ${grid.width}.0 * 2.0 - 1.0,
+          (float(row) + 0.5) / ${grid.height}.0 * 2.0 - 1.0,
+          0.0,
+          1.0
+        );
+        gl_PointSize = 1.0;
       }`,
     frag: /* glsl */ `
-      in vec3 v_color;
+      flat in vec4 v_state;
       out vec4 o_color;
       void main() {
-        o_color = vec4(v_color, 1.0);
+        o_color = v_state;
       }`
   })
 
-  const renderer = new Renderer(core, {backgroundColor: parseColor(ground)})
+  const renderer = new Renderer(core, {id: 'canvas', backgroundColor: parseColor(ground)})
 
-  let frame: Frame = {from: 0, to: 0, phase: 0}
   // 粒子は u_fit を掛ける前の空間にいるので、ポインタも同じ空間へ戻してから渡す
   let fit = [1, 1]
 
+  /** 基準位置の計算に要る uniform は描画と更新の両方が持つ */
+  const setMorph = (values: Record<string, number>) => {
+    program.setUniform(values)
+    update.setUniform(values)
+  }
+
   const applyTuning = (tuning: Tuning) =>
-    program.setUniform({
+    setMorph({
       u_staggerTotal: tuning.staggerTotal,
       u_toneCurve: tuning.toneCurve,
       u_easePower: tuning.easePower
     })
 
-  const applyInteraction = (interaction: Interaction) =>
-    program.setUniform({
+  const applyInteraction = (interaction: Interaction) => {
+    // バネは剛性と減衰ではなく「戻る速さ」と「減衰比」で指定する。
+    // 減衰比 1 で行き過ぎなし、下げるほどしなって戻る
+    const omega = (2 * Math.PI) / Math.max(interaction.returnSeconds, 0.1)
+    update.setUniform({
       u_radius2: interaction.radius * interaction.radius,
       u_push: interaction.push,
       u_drag: interaction.drag,
-      u_massGain: interaction.massGain
+      u_massGain: interaction.massGain,
+      u_stiffness: omega * omega,
+      u_damping: 2 * interaction.damping * omega
     })
+  }
 
   const draw = () => {
-    program.setUniform({u_from: frame.from, u_to: frame.to, u_phase: frame.phase})
+    core.setTexture('t_state', state[readIndex].renderTexture[0])
     renderer.clear()
     renderer.render(vao, program)
+  }
+
+  /** 干渉の状態を dt 秒ぶん進める。読んだ側とは別のテクスチャへ書き、role を入れ替える */
+  const step = (dt: number) => {
+    if (!canSimulate) return
+    // 明示的な積分なので、タブ復帰などの大きい dt を入れると発散する
+    update.setUniform({u_dt: Math.min(dt, 0.02)})
+    core.setTexture('t_state', state[readIndex].renderTexture[0])
+    state[1 - readIndex].render(vao, update)
+    readIndex = 1 - readIndex
   }
 
   const resize = ({width, height}: {width: number; height: number}) => {
@@ -180,13 +287,14 @@ async function createScene(canvas: OffscreenCanvas, pixelRatio: number, photos: 
   return {
     resize,
     draw,
+    step,
     tune: applyTuning,
     interact: applyInteraction,
     setPointer({x, y, vx, vy}: PointerCommand) {
-      program.setUniform({u_pointer: [x / fit[0], y / fit[1]], u_pointerVelocity: [vx / fit[0], vy / fit[1]]})
+      update.setUniform({u_pointer: [x / fit[0], y / fit[1]], u_pointerVelocity: [vx / fit[0], vy / fit[1]]})
     },
-    setFrame(next: Frame) {
-      frame = next
+    setFrame({from, to, phase}: Frame) {
+      setMorph({u_from: from, u_to: to, u_phase: phase})
     }
   }
 }
@@ -203,6 +311,8 @@ export type Command = {
   ground?: string
   resize?: {width: number; height: number}
   render?: Frame
+  /** 干渉を進める秒数。入っているフレームだけ状態を更新する */
+  step?: number
   tuning?: Tuning
   interaction?: Interaction
   pointer?: PointerCommand
@@ -222,6 +332,7 @@ const apply = (command: Command) => {
   if (command.resize) scene.resize(command.resize)
   if (command.pointer) scene.setPointer(command.pointer)
   if (command.render) scene.setFrame(command.render)
+  if (command.step) scene.step(command.step)
   scene.draw()
 }
 
