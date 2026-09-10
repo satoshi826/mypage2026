@@ -17,7 +17,16 @@ import {ControlPanel} from './ControlPanel'
 import {DevPanel} from './DevPanel'
 import {LAYOUT_PARAMS, LAYOUT_PRESETS, chooseDirection, type Layout} from './layout'
 import {SOURCE_H, SOURCE_W} from './table'
-import {DEFAULT_TUNING, TUNING_PARAMS, type Tuning} from './tuning'
+import {
+  DEFAULT_INTERACTION,
+  DEFAULT_TUNING,
+  INTERACTION_PARAMS,
+  TUNING_PARAMS,
+  type Interaction,
+  type Tuning
+} from './tuning'
+import {usePointer} from './pointer'
+import type {Command} from './worker'
 import Worker from './worker?worker'
 
 const timingOf = ({cycleSeconds, dwellRatio}: Tuning): Timing => ({cycleSeconds, dwellRatio})
@@ -27,9 +36,12 @@ export function Hero() {
   const progressRef = useRef<HTMLDivElement>(null)
   const stateRef = useRef<SequenceState>(initialState(PHOTOS.length))
   const timingRef = useRef<Timing>(timingOf(DEFAULT_TUNING))
+  const interactionRef = useRef<Interaction>(DEFAULT_INTERACTION)
   const lastFrame = useRef<Frame>({from: -1, to: -1, phase: -1})
   const lastTime = useRef(0)
   const visibleRef = useRef(true)
+  const velocity = useRef({x: 0, y: 0})
+  const wasMoving = useRef(false)
 
   const [index, setIndex] = useState(0)
   // 並べ方は画面の形で決める。写真が大きくなるほうを選ぶ
@@ -49,6 +61,7 @@ export function Hero() {
 
   const {canvas, post, ref} = useCanvas(Worker)
   useCanvasResize(post, ref)
+  const takePointer = usePointer(ref)
 
   useEffect(() => {
     // canvas の余白をページ背景に合わせる。worker から CSS は読めないので値を渡す
@@ -75,6 +88,14 @@ export function Hero() {
     [post]
   )
 
+  const applyInteraction = useCallback(
+    (interaction: Interaction) => {
+      interactionRef.current = interaction
+      post({interaction})
+    },
+    [post]
+  )
+
   useAnimationFrame(
     useCallback(() => {
       const now = performance.now()
@@ -91,6 +112,8 @@ export function Hero() {
         }
       }
 
+      const command: Command = {}
+
       const {from, to, phase: linear} = frameOf(stateRef.current, timing)
       // 動きを減らす設定では中点で切り替えるだけにして、粒子の移動を見せない
       const phase = reduced ? (linear < 0.5 ? 0 : 1) : linear
@@ -98,10 +121,34 @@ export function Hero() {
       const previous = lastFrame.current
       if (from !== previous.from || to !== previous.to || phase !== previous.phase) {
         lastFrame.current = {from, to, phase}
-        post({render: {from, to, phase}})
+        command.render = {from, to, phase}
         // 丸は遷移の開始で動かす。粒子が飛んでいるあいだに次の番号へ移る
         setIndex(phase > 0 ? to : from)
       }
+
+      // ポインタ速度は瞬間値をそのまま使わず、時定数で均した値にする。
+      // 速くなるときと遅くなるときで時定数を変えることで、力がゆっくり乗り、
+      // 止めたあともしばらく尾を引く。exp を使うのはフレームレートに依存させないため
+      const p = takePointer()
+      const step = Math.max(delta, 1 / 240)
+      const {attack, release, stopBelow} = interactionRef.current
+      const targetX = p.active ? p.dx / step : 0
+      const targetY = p.active ? p.dy / step : 0
+      const current = velocity.current
+      const rising = Math.hypot(targetX, targetY) > Math.hypot(current.x, current.y)
+      const rate = 1 - Math.exp(-delta / Math.max(rising ? attack : release, 0.01))
+      current.x += (targetX - current.x) * rate
+      current.y += (targetY - current.y) * rate
+
+      // 止まったフレームも1回だけ送る。送らないと最後の変位が残ったままになる
+      const speed = Math.abs(current.x) + Math.abs(current.y)
+      const moving = stopBelow <= 0 || speed > stopBelow
+      if (moving || wasMoving.current) {
+        command.pointer = {x: p.x, y: p.y, vx: current.x, vy: current.y}
+      }
+      wasMoving.current = moving
+
+      if (command.render || command.pointer) post(command)
       // 進み具合も帯の境目も、バーの一番外側に CSS 変数として書く。
       // 中の3枚（遷移帯・静止帯・通過ぶん）はそれを継承して描き分ける
       const bar = progressRef.current
@@ -109,7 +156,7 @@ export function Hero() {
         bar.style.setProperty('--progress', String(cycleProgress(stateRef.current, timing)))
         bar.style.setProperty('--morph', `${morphRatio(timing) * 100}%`)
       }
-    }, [autoplay, post, reduced])
+    }, [autoplay, post, reduced, takePointer])
   )
 
   // 写真の枠は JS で寸法を決める。canvas を写真ぴったりにすると、
@@ -152,6 +199,15 @@ export function Hero() {
             defaults={DEFAULT_TUNING}
             storageKey="mypage2026.tuning"
             onChange={applyTuning}
+          />
+          <DevPanel
+            title="マウス・指の干渉"
+            typeName="Interaction"
+            constName="DEFAULT_INTERACTION"
+            params={INTERACTION_PARAMS}
+            defaults={DEFAULT_INTERACTION}
+            storageKey="mypage2026.interaction"
+            onChange={applyInteraction}
           />
           {/* 並べ方が変わったら key で作り直し、その並べ方用の値を読み込ませる */}
           <DevPanel

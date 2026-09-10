@@ -1,7 +1,7 @@
 import {Core, Vao, Program, Renderer} from 'glaku'
 import {buildTable, chooseGrid, layoutFor, loadPixels, packAtlas} from './table'
 import type {Frame} from './sequence'
-import {DEFAULT_TUNING, type Tuning} from './tuning'
+import {DEFAULT_INTERACTION, DEFAULT_TUNING, type Interaction, type Tuning} from './tuning'
 export default {}
 
 /** `#rrggbb` を WebGL のクリア色に変換する。ページ背景と canvas の余白を揃えるため */
@@ -36,7 +36,13 @@ async function createScene(canvas: OffscreenCanvas, pixelRatio: number, photos: 
       u_pointSize: 'float',
       u_staggerTotal: 'float',
       u_toneCurve: 'float',
-      u_easePower: 'float'
+      u_easePower: 'float',
+      u_pointer: 'vec2',
+      u_pointerVelocity: 'vec2',
+      u_radius2: 'float',
+      u_push: 'float',
+      u_drag: 'float',
+      u_massGain: 'float'
     },
     texture: {
       t_table: core.createTexture({array: atlas, width: layout.width, height: layout.height, filter: 'NEAREST'})
@@ -68,6 +74,29 @@ async function createScene(canvas: OffscreenCanvas, pixelRatio: number, photos: 
         return t < 0.5 ? pow(2.0 * t, p) * 0.5 : 1.0 - pow(2.0 * (1.0 - t), p) * 0.5;
       }
 
+      // 粒子の座標は写真の縦横それぞれで正規化されているので、そのまま距離を測ると
+      // 縦1目盛りが横1目盛りより短くなり、力の効く範囲が横長の楕円になる。
+      // 半幅を単位とする等方な空間で計算し、変位だけ元の空間へ戻す
+      const vec2 TO_EVEN = vec2(1.0, 1.0 / ${imageAspect.toFixed(6)});
+      const vec2 TO_NDC = vec2(1.0, ${imageAspect.toFixed(6)});
+
+      // ポインタ起点の変位。速度に比例し、距離で減衰する。
+      // まだ状態を持たないので、ポインタが止まれば即座に元の位置へ戻る
+      vec2 disturbance(vec2 pos, float lum) {
+        vec2 flow = u_pointerVelocity * TO_EVEN;
+        float speed = length(flow);
+        if (speed < 1e-4) return vec2(0.0);
+
+        vec2 d = (pos - u_pointer) * TO_EVEN;
+        float dist2 = dot(d, d);
+        float falloff = exp(-dist2 / u_radius2);
+        vec2 dir = dist2 > 1e-8 ? d * inversesqrt(dist2) : vec2(0.0);
+
+        // 重い粒子は同じ力でも動きにくい
+        float mass = clamp(1.0 + u_massGain * (2.0 * lum - 1.0), 0.2, 5.0);
+        return falloff * (u_push * dir * speed + u_drag * flow) * TO_NDC / mass;
+      }
+
       void main() {
         int k = int(a_rank);
         int col = k % ${grid.width};
@@ -91,9 +120,11 @@ async function createScene(canvas: OffscreenCanvas, pixelRatio: number, photos: 
         float span = max(1.0 - u_staggerTotal, 0.05);
         float local = easeInOut(clamp((u_phase - delay) / span, 0.0, 1.0), u_easePower);
 
-        v_color = vec3(mix(texFrom.a, texTo.a, local));
+        float lum = mix(texFrom.a, texTo.a, local);
+        v_color = vec3(lum);
 
-        gl_Position = vec4(mix(pFrom, pTo, local) * u_fit, 0.0, 1.0);
+        vec2 pos = mix(pFrom, pTo, local);
+        gl_Position = vec4((pos + disturbance(pos, lum)) * u_fit, 0.0, 1.0);
         gl_PointSize = u_pointSize;
       }`,
     frag: /* glsl */ `
@@ -107,12 +138,22 @@ async function createScene(canvas: OffscreenCanvas, pixelRatio: number, photos: 
   const renderer = new Renderer(core, {backgroundColor: parseColor(ground)})
 
   let frame: Frame = {from: 0, to: 0, phase: 0}
+  // 粒子は u_fit を掛ける前の空間にいるので、ポインタも同じ空間へ戻してから渡す
+  let fit = [1, 1]
 
   const applyTuning = (tuning: Tuning) =>
     program.setUniform({
       u_staggerTotal: tuning.staggerTotal,
       u_toneCurve: tuning.toneCurve,
       u_easePower: tuning.easePower
+    })
+
+  const applyInteraction = (interaction: Interaction) =>
+    program.setUniform({
+      u_radius2: interaction.radius * interaction.radius,
+      u_push: interaction.push,
+      u_drag: interaction.drag,
+      u_massGain: interaction.massGain
     })
 
   const draw = () => {
@@ -125,32 +166,36 @@ async function createScene(canvas: OffscreenCanvas, pixelRatio: number, photos: 
     renderer.resize({width, height})
     // 画像を歪めずに収める
     const canvasAR = width / height
-    const fit = canvasAR > imageAspect ? [imageAspect / canvasAR, 1] : [1, canvasAR / imageAspect]
+    fit = canvasAR > imageAspect ? [imageAspect / canvasAR, 1] : [1, canvasAR / imageAspect]
     // 点サイズはピクセル単位に丸められるので、切り上げないと格子状の隙間が出る。
     // 重なる分には後から描かれる明るい粒子が上書きするだけで害がない
     const pointSize = Math.max(1, Math.ceil((height * pixelRatio * fit[1]) / grid.height))
     program.setUniform({u_fit: fit, u_pointSize: pointSize})
-    draw()
   }
 
   applyTuning(DEFAULT_TUNING)
+  applyInteraction(DEFAULT_INTERACTION)
   resize({width: core.canvasWidth, height: core.canvasHeight})
 
   return {
     resize,
-    tune(tuning: Tuning) {
-      applyTuning(tuning)
-      draw()
+    draw,
+    tune: applyTuning,
+    interact: applyInteraction,
+    setPointer({x, y, vx, vy}: PointerCommand) {
+      program.setUniform({u_pointer: [x / fit[0], y / fit[1]], u_pointerVelocity: [vx / fit[0], vy / fit[1]]})
     },
-    render(next: Frame) {
+    setFrame(next: Frame) {
       frame = next
-      draw()
     }
   }
 }
 
+/** ポインタの位置と速度。どちらも写真の半幅を 1 とした NDC（速度は 1秒あたり） */
+export type PointerCommand = {x: number; y: number; vx: number; vy: number}
+
 /** メインスレッドからの指示。届いた順に積み上げ、シーンができた時点で適用する */
-type Command = {
+export type Command = {
   canvas?: OffscreenCanvas
   pixelRatio?: number
   photos?: string[]
@@ -159,6 +204,8 @@ type Command = {
   resize?: {width: number; height: number}
   render?: Frame
   tuning?: Tuning
+  interaction?: Interaction
+  pointer?: PointerCommand
 }
 
 type Scene = Awaited<ReturnType<typeof createScene>>
@@ -167,11 +214,15 @@ const pending: Command = {}
 let scene: Scene | null = null
 let booting = false
 
-/** uniform を先に入れてから寸法を決め、最後に描く */
+/** uniform を全部入れてから1回だけ描く */
 const apply = (command: Command) => {
-  if (command.tuning) scene?.tune(command.tuning)
-  if (command.resize) scene?.resize(command.resize)
-  if (command.render) scene?.render(command.render)
+  if (!scene) return
+  if (command.tuning) scene.tune(command.tuning)
+  if (command.interaction) scene.interact(command.interaction)
+  if (command.resize) scene.resize(command.resize)
+  if (command.pointer) scene.setPointer(command.pointer)
+  if (command.render) scene.setFrame(command.render)
+  scene.draw()
 }
 
 onmessage = ({data}: {data: Command}) => {
