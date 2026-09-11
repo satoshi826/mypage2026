@@ -165,16 +165,16 @@ export function toneOf(table: Uint8Array): Uint8Array {
 /** 横方向の帯の数。棒の本数より細かく持ち、表示側で丸める */
 export const PROFILE_BANDS = 64
 
-/** 画像を横方向に切った帯ごとの平均輝度 */
+/** 画像を横方向に切った帯ごとの最大輝度 */
 export function profileOf(src: Uint8ClampedArray, {width, height}: Grid): Uint8Array {
-  const sums = new Float64Array(PROFILE_BANDS)
+  const peaks = new Uint8Array(PROFILE_BANDS)
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       const o = (y * width + x) * 4
-      sums[Math.min(PROFILE_BANDS - 1, Math.floor((x * PROFILE_BANDS) / width))] +=
-        0.299 * src[o] + 0.587 * src[o + 1] + 0.114 * src[o + 2]
+      const lum = 0.299 * src[o] + 0.587 * src[o + 1] + 0.114 * src[o + 2]
+      const band = Math.min(PROFILE_BANDS - 1, Math.floor((x * PROFILE_BANDS) / width))
+      if (lum > peaks[band]) peaks[band] = lum
     }
   }
-  const perBand = (width / PROFILE_BANDS) * height
-  return Uint8Array.from(sums, (sum) => Math.round(sum / perBand))
+  return peaks
 }

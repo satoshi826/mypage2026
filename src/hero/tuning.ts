@@ -13,10 +13,10 @@ export type Tuning = {
 }
 
 export const DEFAULT_TUNING: Tuning = {
-  cycleSeconds: 7,
-  dwellRatio: 0.3,
-  staggerTotal: 0.7,
-  toneCurve: 1,
+  cycleSeconds: 9,
+  dwellRatio: 0.5,
+  staggerTotal: 0.75,
+  toneCurve: 1.2,
   easePower: 5
 }
 
@@ -96,16 +96,16 @@ export type Interaction = {
 
 export const DEFAULT_INTERACTION: Interaction = {
   radius: 0.25,
-  push: 0.125,
-  drag: 0,
+  push: 0.2,
+  drag: 0.01,
   massGain: 1.5,
-  massCurve: 1.8,
-  spread: 0.1,
-  scatter: 0.15,
-  attack: 1,
-  release: 0.1,
-  returnSeconds: 0.55,
-  damping: 0.25,
+  massCurve: 1.5,
+  spread: 0,
+  scatter: 0.1,
+  attack: 2,
+  release: 0.15,
+  returnSeconds: 0.6,
+  damping: 0.2,
   stopBelow: 0
 }
 

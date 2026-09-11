@@ -36,7 +36,7 @@ export type Layout = {
   eqBars: number
   /** 棒の高さのカーブ。1 で素のまま、上げるほど低い棒が持ち上がる */
   eqCurve: number
-  /** 棒が表す値。0 = 輝度の分布、1 = 横方向の平均輝度 */
+  /** 棒が表す値。0 = 輝度の分布、1 = 横方向の最大輝度 */
   eqSource: number
   /** パネルの左右の余白 px。狭い画面ではここを削ると列数を稼げる */
   padding: number
@@ -66,15 +66,15 @@ export const STACKED_LAYOUT: Layout = {
 
 /** 写真の横にパネルを置く。横長の画面ではこちらが有利 */
 export const SIDE_LAYOUT: Layout = {
-  cell: 40,
-  gapX: 8,
-  gapY: 8,
+  cell: 32,
+  gapX: 16,
+  gapY: 5,
   columns: 7,
   markerBorder: 1,
-  markerDuration: 500,
+  markerDuration: 800,
   progressHeight: 1,
-  morphOpacity: 15,
-  dwellOpacity: 8,
+  morphOpacity: 30,
+  dwellOpacity: 20,
   idleOpacity: 35,
   eqHeight: 108,
   eqBars: 48,
@@ -143,7 +143,7 @@ export const LAYOUT_PARAMS: SliderParam<Layout>[] = [
     step: 0.05,
     hint: '1 で素のまま。上げるほど低い棒が持ち上がる'
   },
-  {key: 'eqSource', label: '棒が表す値', min: 0, max: 1, step: 1, hint: '0 = 輝度の分布、1 = 横方向の平均輝度'},
+  {key: 'eqSource', label: '棒が表す値', min: 0, max: 1, step: 1, hint: '0 = 輝度の分布、1 = 横方向の最大輝度'},
   {key: 'padding', label: '左右の余白', min: 8, max: 64, step: 4, hint: 'px'}
 ]
 
