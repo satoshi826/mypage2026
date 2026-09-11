@@ -1,8 +1,40 @@
 import {Core, Vao, Program, Renderer} from 'glaku'
-import {buildTable, chooseGrid, layoutFor, loadPixels, packAtlas} from './table'
+import {blockOrigin, buildTable, chooseGrid, layoutFor, loadPixels, type AtlasLayout, type Grid} from './table'
 import type {Frame} from './sequence'
 import {DEFAULT_INTERACTION, DEFAULT_TUNING, type Interaction, type Tuning} from './tuning'
 export default {}
+
+/**
+ * 同時にデコードする枚数。31枚での実測では 6 で頭打ちになり、8 で全並列と同じ
+ * 速さ（約530ms）。増やしてもヒープはほとんど増えないが、1枚ぶんの画素は
+ * 並列数だけ同時に生きるので、際限なく上げる理由もない
+ */
+const DECODE_LANES = 8
+
+/**
+ * 写真を1枚ずつ読み込み、アトラスの自分の区画へ直接上げる。
+ *
+ * 全枚数ぶんを JS 側に溜めてから1枚の巨大な配列に詰め直すと、画素・テーブル・
+ * アトラスが同時に生きる（31枚で 225MB）。区画ごとに上げれば、同時に生きるのは
+ * 並列数ぶんだけになる。
+ */
+async function fillAtlas(core: Core, texture: WebGLTexture, photos: string[], grid: Grid, layout: AtlasLayout) {
+  const {gl} = core
+  const upload = async (layer: number) => {
+    const table = buildTable(await loadPixels(photos[layer], grid), grid)
+    const {x, y} = blockOrigin(layer, layout, grid)
+    gl.bindTexture(gl.TEXTURE_2D, texture)
+    gl.texSubImage2D(gl.TEXTURE_2D, 0, x, y, grid.width, grid.height, gl.RGBA, gl.UNSIGNED_BYTE, table)
+    gl.bindTexture(gl.TEXTURE_2D, null)
+  }
+
+  let next = 0
+  await Promise.all(
+    Array.from({length: Math.min(DECODE_LANES, photos.length)}, async () => {
+      for (let layer = next++; layer < photos.length; layer = next++) await upload(layer)
+    })
+  )
+}
 
 /** `#rrggbb` を WebGL のクリア色に変換する。ページ背景と canvas の余白を揃えるため */
 function parseColor(hex: string): [number, number, number, number] {
@@ -18,9 +50,7 @@ async function createScene(canvas: OffscreenCanvas, pixelRatio: number, photos: 
   const grid = chooseGrid({textureLimit, count: photos.length})
   const imageAspect = grid.width / grid.height
 
-  const tables = (await Promise.all(photos.map((url) => loadPixels(url, grid)))).map((px) => buildTable(px, grid))
-  const layout = layoutFor(textureLimit, tables.length, grid)
-  const atlas = packAtlas(tables, layout, grid)
+  const layout = layoutFor(textureLimit, photos.length, grid)
 
   // 頂点ごとのランク。glaku の型は number[] だが内部で Float32Array に詰め直すだけ
   const rankIndices = Float32Array.from({length: grid.count}, (_, i) => i)
@@ -108,7 +138,15 @@ async function createScene(canvas: OffscreenCanvas, pixelRatio: number, photos: 
     u_easePower: 'float'
   } as const
 
-  const table = core.createTexture({array: atlas, width: layout.width, height: layout.height, filter: 'NEAREST'})
+  // 中身は空で確保し、写真ごとに区画へ上げる
+  const table = core.createTexture({
+    width: layout.width,
+    height: layout.height,
+    format: 'RGBA',
+    internalFormat: 'RGBA8',
+    type: 'UNSIGNED_BYTE',
+    filter: 'NEAREST'
+  })
 
   const program = new Program(core, {
     id: 'draw',
@@ -260,6 +298,8 @@ async function createScene(canvas: OffscreenCanvas, pixelRatio: number, photos: 
         o_color = v_state;
       }`
   })
+
+  await fillAtlas(core, table, photos, grid, layout)
 
   const renderer = new Renderer(core, {id: 'canvas', backgroundColor: parseColor(ground)})
 

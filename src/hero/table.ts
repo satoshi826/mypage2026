@@ -100,7 +100,7 @@ export async function loadPixels(url: string, {width, height}: Grid) {
 }
 
 /** アトラス上のブロック配置。レイヤ L は (L % cols, L / cols) 番目のブロックに入る */
-type AtlasLayout = {cols: number; width: number; height: number}
+export type AtlasLayout = {cols: number; width: number; height: number}
 
 /** 縦横比の偏り。1 で正方形 */
 const skewOf = ({width, height}: AtlasLayout) => Math.max(width / height, height / width)
@@ -137,15 +137,8 @@ export function layoutFor(limit: number, count: number, grid: Grid): AtlasLayout
   return best
 }
 
-export function packAtlas(tables: Uint8Array[], {cols, width, height}: AtlasLayout, grid: Grid) {
-  const atlas = new Uint8Array(width * height * 4)
-  const rowBytes = grid.width * 4
-  tables.forEach((table, layer) => {
-    const originX = (layer % cols) * grid.width
-    const originY = Math.floor(layer / cols) * grid.height
-    for (let row = 0; row < grid.height; row++) {
-      atlas.set(table.subarray(row * rowBytes, (row + 1) * rowBytes), ((originY + row) * width + originX) * 4)
-    }
-  })
-  return atlas
-}
+/** レイヤ L のブロックがアトラス上で始まる位置。シェーダの addressOf と対になる */
+export const blockOrigin = (layer: number, {cols}: AtlasLayout, grid: Grid) => ({
+  x: (layer % cols) * grid.width,
+  y: Math.floor(layer / cols) * grid.height
+})
