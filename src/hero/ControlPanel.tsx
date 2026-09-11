@@ -32,6 +32,35 @@ export const ControlPanel = forwardRef<
   const listRef = useRef<HTMLOListElement>(null)
   const markerRef = useRef<HTMLDivElement>(null)
 
+  // 最終行に残る空きマスの数
+  const spare = (layout.columns - (PHOTOS.length % layout.columns)) % layout.columns
+
+  const shuffleButton = (
+    <button
+      type="button"
+      onClick={onShuffle}
+      aria-label="Shuffle"
+      aria-pressed={shuffle}
+      className={`flex cursor-pointer items-center justify-center transition-opacity duration-300 hover:opacity-70 size-(--cell) ${
+        shuffle ? '' : '[opacity:var(--idle-opacity)]'
+      }`}
+    >
+      <svg
+        viewBox="0 0 24 24"
+        aria-hidden
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="size-4"
+      >
+        <path d="M3 6h4l10 12h4M3 18h4l10-12h4" />
+        <path d="M18 3l3 3-3 3M18 15l3 3-3 3" />
+      </svg>
+    </button>
+  )
+
   // 丸を選択中のマスへ移動させる。座標は実測なので、列数や大きさが変わっても追従する
   useLayoutEffect(() => {
     const move = () => {
@@ -51,14 +80,9 @@ export const ControlPanel = forwardRef<
       className={`flex shrink-0 flex-col items-center gap-4 ${direction === 'side' ? '' : 'pt-1'}`}
       style={layoutVars(layout)}
     >
-      {/* 曲目リストの上に置く再生操作。番号をクリックするのが「曲を選ぶ」にあたる */}
+      {/* 曲目リストの上に置く再生操作。番号をクリックするのが「曲を選ぶ」にあたる。
+          シャッフルは移動ではなくモードなので、この行には混ぜずカレンダーの空きマスへ置く */}
       <div className="flex items-center gap-6">
-        <Transport label="Shuffle" onClick={onShuffle} pressed={shuffle}>
-          <g fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M3 6h4l10 12h4M3 18h4l10-12h4" />
-            <path d="M18 3l3 3-3 3M18 15l3 3-3 3" />
-          </g>
-        </Transport>
         <Transport label="Previous" onClick={onPrev}>
           <path d="M7 5h2v14H7zM19 5 10 12l9 7z" />
         </Transport>
@@ -90,6 +114,8 @@ export const ControlPanel = forwardRef<
             aria-hidden
             className="pointer-events-none absolute rounded-full border-ink transition-transform ease-out [border-width:var(--marker-border)] [transition-duration:var(--marker-duration)] size-(--cell)"
           />
+          {/* 最終行の空きマスに置く。マスの大きさがそのまま押せる範囲になる */}
+          {spare > 0 && <div className="absolute right-0 bottom-0">{shuffleButton}</div>}
           <ol
             ref={listRef}
             className="m-0 grid p-0 [column-gap:var(--gap-x)] [row-gap:var(--gap-y)] [grid-template-columns:repeat(var(--cols),var(--cell))]"
@@ -110,26 +136,23 @@ export const ControlPanel = forwardRef<
               </li>
             ))}
           </ol>
+          {/* 枚数が列数で割り切れると空きマスが出ないので、その場合だけ下に1行足す */}
+          {spare === 0 && <div className="flex justify-end [margin-top:var(--gap-y)]">{shuffleButton}</div>}
         </div>
       </div>
     </div>
   )
 })
 
-/**
- * 再生操作の1ボタン。`pressed` を渡したときだけ入り切りのある操作として扱い、
- * 切のときは非選択のマスと同じ濃さまで落とす。
- */
+/** 再生操作の1ボタン。アイコンは小さいままで、押せる範囲だけ指に合わせて広げる */
 function Transport({
   label,
   onClick,
-  pressed,
   size = 'size-4',
   children
 }: {
   label: string
   onClick: () => void
-  pressed?: boolean
   size?: string
   children: ReactNode
 }) {
@@ -138,10 +161,7 @@ function Transport({
       type="button"
       onClick={onClick}
       aria-label={label}
-      aria-pressed={pressed}
-      className={`cursor-pointer transition-opacity duration-300 hover:opacity-60 ${
-        pressed === false ? '[opacity:var(--idle-opacity)]' : ''
-      }`}
+      className="flex size-11 cursor-pointer items-center justify-center transition-opacity duration-300 hover:opacity-60"
     >
       <svg viewBox="0 0 24 24" aria-hidden className={`${size} fill-current`}>
         {children}
