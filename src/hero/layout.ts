@@ -34,8 +34,8 @@ export type Layout = {
   eqHeight: number
   /** 棒の本数 */
   eqBars: number
-  /** 棒の高さの倍率。暗部に偏った写真だと素のままでは低く出る */
-  eqGain: number
+  /** 棒の高さのカーブ。1 で素のまま、上げるほど低い棒が持ち上がる */
+  eqCurve: number
   /** 棒が表す値。0 = 輝度の分布、1 = 横方向の平均輝度 */
   eqSource: number
   /** パネルの左右の余白 px。狭い画面ではここを削ると列数を稼げる */
@@ -59,7 +59,7 @@ export const STACKED_LAYOUT: Layout = {
   idleOpacity: 35,
   eqHeight: 108,
   eqBars: 48,
-  eqGain: 1,
+  eqCurve: 1,
   eqSource: 0,
   padding: 16
 }
@@ -78,7 +78,7 @@ export const SIDE_LAYOUT: Layout = {
   idleOpacity: 35,
   eqHeight: 108,
   eqBars: 48,
-  eqGain: 1,
+  eqCurve: 1,
   eqSource: 0,
   padding: 32
 }
@@ -135,7 +135,14 @@ export const LAYOUT_PARAMS: SliderParam<Layout>[] = [
   {key: 'idleOpacity', label: '非選択の濃さ', min: 0, max: 100, step: 5, hint: '%'},
   {key: 'eqHeight', label: '棒グラフの高さ', min: 0, max: 240, step: 4, hint: 'px。0 で出さない'},
   {key: 'eqBars', label: '棒の本数', min: 8, max: 96, step: 1, hint: '本'},
-  {key: 'eqGain', label: '棒の倍率', min: 0.2, max: 4, step: 0.05, hint: '高さの倍率'},
+  {
+    key: 'eqCurve',
+    label: '棒のカーブ',
+    min: 0.3,
+    max: 3,
+    step: 0.05,
+    hint: '1 で素のまま。上げるほど低い棒が持ち上がる'
+  },
   {key: 'eqSource', label: '棒が表す値', min: 0, max: 1, step: 1, hint: '0 = 輝度の分布、1 = 横方向の平均輝度'},
   {key: 'padding', label: '左右の余白', min: 8, max: 64, step: 4, hint: 'px'}
 ]

@@ -17,30 +17,36 @@ export type EqualizerSource = 'tone' | 'profile'
 export function barHeights(
   analysis: Analysis,
   {from, to, phase}: Frame,
-  {source, bars, gain}: {source: EqualizerSource; bars: number; gain: number},
+  {source, bars, curve}: {source: EqualizerSource; bars: number; curve: number},
   out: Float32Array
 ) {
   out.fill(0)
   if (source === 'profile') {
     const a = analysis.profiles[from]
     const b = analysis.profiles[to]
-    if (!a || !b) return out
-    for (let i = 0; i < bars; i++) {
-      const band = Math.min(PROFILE_BANDS - 1, Math.floor((i * PROFILE_BANDS) / bars))
-      out[i] = Math.min(1, ((a[band] + (b[band] - a[band]) * phase) / 255) * gain)
+    if (a && b) {
+      for (let i = 0; i < bars; i++) {
+        const band = Math.min(PROFILE_BANDS - 1, Math.floor((i * PROFILE_BANDS) / bars))
+        out[i] = a[band] + (b[band] - a[band]) * phase
+      }
     }
-    return out
+  } else {
+    const a = analysis.tones[from]
+    const b = analysis.tones[to]
+    if (a && b) {
+      for (let i = 0; i < TONE_STEPS; i++) {
+        const value = a[i] + (b[i] - a[i]) * phase
+        out[Math.min(bars - 1, Math.floor((value * bars) / 256))]++
+      }
+    }
   }
 
-  const a = analysis.tones[from]
-  const b = analysis.tones[to]
-  if (!a || !b) return out
-  for (let i = 0; i < TONE_STEPS; i++) {
-    const value = a[i] + (b[i] - a[i]) * phase
-    out[Math.min(bars - 1, Math.floor((value * bars) / 256))]++
-  }
-  // 一様分布のとき 1 になるよう割る。暗部に偏った写真では暗い側が振り切れる
-  const flat = TONE_STEPS / bars
-  for (let i = 0; i < bars; i++) out[i] = Math.min(1, (out[i] / flat) * gain)
+  // 一番高い棒を 1 にする。絶対値ではなく形を見せたいので、毎フレーム測り直す
+  let max = 0
+  for (let i = 0; i < bars; i++) if (out[i] > max) max = out[i]
+  if (max <= 0) return out
+
+  const power = 1 / Math.max(curve, 0.05)
+  for (let i = 0; i < bars; i++) out[i] = Math.pow(out[i] / max, power)
   return out
 }
