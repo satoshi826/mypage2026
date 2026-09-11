@@ -1,5 +1,15 @@
 import {Core, Vao, Program, Renderer} from 'glaku'
-import {blockOrigin, buildTable, chooseGrid, layoutFor, loadPixels, type AtlasLayout, type Grid} from './table'
+import {
+  blockOrigin,
+  buildTable,
+  chooseGrid,
+  layoutFor,
+  loadPixels,
+  profileOf,
+  toneOf,
+  type AtlasLayout,
+  type Grid
+} from './table'
 import type {Frame} from './sequence'
 import {DEFAULT_INTERACTION, DEFAULT_TUNING, type Interaction, type Tuning} from './tuning'
 export default {}
@@ -20,8 +30,15 @@ const DECODE_LANES = 8
  */
 async function fillAtlas(core: Core, texture: WebGLTexture, photos: string[], grid: Grid, layout: AtlasLayout) {
   const {gl} = core
+  // 棒グラフ用の要約。画素を触れるのはここだけなので、上げるついでに取る
+  const tones: Uint8Array[] = []
+  const profiles: Uint8Array[] = []
+
   const upload = async (layer: number) => {
-    const table = buildTable(await loadPixels(photos[layer], grid), grid)
+    const pixels = await loadPixels(photos[layer], grid)
+    const table = buildTable(pixels, grid)
+    tones[layer] = toneOf(table)
+    profiles[layer] = profileOf(pixels, grid)
     const {x, y} = blockOrigin(layer, layout, grid)
     gl.bindTexture(gl.TEXTURE_2D, texture)
     gl.texSubImage2D(gl.TEXTURE_2D, 0, x, y, grid.width, grid.height, gl.RGBA, gl.UNSIGNED_BYTE, table)
@@ -34,7 +51,12 @@ async function fillAtlas(core: Core, texture: WebGLTexture, photos: string[], gr
       for (let layer = next++; layer < photos.length; layer = next++) await upload(layer)
     })
   )
+
+  return {tones, profiles}
 }
+
+/** worker からメインスレッドへ返すもの。写真の要約は画素を持っている側でしか作れない */
+export type Analysis = {tones: Uint8Array[]; profiles: Uint8Array[]}
 
 /** `#rrggbb` を WebGL のクリア色に変換する。ページ背景と canvas の余白を揃えるため */
 function parseColor(hex: string): [number, number, number, number] {
@@ -299,7 +321,7 @@ async function createScene(canvas: OffscreenCanvas, pixelRatio: number, photos: 
       }`
   })
 
-  await fillAtlas(core, table, photos, grid, layout)
+  postMessage((await fillAtlas(core, table, photos, grid, layout)) satisfies Analysis)
 
   const renderer = new Renderer(core, {id: 'canvas', backgroundColor: parseColor(ground)})
 

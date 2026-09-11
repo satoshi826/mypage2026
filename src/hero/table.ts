@@ -142,3 +142,39 @@ export const blockOrigin = (layer: number, {cols}: AtlasLayout, grid: Grid) => (
   x: (layer % cols) * grid.width,
   y: Math.floor(layer / cols) * grid.height
 })
+
+/** 輝度の分位点の数。棒の本数より細かく持ち、表示側で丸める */
+export const TONE_STEPS = 256
+
+/**
+ * 輝度の分位点。i 番目は「下から i/(TONE_STEPS-1) の位置にある粒子の輝度」。
+ *
+ * テーブルは輝度順に並んでいるので等間隔に抜くだけで出る。ヒストグラムではなく
+ * 分位点にするのは、遷移中の分布が2枚のヒストグラムの混合ではなく、ランクどうしを
+ * 結んだ補間になるため。分位点なら要素ごとに混ぜるだけで中間の分布が厳密に出る。
+ */
+export function toneOf(table: Uint8Array): Uint8Array {
+  const count = table.length / 4
+  const tone = new Uint8Array(TONE_STEPS)
+  for (let i = 0; i < TONE_STEPS; i++) {
+    tone[i] = table[Math.round((i * (count - 1)) / (TONE_STEPS - 1)) * 4 + 3]
+  }
+  return tone
+}
+
+/** 横方向の帯の数。棒の本数より細かく持ち、表示側で丸める */
+export const PROFILE_BANDS = 64
+
+/** 画像を横方向に切った帯ごとの平均輝度 */
+export function profileOf(src: Uint8ClampedArray, {width, height}: Grid): Uint8Array {
+  const sums = new Float64Array(PROFILE_BANDS)
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const o = (y * width + x) * 4
+      sums[Math.min(PROFILE_BANDS - 1, Math.floor((x * PROFILE_BANDS) / width))] +=
+        0.299 * src[o] + 0.587 * src[o + 1] + 0.114 * src[o + 2]
+    }
+  }
+  const perBand = (width / PROFILE_BANDS) * height
+  return Uint8Array.from(sums, (sum) => Math.round(sum / perBand))
+}

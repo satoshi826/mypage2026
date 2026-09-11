@@ -22,11 +22,26 @@ export const ControlPanel = forwardRef<
     onPrev: () => void
     onNext: () => void
     onSelect: (index: number) => void
+    /** カレンダー下の棒グラフ。Hero が毎フレーム各棒の scaleY を書き込む */
+    equalizerRef: RefObject<HTMLDivElement>
     /** カレンダー上部のプログレス。Hero が --progress と --morph を毎フレーム書き込む */
     progressRef: RefObject<HTMLDivElement>
   }
 >(function ControlPanel(
-  {index, autoplay, shuffle, layout, direction, onToggle, onShuffle, onPrev, onNext, onSelect, progressRef},
+  {
+    index,
+    autoplay,
+    shuffle,
+    layout,
+    direction,
+    onToggle,
+    onShuffle,
+    onPrev,
+    onNext,
+    onSelect,
+    progressRef,
+    equalizerRef
+  },
   ref
 ) {
   const listRef = useRef<HTMLOListElement>(null)
@@ -116,6 +131,19 @@ export const ControlPanel = forwardRef<
             ))}
           </ol>
         </div>
+
+        {/* 横並びのときだけ出す。縦並びでは写真とパネルで画面を使い切っている */}
+        {direction === 'side' && layout.eqHeight > 0 && (
+          <div
+            ref={equalizerRef}
+            aria-hidden
+            className="mt-4 flex w-full items-end gap-px opacity-40 [height:var(--eq-height)]"
+          >
+            {Array.from({length: layout.eqBars}, (_, i) => (
+              <div key={i} className="h-full flex-1 origin-bottom bg-ink" style={{transform: 'scaleY(0)'}} />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )

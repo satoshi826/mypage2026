@@ -29,7 +29,8 @@ import {
   type Tuning
 } from './tuning'
 import {usePointer} from './pointer'
-import type {Command} from './worker'
+import {barHeights} from './equalizer'
+import type {Analysis, Command} from './worker'
 import Worker from './worker?worker'
 
 const timingOf = ({cycleSeconds, dwellRatio}: Tuning): Timing => ({cycleSeconds, dwellRatio})
@@ -37,6 +38,10 @@ const timingOf = ({cycleSeconds, dwellRatio}: Tuning): Timing => ({cycleSeconds,
 export function Hero() {
   const sectionRef = useRef<HTMLElement | null>(null)
   const progressRef = useRef<HTMLDivElement>(null)
+  const equalizerRef = useRef<HTMLDivElement>(null)
+  // 写真の要約は画素を持っている worker 側でしか作れないので、起動時に受け取る
+  const analysis = useRef<Analysis | null>(null)
+  const heights = useRef(new Float32Array(128))
   const stateRef = useRef<SequenceState>(initialState({count: PHOTOS.length, shuffle: true}))
   const timingRef = useRef<Timing>(timingOf(DEFAULT_TUNING))
   const interactionRef = useRef<Interaction>(DEFAULT_INTERACTION)
@@ -65,7 +70,9 @@ export function Hero() {
   // あとはトグルに委ねる（押せば動かせる）
   const [autoplay, setAutoplay] = useState(!reduced)
 
-  const {canvas, post, ref} = useCanvas(Worker)
+  const {canvas, post, ref} = useCanvas<Analysis>(Worker, (reply) => {
+    analysis.current = reply
+  })
   useCanvasResize(post, ref)
   const takePointer = usePointer(ref)
 
@@ -172,12 +179,27 @@ export function Hero() {
       if (command.render || command.pointer || command.catchUp) post(command)
       // 進み具合も帯の境目も、バーの一番外側に CSS 変数として書く。
       // 中の3枚（遷移帯・静止帯・通過ぶん）はそれを継承して描き分ける
+      // 棒グラフ。静止帯では値が動かないが、transform だけの書き込みなので毎フレームで問題ない
+      const equalizer = equalizerRef.current
+      if (equalizer && analysis.current) {
+        const bars = Math.min(layout.eqBars, equalizer.children.length)
+        const values = barHeights(
+          analysis.current,
+          {from, to, phase},
+          {source: layout.eqSource < 0.5 ? 'tone' : 'profile', bars, gain: layout.eqGain},
+          heights.current
+        )
+        for (let i = 0; i < bars; i++) {
+          ;(equalizer.children[i] as HTMLElement).style.transform = `scaleY(${values[i]})`
+        }
+      }
+
       const bar = progressRef.current
       if (bar) {
         bar.style.setProperty('--progress', String(cycleProgress(stateRef.current, timing)))
         bar.style.setProperty('--morph', `${morphRatio(timing) * 100}%`)
       }
-    }, [autoplay, order, post, reduced, takePointer])
+    }, [autoplay, layout.eqBars, layout.eqGain, layout.eqSource, order, post, reduced, takePointer])
   )
 
   // 行き先が変わったフレームは worker 側で位置の飛びを打ち消す。
@@ -219,6 +241,7 @@ export function Hero() {
         onNext={() => go(goNext(stateRef.current, order, timingRef.current))}
         onSelect={(target) => go(jumpTo(stateRef.current, target, timingRef.current))}
         progressRef={progressRef}
+        equalizerRef={equalizerRef}
       />
       {import.meta.env.DEV && (
         <div className="pointer-events-none fixed top-16 left-4 z-10 flex flex-col gap-2">
