@@ -1,4 +1,4 @@
-import {forwardRef, useLayoutEffect, useRef, type RefObject} from 'react'
+import {forwardRef, useLayoutEffect, useRef, type ReactNode, type RefObject} from 'react'
 import {PHOTOS} from './photos'
 import {layoutVars, type Direction, type Layout} from './layout'
 
@@ -14,14 +14,21 @@ export const ControlPanel = forwardRef<
   {
     index: number
     autoplay: boolean
+    shuffle: boolean
     layout: Layout
     direction: Direction
     onToggle: () => void
+    onShuffle: () => void
+    onPrev: () => void
+    onNext: () => void
     onSelect: (index: number) => void
     /** カレンダー上部のプログレス。Hero が --progress と --morph を毎フレーム書き込む */
     progressRef: RefObject<HTMLDivElement>
   }
->(function ControlPanel({index, autoplay, layout, direction, onToggle, onSelect, progressRef}, ref) {
+>(function ControlPanel(
+  {index, autoplay, shuffle, layout, direction, onToggle, onShuffle, onPrev, onNext, onSelect, progressRef},
+  ref
+) {
   const listRef = useRef<HTMLOListElement>(null)
   const markerRef = useRef<HTMLDivElement>(null)
 
@@ -44,14 +51,24 @@ export const ControlPanel = forwardRef<
       className={`flex shrink-0 flex-col items-center gap-4 ${direction === 'side' ? '' : 'pt-1'}`}
       style={layoutVars(layout)}
     >
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-pressed={autoplay}
-        className="cursor-pointer text-xs tracking-[0.2em]"
-      >
-        AUTO {autoplay ? 'ON' : 'OFF'}
-      </button>
+      {/* 曲目リストの上に置く再生操作。番号をクリックするのが「曲を選ぶ」にあたる */}
+      <div className="flex items-center gap-6">
+        <Transport label="Shuffle" onClick={onShuffle} pressed={shuffle}>
+          <g fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 6h4l10 12h4M3 18h4l10-12h4" />
+            <path d="M18 3l3 3-3 3M18 15l3 3-3 3" />
+          </g>
+        </Transport>
+        <Transport label="Previous" onClick={onPrev}>
+          <path d="M7 5h2v14H7zM19 5 10 12l9 7z" />
+        </Transport>
+        <Transport label={autoplay ? 'Pause' : 'Play'} onClick={onToggle} size="size-5">
+          {autoplay ? <path d="M8 5h3v14H8zM14 5h3v14h-3z" /> : <path d="M8 5 19 12 8 19z" />}
+        </Transport>
+        <Transport label="Next" onClick={onNext}>
+          <path d="M5 5 14 12 5 19zM15 5h2v14h-2z" />
+        </Transport>
+      </div>
 
       {/* カレンダーと同じ幅に収める。幅は列数・一辺・間隔から決まる */}
       <div className="w-fit">
@@ -98,3 +115,37 @@ export const ControlPanel = forwardRef<
     </div>
   )
 })
+
+/**
+ * 再生操作の1ボタン。`pressed` を渡したときだけ入り切りのある操作として扱い、
+ * 切のときは非選択のマスと同じ濃さまで落とす。
+ */
+function Transport({
+  label,
+  onClick,
+  pressed,
+  size = 'size-4',
+  children
+}: {
+  label: string
+  onClick: () => void
+  pressed?: boolean
+  size?: string
+  children: ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      aria-pressed={pressed}
+      className={`cursor-pointer transition-opacity duration-300 hover:opacity-60 ${
+        pressed === false ? '[opacity:var(--idle-opacity)]' : ''
+      }`}
+    >
+      <svg viewBox="0 0 24 24" aria-hidden className={`${size} fill-current`}>
+        {children}
+      </svg>
+    </button>
+  )
+}

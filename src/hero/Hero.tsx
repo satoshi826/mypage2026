@@ -1,14 +1,17 @@
-import {useCallback, useEffect, useRef, useState} from 'react'
+import {useCallback, useEffect, useMemo, useRef, useState} from 'react'
 import {useCanvas, useCanvasResize, useAnimationFrame} from './useCanvas'
 import {
   advance,
   cycleProgress,
   frameOf,
+  goBack,
+  goNext,
   initialState,
   jumpTo,
   morphRatio,
   settle,
   type Frame,
+  type Order,
   type SequenceState,
   type Timing
 } from './sequence'
@@ -34,7 +37,7 @@ const timingOf = ({cycleSeconds, dwellRatio}: Tuning): Timing => ({cycleSeconds,
 export function Hero() {
   const sectionRef = useRef<HTMLElement | null>(null)
   const progressRef = useRef<HTMLDivElement>(null)
-  const stateRef = useRef<SequenceState>(initialState(PHOTOS.length))
+  const stateRef = useRef<SequenceState>(initialState({count: PHOTOS.length, shuffle: true}))
   const timingRef = useRef<Timing>(timingOf(DEFAULT_TUNING))
   const interactionRef = useRef<Interaction>(DEFAULT_INTERACTION)
   const lastFrame = useRef<Frame>({from: -1, to: -1, phase: -1})
@@ -45,6 +48,8 @@ export function Hero() {
   const jumped = useRef(false)
 
   const [index, setIndex] = useState(0)
+  const [shuffle, setShuffle] = useState(true)
+  const order = useMemo<Order>(() => ({count: PHOTOS.length, shuffle}), [shuffle])
   // 並べ方は画面の形で決める。写真が大きくなるほうを選ぶ
   const viewport = useViewport()
   const direction = chooseDirection(viewport.width, viewport.height, PHOTOS.length)
@@ -106,7 +111,7 @@ export function Hero() {
       const timing = timingRef.current
       if (visibleRef.current) {
         if (autoplay) {
-          stateRef.current = advance(stateRef.current, delta, PHOTOS.length, timing)
+          stateRef.current = advance(stateRef.current, delta, order, timing)
         } else {
           // 自動再生を切っても進行中の遷移は完走させる
           stateRef.current = settle(stateRef.current, delta, timing)
@@ -172,8 +177,16 @@ export function Hero() {
         bar.style.setProperty('--progress', String(cycleProgress(stateRef.current, timing)))
         bar.style.setProperty('--morph', `${morphRatio(timing) * 100}%`)
       }
-    }, [autoplay, post, reduced, takePointer])
+    }, [autoplay, order, post, reduced, takePointer])
   )
+
+  // 行き先が変わったフレームは worker 側で位置の飛びを打ち消す。
+  // 番号のクリックも前後送りも同じ扱い
+  const go = (next: SequenceState) => {
+    if (next === stateRef.current) return
+    stateRef.current = next
+    jumped.current = true
+  }
 
   // 写真の枠は JS で寸法を決める。canvas を写真ぴったりにすると、
   // 中でレターボックスされず、写真の端＝canvas の端になって配置が読める
@@ -197,15 +210,14 @@ export function Hero() {
         ref={panelRef}
         index={index}
         autoplay={autoplay}
+        shuffle={shuffle}
         layout={layout}
         direction={direction}
         onToggle={() => setAutoplay(!autoplay)}
-        onSelect={(target) => {
-          const next = jumpTo(stateRef.current, target, timingRef.current)
-          if (next === stateRef.current) return
-          stateRef.current = next
-          jumped.current = true
-        }}
+        onShuffle={() => setShuffle(!shuffle)}
+        onPrev={() => go(goBack(stateRef.current, order, timingRef.current))}
+        onNext={() => go(goNext(stateRef.current, order, timingRef.current))}
+        onSelect={(target) => go(jumpTo(stateRef.current, target, timingRef.current))}
         progressRef={progressRef}
       />
       {import.meta.env.DEV && (
