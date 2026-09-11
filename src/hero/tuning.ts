@@ -95,17 +95,17 @@ export type Interaction = {
 }
 
 export const DEFAULT_INTERACTION: Interaction = {
-  radius: 0.15,
-  push: 0.25,
+  radius: 0.25,
+  push: 0.125,
   drag: 0,
-  massGain: 1,
-  massCurve: 1,
-  spread: 0.4,
-  scatter: 0.2,
-  attack: 0.6,
+  massGain: 1.5,
+  massCurve: 1.8,
+  spread: 0.1,
+  scatter: 0.15,
+  attack: 1,
   release: 0.1,
-  returnSeconds: 0.7,
-  damping: 0.3,
+  returnSeconds: 0.55,
+  damping: 0.25,
   stopBelow: 0
 }
 
@@ -131,7 +131,7 @@ export const INTERACTION_PARAMS: SliderParam<Interaction>[] = [
   },
   {key: 'spread', label: '重さのばらつき', min: 0, max: 0.9, step: 0.05, hint: '粒子ごとに質量を散らす'},
   {key: 'scatter', label: '向きのゆらぎ', min: 0, max: 1.5, step: 0.05, hint: 'ラジアン。0 で放射状に揃う'},
-  {key: 'attack', label: '立ち上がり', min: 0.01, max: 1, step: 0.01, hint: '秒。上げるほど力がゆっくり乗る'},
+  {key: 'attack', label: '立ち上がり', min: 0.01, max: 2, step: 0.01, hint: '秒。上げるほど力がゆっくり乗る'},
   {key: 'release', label: '余韻', min: 0.05, max: 3, step: 0.05, hint: '秒。上げるほど長く尾を引く'},
   {key: 'returnSeconds', label: '戻る速さ', min: 0.15, max: 3, step: 0.05, hint: '秒。小さいほど硬く速く戻る'},
   {key: 'damping', label: '減衰比', min: 0.2, max: 2, step: 0.05, hint: '1 で行き過ぎなし。下げるほどしなる'},
