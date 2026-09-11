@@ -74,14 +74,15 @@ async function createScene(canvas: OffscreenCanvas, pixelRatio: number, photos: 
         return t < 0.5 ? pow(2.0 * t, p) * 0.5 : 1.0 - pow(2.0 * (1.0 - t), p) * 0.5;
       }
 
-      // 干渉がないときの粒子 k の位置と輝度
-      void baseOf(int k, out vec2 pos, out float lum) {
+      // 干渉がないときの粒子 k の位置と輝度。組を引数で受けるのは、ジャンプの
+      // ときに古い組と新しい組の両方を同じ式で出す必要があるため
+      void baseOf(int k, int from, int to, float phase, out vec2 pos, out float lum) {
         int col = k % ${grid.width};
         int row = k / ${grid.width};
 
         // 1回のフェッチで座標と輝度の両方が取れる
-        vec4 texFrom = texelFetch(t_table, addressOf(u_from, col, row), 0);
-        vec4 texTo   = texelFetch(t_table, addressOf(u_to,   col, row), 0);
+        vec4 texFrom = texelFetch(t_table, addressOf(from, col, row), 0);
+        vec4 texTo   = texelFetch(t_table, addressOf(to,   col, row), 0);
 
         // 両端の平均を取った「暗さ」。暗いほど 1 に近い。
         // 平均にすることで逆再生でも同じ順序を辿る
@@ -91,7 +92,7 @@ async function createScene(canvas: OffscreenCanvas, pixelRatio: number, photos: 
         float delay = pow(darkness, u_toneCurve) * u_staggerTotal;
         // 分母が 0 にならないよう、1粒子あたりの移動時間には下限を置く
         float span = max(1.0 - u_staggerTotal, 0.05);
-        float local = easeInOut(clamp((u_phase - delay) / span, 0.0, 1.0), u_easePower);
+        float local = easeInOut(clamp((phase - delay) / span, 0.0, 1.0), u_easePower);
 
         pos = mix(decodePosition(texFrom), decodePosition(texTo), local);
         lum = mix(texFrom.a, texTo.a, local);
@@ -123,7 +124,7 @@ async function createScene(canvas: OffscreenCanvas, pixelRatio: number, photos: 
         int k = int(a_rank);
         vec2 pos;
         float lum;
-        baseOf(k, pos, lum);
+        baseOf(k, u_from, u_to, u_phase, pos, lum);
 
         // 干渉によるズレ。更新パスが書いた値をそのまま足す
         vec2 offset = texelFetch(t_state, ivec2(k % ${grid.width}, k / ${grid.width}), 0).xy;
@@ -152,6 +153,10 @@ async function createScene(canvas: OffscreenCanvas, pixelRatio: number, photos: 
       u_radius2: 'float',
       u_push: 'float',
       u_drag: 'float',
+      u_prevFrom: 'int',
+      u_prevTo: 'int',
+      u_prevPhase: 'float',
+      u_catchUp: 'float',
       u_massGain: 'float',
       u_massCurve: 'float',
       u_spread: 'float',
@@ -207,11 +212,20 @@ async function createScene(canvas: OffscreenCanvas, pixelRatio: number, photos: 
 
         vec2 pos;
         float lum;
-        baseOf(k, pos, lum);
+        baseOf(k, u_from, u_to, u_phase, pos, lum);
 
         vec4 prev = texelFetch(t_state, ivec2(col, row), 0);
         vec2 offset = prev.xy;
         vec2 velocity = prev.zw;
+
+        // 番号をクリックして行き先を変えた瞬間。基準位置が飛ぶぶんをズレに振り替えると、
+        // 見た目の位置は変わらないまま、バネが新しい軌道へ引き戻してくれる
+        if (u_catchUp > 0.5) {
+          vec2 wasPos;
+          float wasLum;
+          baseOf(k, u_prevFrom, u_prevTo, u_prevPhase, wasPos, wasLum);
+          offset += wasPos - pos;
+        }
 
         // 重い粒子は同じ力でも動きにくい。暗さにカーブを掛けてから重さに写す。
         // 写真が暗部に偏っているので、線形のままでは大半の粒子が同じ重さになる。
@@ -251,6 +265,8 @@ async function createScene(canvas: OffscreenCanvas, pixelRatio: number, photos: 
 
   // 粒子は u_fit を掛ける前の空間にいるので、ポインタも同じ空間へ戻してから渡す
   let fit = [1, 1]
+  // 直前に描いた組。ジャンプのとき、基準位置の飛びを打ち消すのに要る
+  let frame: Frame = {from: 0, to: 0, phase: 0}
 
   /** 基準位置の計算に要る uniform は描画と更新の両方が持つ */
   const setMorph = (values: Record<string, number>) => {
@@ -296,6 +312,8 @@ async function createScene(canvas: OffscreenCanvas, pixelRatio: number, photos: 
     core.setTexture('t_state', state[readIndex].renderTexture[0])
     state[1 - readIndex].render(vao, update)
     readIndex = 1 - readIndex
+    // 打ち消しは1回だけ効かせる
+    update.setUniform({u_catchUp: 0})
   }
 
   const resize = ({width, height}: {width: number; height: number}) => {
@@ -311,6 +329,7 @@ async function createScene(canvas: OffscreenCanvas, pixelRatio: number, photos: 
 
   applyTuning(DEFAULT_TUNING)
   applyInteraction(DEFAULT_INTERACTION)
+  update.setUniform({u_prevFrom: 0, u_prevTo: 0, u_prevPhase: 0, u_catchUp: 0})
   resize({width: core.canvasWidth, height: core.canvasHeight})
 
   return {
@@ -322,8 +341,17 @@ async function createScene(canvas: OffscreenCanvas, pixelRatio: number, photos: 
     setPointer({x, y, vx, vy}: PointerCommand) {
       update.setUniform({u_pointer: [x / fit[0], y / fit[1]], u_pointerVelocity: [vx / fit[0], vy / fit[1]]})
     },
-    setFrame({from, to, phase}: Frame) {
-      setMorph({u_from: from, u_to: to, u_phase: phase})
+    setFrame(next: Frame, catchUp = false) {
+      if (catchUp) {
+        update.setUniform({
+          u_prevFrom: frame.from,
+          u_prevTo: frame.to,
+          u_prevPhase: frame.phase,
+          u_catchUp: 1
+        })
+      }
+      frame = next
+      setMorph({u_from: next.from, u_to: next.to, u_phase: next.phase})
     }
   }
 }
@@ -340,6 +368,8 @@ export type Command = {
   ground?: string
   resize?: {width: number; height: number}
   render?: Frame
+  /** 番号のクリックで行き先が変わったフレーム。基準位置の飛びをズレに振り替える */
+  catchUp?: boolean
   /** 干渉を進める秒数。入っているフレームだけ状態を更新する */
   step?: number
   tuning?: Tuning
@@ -360,8 +390,9 @@ const apply = (command: Command) => {
   if (command.interaction) scene.interact(command.interaction)
   if (command.resize) scene.resize(command.resize)
   if (command.pointer) scene.setPointer(command.pointer)
-  if (command.render) scene.setFrame(command.render)
-  if (command.step) scene.step(command.step)
+  if (command.render) scene.setFrame(command.render, command.catchUp)
+  // 打ち消しは更新パスの中で効くので、干渉が止まっていても1回は回す
+  if (command.step !== undefined || command.catchUp) scene.step(command.step ?? 0)
   scene.draw()
 }
 

@@ -38,12 +38,18 @@ export function advance(state: SequenceState, seconds: number, count: number, ti
   return {from, to, elapsed}
 }
 
-/** 遷移を始める。今表示している1枚から target へ、静止帯を飛ばして動き出す */
+/**
+ * 遷移を始める。静止帯を飛ばして即座に動き出す。
+ *
+ * 「今の1枚」の答えが2つある。UI が丸で示しているのは遷移の開始で切り替わる側で、
+ * 粒子が位置として近いのは中点で切り替わる側。同じ番号を押しても何も起きない、を
+ * 成り立たせるには前者で判定し、出発点としては後者を使う。
+ */
 export function jumpTo(state: SequenceState, target: number, timing: Timing): SequenceState {
-  const cycle = cycleOf(timing)
-  const shown = frameOf(state, timing).phase < 0.5 ? state.from : state.to
-  if (target === shown) return state
-  return {from: shown, to: target, elapsed: cycle * timing.dwellRatio}
+  const {phase} = frameOf(state, timing)
+  if (target === (phase > 0 ? state.to : state.from)) return state
+  const origin = phase < 0.5 ? state.from : state.to
+  return {from: origin, to: target, elapsed: cycleOf(timing) * timing.dwellRatio}
 }
 
 /** 進行状態を描画用の3値にする。phase は線形（イージングは頂点シェーダ側で掛かる） */

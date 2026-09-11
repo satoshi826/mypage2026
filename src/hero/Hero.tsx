@@ -42,6 +42,7 @@ export function Hero() {
   const visibleRef = useRef(true)
   const velocity = useRef({x: 0, y: 0})
   const settling = useRef(0)
+  const jumped = useRef(false)
 
   const [index, setIndex] = useState(0)
   // 並べ方は画面の形で決める。写真が大きくなるほうを選ぶ
@@ -113,6 +114,7 @@ export function Hero() {
       }
 
       const command: Command = {}
+      const {attack, release, returnSeconds, stopBelow} = interactionRef.current
 
       const {from, to, phase: linear} = frameOf(stateRef.current, timing)
       // 動きを減らす設定では中点で切り替えるだけにして、粒子の移動を見せない
@@ -126,12 +128,19 @@ export function Hero() {
         setIndex(phase > 0 ? to : from)
       }
 
+      // 行き先が変わったフレームは、基準位置の飛びを worker 側でズレに振り替える。
+      // そのズレが戻りきるまで更新を回す必要があるので、残り時間も入れ直す
+      if (jumped.current) {
+        jumped.current = false
+        command.catchUp = true
+        settling.current = (release + returnSeconds) * 4
+      }
+
       // ポインタ速度は瞬間値をそのまま使わず、時定数で均した値にする。
       // 速くなるときと遅くなるときで時定数を変えることで、力がゆっくり乗り、
       // 止めたあともしばらく尾を引く。exp を使うのはフレームレートに依存させないため
       const p = takePointer()
       const step = Math.max(delta, 1 / 240)
-      const {attack, release, returnSeconds, stopBelow} = interactionRef.current
       const targetX = p.active ? p.dx / step : 0
       const targetY = p.active ? p.dy / step : 0
       const current = velocity.current
@@ -155,7 +164,7 @@ export function Hero() {
         command.step = delta
       }
 
-      if (command.render || command.pointer) post(command)
+      if (command.render || command.pointer || command.catchUp) post(command)
       // 進み具合も帯の境目も、バーの一番外側に CSS 変数として書く。
       // 中の3枚（遷移帯・静止帯・通過ぶん）はそれを継承して描き分ける
       const bar = progressRef.current
@@ -192,7 +201,10 @@ export function Hero() {
         direction={direction}
         onToggle={() => setAutoplay(!autoplay)}
         onSelect={(target) => {
-          stateRef.current = jumpTo(stateRef.current, target, timingRef.current)
+          const next = jumpTo(stateRef.current, target, timingRef.current)
+          if (next === stateRef.current) return
+          stateRef.current = next
+          jumped.current = true
         }}
         progressRef={progressRef}
       />
