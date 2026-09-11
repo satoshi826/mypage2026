@@ -73,8 +73,11 @@ export type Interaction = {
   push: number
   /** ポインタの進行方向へ引きずる強さ */
   drag: number
-  /** 輝度による質量差。正で明るいほど重い、負で暗いほど重い、0 で差なし */
+  /** 輝度による質量差。正で明るいほど軽い、負で明るいほど重い、0 で差なし。
+   * 重さは比で効くので、1 で最暗と最明の質量比が e^2 ≈ 7.4 倍になる */
   massGain: number
+  /** 重さを決めるときの暗さのカーブ。1 で線形、上げるほど暗部の差が広がる */
+  massCurve: number
   /** 粒子ごとの質量のばらつき。上げるほど戻る速さと行き過ぎ方が粒ごとに散る */
   spread: number
   /** 押される向きのゆらぎ(ラジアン)。0 で全粒子が放射状に揃う */
@@ -95,7 +98,8 @@ export const DEFAULT_INTERACTION: Interaction = {
   radius: 0.15,
   push: 0.25,
   drag: 0,
-  massGain: -1,
+  massGain: 1,
+  massCurve: 1,
   spread: 0.4,
   scatter: 0.2,
   attack: 0.6,
@@ -112,10 +116,18 @@ export const INTERACTION_PARAMS: SliderParam<Interaction>[] = [
   {
     key: 'massGain',
     label: '輝度による重さ',
-    min: -1,
-    max: 1,
-    step: 0.05,
-    hint: '正で明るいほど重い。0 で差なし'
+    min: -3,
+    max: 3,
+    step: 0.1,
+    hint: '正で明るいほど軽い。0 で差なし。1 で最暗と最明が約7倍'
+  },
+  {
+    key: 'massCurve',
+    label: '重さのカーブ',
+    min: 0.5,
+    max: 10,
+    step: 0.1,
+    hint: '1 で線形。上げるほど暗部の差が広がる'
   },
   {key: 'spread', label: '重さのばらつき', min: 0, max: 0.9, step: 0.05, hint: '粒子ごとに質量を散らす'},
   {key: 'scatter', label: '向きのゆらぎ', min: 0, max: 1.5, step: 0.05, hint: 'ラジアン。0 で放射状に揃う'},

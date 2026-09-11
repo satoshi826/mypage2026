@@ -153,6 +153,7 @@ async function createScene(canvas: OffscreenCanvas, pixelRatio: number, photos: 
       u_push: 'float',
       u_drag: 'float',
       u_massGain: 'float',
+      u_massCurve: 'float',
       u_spread: 'float',
       u_scatter: 'float',
       u_stiffness: 'float',
@@ -212,8 +213,12 @@ async function createScene(canvas: OffscreenCanvas, pixelRatio: number, photos: 
         vec2 offset = prev.xy;
         vec2 velocity = prev.zw;
 
-        // 重い粒子は同じ力でも動きにくい。輝度ぶんに粒子ごとのばらつきを掛ける
-        float mass = clamp(1.0 + u_massGain * (2.0 * lum - 1.0), 0.2, 5.0)
+        // 重い粒子は同じ力でも動きにくい。暗さにカーブを掛けてから重さに写す。
+        // 写真が暗部に偏っているので、線形のままでは大半の粒子が同じ重さになる。
+        // 指数にしているのは、重さが比で効くため。差を線形に取ると軽い側だけ
+        // 先に下限へ張り付き、gain を上げても明るい側が変わらなくなる
+        float shaped = pow(1.0 - lum, u_massCurve);
+        float mass = clamp(exp(u_massGain * (2.0 * shaped - 1.0)), 0.05, 20.0)
                    * mix(1.0 - u_spread, 1.0 + u_spread, hash(uint(k)));
 
         // 目標のズレへバネで引かれる。力が消えれば目標は 0 になり、必ず写真に戻る。
@@ -269,6 +274,7 @@ async function createScene(canvas: OffscreenCanvas, pixelRatio: number, photos: 
       u_push: interaction.push,
       u_drag: interaction.drag,
       u_massGain: interaction.massGain,
+      u_massCurve: interaction.massCurve,
       u_spread: interaction.spread,
       u_scatter: interaction.scatter,
       u_stiffness: omega * omega,
