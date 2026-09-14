@@ -69,7 +69,7 @@ export const STACKED_LAYOUT: Layout = {
   eqSource: 0,
   eqMotion: 1,
   eqAxis: 1,
-  eqLevel: 10,
+  eqLevel: 0,
   padding: 16
 }
 
@@ -91,7 +91,7 @@ export const SIDE_LAYOUT: Layout = {
   eqSource: 0,
   eqMotion: 1,
   eqAxis: 1,
-  eqLevel: 10,
+  eqLevel: 0,
   padding: 32
 }
 
