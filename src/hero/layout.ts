@@ -30,16 +30,14 @@ export type Layout = {
   dwellOpacity: number
   /** 非選択のマスの不透明度 % */
   idleOpacity: number
-  /** 操作とスペクトラムが離れる上限 px。画面が高くてもこれ以上は離れない */
-  maxHeight: number
-  /** カレンダー下のスペクトラムの高さ px。0 で出さない。横並びのときだけ描く */
+  /** カレンダー下の棒グラフの高さ px。0 で出さない。横並びのときだけ描く */
   eqHeight: number
+  /** パネル内の各ブロックの間隔 px */
+  blockGap: number
   /** 棒の本数 */
   eqBars: number
   /** 棒の高さのカーブ。1 で素のまま、上げるほど低い棒が持ち上がる */
   eqCurve: number
-  /** 棒が表す値。0 = 輝度の分布、1 = 横方向の最大輝度 */
-  eqSource: number
   /** 飛行中の棒をどれだけ明るくするか。0 で濃さが一定 */
   eqMotion: number
   /** 棒グラフの横軸。1 で sRGB のまま、下げるほど暗部が広がる */
@@ -63,11 +61,10 @@ export const STACKED_LAYOUT: Layout = {
   morphOpacity: 15,
   dwellOpacity: 8,
   idleOpacity: 35,
-  maxHeight: 560,
   eqHeight: 108,
+  blockGap: 16,
   eqBars: 48,
   eqCurve: 1,
-  eqSource: 0,
   eqMotion: 1,
   eqAxis: 1,
   padding: 16
@@ -85,11 +82,10 @@ export const SIDE_LAYOUT: Layout = {
   morphOpacity: 30,
   dwellOpacity: 20,
   idleOpacity: 35,
-  maxHeight: 560,
   eqHeight: 108,
+  blockGap: 16,
   eqBars: 48,
   eqCurve: 2.5,
-  eqSource: 0,
   eqMotion: 2.5,
   eqAxis: 0.8,
   padding: 32
@@ -145,15 +141,15 @@ export const LAYOUT_PARAMS: SliderParam<Layout>[] = [
     hint: '%。遷移帯ぶんより薄くする'
   },
   {key: 'idleOpacity', label: '非選択の濃さ', min: 0, max: 100, step: 5, hint: '%'},
+  {key: 'eqHeight', label: '棒グラフの高さ', min: 0, max: 240, step: 4, hint: 'px。0 で出さない'},
   {
-    key: 'maxHeight',
-    label: 'パネルの最大高さ',
-    min: 360,
-    max: 1000,
-    step: 10,
-    hint: 'px。操作とスペクトラムが離れる上限'
+    key: 'blockGap',
+    label: 'ブロックの間隔',
+    min: 0,
+    max: 80,
+    step: 2,
+    hint: 'px。操作・バー・カレンダー・スペクトラムのあいだ'
   },
-  {key: 'eqHeight', label: 'スペクトラムの高さ', min: 0, max: 240, step: 4, hint: 'px。0 で出さない'},
   {key: 'eqBars', label: '棒の本数', min: 8, max: 96, step: 1, hint: '本'},
   {
     key: 'eqCurve',
@@ -163,7 +159,6 @@ export const LAYOUT_PARAMS: SliderParam<Layout>[] = [
     step: 0.05,
     hint: '1 で素のまま。上げるほど低い棒が持ち上がる'
   },
-  {key: 'eqSource', label: '棒が表す値', min: 0, max: 1, step: 1, hint: '0 = 輝度の分布、1 = 横方向の最大輝度'},
   {key: 'eqMotion', label: '飛行中の明るさ', min: 0, max: 4, step: 0.1, hint: '0 で一定。上げると速い棒ほど明るくなる'},
   {
     key: 'eqAxis',
@@ -189,7 +184,7 @@ export const layoutVars = (l: Layout) =>
     '--morph-opacity': `${l.morphOpacity}%`,
     '--dwell-opacity': `${l.dwellOpacity}%`,
     '--idle-opacity': `${l.idleOpacity}%`,
-    '--panel-max': `${l.maxHeight}px`,
     '--eq-height': `${l.eqHeight}px`,
+    '--block-gap': `${l.blockGap}px`,
     '--panel-padding': `${l.padding}px`
   }) as CSSProperties
