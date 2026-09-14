@@ -82,7 +82,7 @@ export const ControlPanel = forwardRef<
             onHover(Math.min(layout.eqBars - 1, Math.max(0, Math.floor(position * layout.eqBars))))
           }}
           onPointerLeave={() => onHover(null)}
-          className="flex w-full items-end gap-px border-ink/50 [border-bottom-width:var(--progress-height)] [height:min(var(--eq-height),14vh)]"
+          className="flex w-full items-end gap-px border-t-ink/15 border-b-ink/50 [border-block-width:var(--progress-height)] [height:min(var(--eq-height),14vh)]"
         >
           {Array.from({length: layout.eqBars}, (_, i) => (
             <div
