@@ -29,7 +29,7 @@ import {
   type Tuning
 } from './tuning'
 import {usePointer} from './pointer'
-import {barHeights} from './equalizer'
+import {bandOf, barHeights} from './equalizer'
 import type {Analysis, Command} from './worker'
 import Worker from './worker?worker'
 
@@ -45,6 +45,8 @@ export function Hero() {
   const speeds = useRef(new Float32Array(128))
   // 棒グラフを描き直す必要があるか。静止帯では phase が動かず結果も変わらない
   const eqPending = useRef(true)
+  // スペクトラムでホバーしている棒。粒子と棒の両方で、そこから離れたものを暗くする
+  const hovered = useRef<number | null>(null)
   const stateRef = useRef<SequenceState>(initialState({count: PHOTOS.length, shuffle: true}))
   const timingRef = useRef<Timing>(timingOf(DEFAULT_TUNING))
   const tuningRef = useRef<Tuning>(DEFAULT_TUNING)
@@ -195,6 +197,12 @@ export function Hero() {
       if (equalizer && analysis.current && (command.render || eqPending.current)) {
         eqPending.current = false
         const bars = Math.min(layout.eqBars, equalizer.children.length)
+        // ホバー中の棒からの距離。粒子側と同じガウスで落とす
+        const dim = layout.hoverDim / 100
+        const near = (i: number) =>
+          hovered.current === null
+            ? 1
+            : dim + (1 - dim) * Math.exp(-(((i - hovered.current) / layout.hoverSpread) ** 2))
         barHeights(
           analysis.current,
           {from, to, phase},
@@ -207,9 +215,8 @@ export function Hero() {
         for (let i = 0; i < bars; i++) {
           const bar = equalizer.children[i] as HTMLElement
           bar.style.transform = `scaleY(${heights.current[i]})`
-          bar.style.opacity = String(
-            REST_OPACITY + (1 - REST_OPACITY) * Math.min(1, speeds.current[i] * layout.eqMotion)
-          )
+          const lit = REST_OPACITY + (1 - REST_OPACITY) * Math.min(1, speeds.current[i] * layout.eqMotion)
+          bar.style.opacity = String(lit * near(i))
         }
       }
 
@@ -218,7 +225,19 @@ export function Hero() {
         bar.style.setProperty('--progress', String(cycleProgress(stateRef.current, timing)))
         bar.style.setProperty('--morph', `${morphRatio(timing) * 100}%`)
       }
-    }, [autoplay, layout.eqAxis, layout.eqBars, layout.eqCurve, layout.eqMotion, order, post, reduced, takePointer])
+    }, [
+      autoplay,
+      layout.eqAxis,
+      layout.eqBars,
+      layout.eqCurve,
+      layout.eqMotion,
+      layout.hoverDim,
+      layout.hoverSpread,
+      order,
+      post,
+      reduced,
+      takePointer
+    ])
   )
 
   // 行き先が変わったフレームは worker 側で位置の飛びを打ち消す。
@@ -259,6 +278,19 @@ export function Hero() {
         onPrev={() => go(goBack(stateRef.current, order, timingRef.current))}
         onNext={() => go(goNext(stateRef.current, order, timingRef.current))}
         onSelect={(target) => go(jumpTo(stateRef.current, target, timingRef.current))}
+        onHover={(index) => {
+          hovered.current = index
+          eqPending.current = true
+          post({
+            band:
+              index === null
+                ? {center: 0, width: 1, dim: 1}
+                : {
+                    ...bandOf(index, {bars: layout.eqBars, axis: layout.eqAxis}, layout.hoverSpread),
+                    dim: layout.hoverDim / 100
+                  }
+          })
+        }}
         progressRef={progressRef}
         equalizerRef={equalizerRef}
       />

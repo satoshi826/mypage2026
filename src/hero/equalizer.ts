@@ -75,3 +75,14 @@ export function barHeights(
   const power = 1 / Math.max(curve, 0.05)
   for (let i = 0; i < bars; i++) out[i] = Math.pow(out[i] / max, power)
 }
+
+/**
+ * 棒 index が受け持つ輝度の中心と、その幅を spread 本ぶんに広げた値。
+ * 横軸を引き伸ばしているぶん、暗い側の棒は輝度の幅が狭く明るい側は広いので、
+ * 同じ本数ぶん広げるだけで「粒子の少ない明るい側ほど広く拾う」形になる。
+ */
+export function bandOf(index: number, {bars, axis}: {bars: number; axis: number}, spread: number) {
+  const low = Math.pow(index / bars, 1 / axis)
+  const high = Math.pow((index + 1) / bars, 1 / axis)
+  return {center: (low + high) / 2, width: Math.max((high - low) * spread, 1e-4)}
+}

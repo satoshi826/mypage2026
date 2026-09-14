@@ -160,7 +160,14 @@ async function createScene(canvas: OffscreenCanvas, pixelRatio: number, photos: 
   const program = new Program(core, {
     id: 'draw',
     attributeTypes: {a_rank: 'float'},
-    uniformTypes: {...morphUniforms, u_fit: 'vec2', u_pointSize: 'float'},
+    uniformTypes: {
+      ...morphUniforms,
+      u_fit: 'vec2',
+      u_pointSize: 'float',
+      u_bandCenter: 'float',
+      u_bandWidth: 'float',
+      u_bandDim: 'float'
+    },
     texture: {t_table: table, t_state: state[0].renderTexture[0]},
     primitive: 'POINTS',
     vert: /* glsl */ `
@@ -176,7 +183,12 @@ async function createScene(canvas: OffscreenCanvas, pixelRatio: number, photos: 
         // 干渉によるズレ。更新パスが書いた値をそのまま足す
         vec2 offset = texelFetch(t_state, ivec2(k % ${grid.width}, k / ${grid.width}), 0).xy;
 
-        v_color = vec3(lum);
+        // スペクトラムにホバーしているあいだ、その明るさから離れた粒子を暗くする。
+        // 帯の外を切り捨てるのではなく滑らかに落とすので、粒子の少ない明るい側でも
+        // 写真が消えない
+        float away = (lum - u_bandCenter) / max(u_bandWidth, 1e-4);
+        v_color = vec3(lum * mix(u_bandDim, 1.0, exp(-away * away)));
+
         gl_Position = vec4((pos + offset) * u_fit, 0.0, 1.0);
         gl_PointSize = u_pointSize;
       }`,
@@ -347,6 +359,10 @@ async function createScene(canvas: OffscreenCanvas, pixelRatio: number, photos: 
     })
   }
 
+  /** ホバー中の帯。dim が 1 のあいだは何も起きない */
+  const setBand = ({center, width, dim}: BandCommand) =>
+    program.setUniform({u_bandCenter: center, u_bandWidth: width, u_bandDim: dim})
+
   const draw = () => {
     core.setTexture('t_state', state[readIndex].renderTexture[0])
     renderer.clear()
@@ -378,6 +394,7 @@ async function createScene(canvas: OffscreenCanvas, pixelRatio: number, photos: 
 
   applyTuning(DEFAULT_TUNING)
   applyInteraction(DEFAULT_INTERACTION)
+  setBand({center: 0, width: 1, dim: 1})
   update.setUniform({u_prevFrom: 0, u_prevTo: 0, u_prevPhase: 0, u_catchUp: 0})
   resize({width: core.canvasWidth, height: core.canvasHeight})
 
@@ -387,6 +404,7 @@ async function createScene(canvas: OffscreenCanvas, pixelRatio: number, photos: 
     step,
     tune: applyTuning,
     interact: applyInteraction,
+    setBand,
     setPointer({x, y, vx, vy}: PointerCommand) {
       update.setUniform({u_pointer: [x / fit[0], y / fit[1]], u_pointerVelocity: [vx / fit[0], vy / fit[1]]})
     },
@@ -404,6 +422,9 @@ async function createScene(canvas: OffscreenCanvas, pixelRatio: number, photos: 
     }
   }
 }
+
+/** 強調する輝度の帯。dim は帯から外れた粒子の暗さで、1 なら強調なし */
+export type BandCommand = {center: number; width: number; dim: number}
 
 /** ポインタの位置と速度。どちらも写真の半幅を 1 とした NDC（速度は 1秒あたり） */
 export type PointerCommand = {x: number; y: number; vx: number; vy: number}
@@ -424,6 +445,7 @@ export type Command = {
   tuning?: Tuning
   interaction?: Interaction
   pointer?: PointerCommand
+  band?: BandCommand
 }
 
 type Scene = Awaited<ReturnType<typeof createScene>>
@@ -438,6 +460,7 @@ const apply = (command: Command) => {
   if (command.tuning) scene.tune(command.tuning)
   if (command.interaction) scene.interact(command.interaction)
   if (command.resize) scene.resize(command.resize)
+  if (command.band) scene.setBand(command.band)
   if (command.pointer) scene.setPointer(command.pointer)
   if (command.render) scene.setFrame(command.render, command.catchUp)
   // 打ち消しは更新パスの中で効くので、干渉が止まっていても1回は回す

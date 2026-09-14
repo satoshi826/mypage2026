@@ -22,6 +22,8 @@ export const ControlPanel = forwardRef<
     onPrev: () => void
     onNext: () => void
     onSelect: (index: number) => void
+    /** スペクトラムの棒にホバーしたときの添字。外れたら null */
+    onHover: (index: number | null) => void
     /** カレンダー下の棒グラフ。Hero が毎フレーム各棒の scaleY を書き込む */
     equalizerRef: RefObject<HTMLDivElement>
     /** カレンダー上部のプログレス。Hero が --progress と --morph を毎フレーム書き込む */
@@ -39,6 +41,7 @@ export const ControlPanel = forwardRef<
     onPrev,
     onNext,
     onSelect,
+    onHover,
     progressRef,
     equalizerRef
   },
@@ -73,10 +76,20 @@ export const ControlPanel = forwardRef<
         <div
           ref={equalizerRef}
           aria-hidden
+          onPointerMove={(event) => {
+            // 棒は pointer-events-none なので offsetX は必ずこの枠が基準になる
+            const position = event.nativeEvent.offsetX / event.currentTarget.clientWidth
+            onHover(Math.min(layout.eqBars - 1, Math.max(0, Math.floor(position * layout.eqBars))))
+          }}
+          onPointerLeave={() => onHover(null)}
           className="flex w-full items-end gap-px border-ink/50 [border-bottom-width:var(--progress-height)] [height:min(var(--eq-height),14vh)]"
         >
           {Array.from({length: layout.eqBars}, (_, i) => (
-            <div key={i} className="h-full flex-1 origin-bottom bg-ink" style={{transform: 'scaleY(0)', opacity: 0}} />
+            <div
+              key={i}
+              className="pointer-events-none h-full flex-1 origin-bottom bg-ink"
+              style={{transform: 'scaleY(0)', opacity: 0}}
+            />
           ))}
         </div>
       )}
