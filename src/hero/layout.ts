@@ -83,7 +83,7 @@ export const SIDE_LAYOUT: Layout = {
   dwellOpacity: 20,
   idleOpacity: 35,
   eqHeight: 108,
-  eqBars: 64,
+  eqBars: 48,
   eqCurve: 2.5,
   eqSource: 0,
   eqMotion: 2.5,
