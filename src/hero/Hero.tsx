@@ -110,7 +110,7 @@ export function Hero() {
   // 棒グラフのつまみを動かしたときは、静止帯でも描き直す
   useEffect(() => {
     eqPending.current = true
-  }, [layout.eqAxis, layout.eqBars, layout.eqCurve, layout.eqLevel, layout.eqMotion, layout.eqSource])
+  }, [layout.eqAxis, layout.eqBars, layout.eqCurve, layout.eqMotion, layout.eqSource])
 
   const applyInteraction = useCallback(
     (interaction: Interaction) => {
@@ -194,9 +194,8 @@ export function Hero() {
       const equalizer = equalizerRef.current
       if (equalizer && analysis.current && (command.render || eqPending.current)) {
         eqPending.current = false
-        // 最後の1つは基準線なので棒の数から外す
-        const bars = Math.min(layout.eqBars, equalizer.children.length - 1)
-        const peak = barHeights(
+        const bars = Math.min(layout.eqBars, equalizer.children.length)
+        barHeights(
           analysis.current,
           {from, to, phase},
           tuningRef.current,
@@ -212,13 +211,6 @@ export function Hero() {
             REST_OPACITY + (1 - REST_OPACITY) * Math.min(1, speeds.current[i] * layout.eqMotion)
           )
         }
-
-        // 基準線。正規化で目盛りが消えるぶん、いまの縮尺をこれで示す
-        const line = equalizer.children[bars] as HTMLElement
-        const level = layout.eqLevel / 100
-        const height = peak > 0 && level > 0 ? level / peak : 0
-        line.hidden = height <= 0 || height > 1
-        if (!line.hidden) line.style.bottom = `${height * 100}%`
       }
 
       const bar = progressRef.current
@@ -231,7 +223,6 @@ export function Hero() {
       layout.eqAxis,
       layout.eqBars,
       layout.eqCurve,
-      layout.eqLevel,
       layout.eqMotion,
       layout.eqSource,
       order,

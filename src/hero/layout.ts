@@ -42,8 +42,6 @@ export type Layout = {
   eqMotion: number
   /** 棒グラフの横軸。1 で sRGB のまま、下げるほど暗部が広がる */
   eqAxis: number
-  /** 基準線が表す割合 %。全画素のこの割合が1本の棒に入る高さに線を引く */
-  eqLevel: number
   /** パネルの左右の余白 px。狭い画面ではここを削ると列数を稼げる */
   padding: number
 }
@@ -69,7 +67,6 @@ export const STACKED_LAYOUT: Layout = {
   eqSource: 0,
   eqMotion: 1,
   eqAxis: 1,
-  eqLevel: 0,
   padding: 16
 }
 
@@ -86,12 +83,11 @@ export const SIDE_LAYOUT: Layout = {
   dwellOpacity: 20,
   idleOpacity: 35,
   eqHeight: 108,
-  eqBars: 48,
-  eqCurve: 1,
+  eqBars: 64,
+  eqCurve: 2.5,
   eqSource: 0,
-  eqMotion: 1,
-  eqAxis: 1,
-  eqLevel: 0,
+  eqMotion: 2.5,
+  eqAxis: 0.8,
   padding: 32
 }
 
