@@ -190,7 +190,7 @@ export function Hero() {
           analysis.current,
           {from, to, phase},
           tuningRef.current,
-          {source: layout.eqSource < 0.5 ? 'tone' : 'profile', bars, curve: layout.eqCurve},
+          {source: layout.eqSource < 0.5 ? 'tone' : 'profile', bars, curve: layout.eqCurve, axis: layout.eqAxis},
           heights.current,
           speeds.current
         )
@@ -209,7 +209,18 @@ export function Hero() {
         bar.style.setProperty('--progress', String(cycleProgress(stateRef.current, timing)))
         bar.style.setProperty('--morph', `${morphRatio(timing) * 100}%`)
       }
-    }, [autoplay, layout.eqBars, layout.eqCurve, layout.eqMotion, layout.eqSource, order, post, reduced, takePointer])
+    }, [
+      autoplay,
+      layout.eqAxis,
+      layout.eqBars,
+      layout.eqCurve,
+      layout.eqMotion,
+      layout.eqSource,
+      order,
+      post,
+      reduced,
+      takePointer
+    ])
   )
 
   // 行き先が変わったフレームは worker 側で位置の飛びを打ち消す。

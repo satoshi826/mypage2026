@@ -11,6 +11,12 @@ export type EqualizerOptions = {
   bars: number
   /** 高さのカーブ。1 で素のまま、上げるほど低い棒が持ち上がる */
   curve: number
+  /**
+   * 横軸の引き伸ばし。1 で sRGB のまま（ガンマがすでにほぼ知覚的なので、
+   * CIE L* に直しても差は 0.5 ポイント未満だった）。下げると暗部が広がる。
+   * これは知覚的な正しさではなく見た目の判断。
+   */
+  axis: number
 }
 
 /** 頂点シェーダの easeInOut と同じ */
@@ -37,7 +43,7 @@ export function barHeights(
   analysis: Analysis,
   {from, to, phase}: Frame,
   tuning: Tuning,
-  {source, bars, curve}: EqualizerOptions,
+  {source, bars, curve, axis}: EqualizerOptions,
   out: Float32Array,
   speeds: Float32Array
 ) {
@@ -65,7 +71,8 @@ export function barHeights(
         const delay = Math.pow(1 - (lumFrom + lumTo) * 0.5, tuning.toneCurve) * tuning.staggerTotal
         const t = Math.min(1, Math.max(0, (phase - delay) / span))
         const local = easeInOut(t, tuning.easePower)
-        const bar = Math.min(bars - 1, Math.floor((lumFrom + (lumTo - lumFrom) * local) * bars))
+        const shown = lumFrom + (lumTo - lumFrom) * local
+        const bar = Math.min(bars - 1, Math.floor(Math.pow(shown, axis) * bars))
         out[bar]++
         speeds[bar] += easeSlope(t, tuning.easePower)
       }
