@@ -30,7 +30,9 @@ export type Layout = {
   dwellOpacity: number
   /** 非選択のマスの不透明度 % */
   idleOpacity: number
-  /** カレンダー下の棒グラフの高さ px。0 で出さない。横並びのときだけ描く */
+  /** 操作とスペクトラムが離れる上限 px。画面が高くてもこれ以上は離れない */
+  maxHeight: number
+  /** カレンダー下のスペクトラムの高さ px。0 で出さない。横並びのときだけ描く */
   eqHeight: number
   /** 棒の本数 */
   eqBars: number
@@ -61,6 +63,7 @@ export const STACKED_LAYOUT: Layout = {
   morphOpacity: 15,
   dwellOpacity: 8,
   idleOpacity: 35,
+  maxHeight: 560,
   eqHeight: 108,
   eqBars: 48,
   eqCurve: 1,
@@ -82,6 +85,7 @@ export const SIDE_LAYOUT: Layout = {
   morphOpacity: 30,
   dwellOpacity: 20,
   idleOpacity: 35,
+  maxHeight: 560,
   eqHeight: 108,
   eqBars: 48,
   eqCurve: 2.5,
@@ -141,7 +145,15 @@ export const LAYOUT_PARAMS: SliderParam<Layout>[] = [
     hint: '%。遷移帯ぶんより薄くする'
   },
   {key: 'idleOpacity', label: '非選択の濃さ', min: 0, max: 100, step: 5, hint: '%'},
-  {key: 'eqHeight', label: '棒グラフの高さ', min: 0, max: 240, step: 4, hint: 'px。0 で出さない'},
+  {
+    key: 'maxHeight',
+    label: 'パネルの最大高さ',
+    min: 360,
+    max: 1000,
+    step: 10,
+    hint: 'px。操作とスペクトラムが離れる上限'
+  },
+  {key: 'eqHeight', label: 'スペクトラムの高さ', min: 0, max: 240, step: 4, hint: 'px。0 で出さない'},
   {key: 'eqBars', label: '棒の本数', min: 8, max: 96, step: 1, hint: '本'},
   {
     key: 'eqCurve',
@@ -177,6 +189,7 @@ export const layoutVars = (l: Layout) =>
     '--morph-opacity': `${l.morphOpacity}%`,
     '--dwell-opacity': `${l.dwellOpacity}%`,
     '--idle-opacity': `${l.idleOpacity}%`,
+    '--panel-max': `${l.maxHeight}px`,
     '--eq-height': `${l.eqHeight}px`,
     '--panel-padding': `${l.padding}px`
   }) as CSSProperties
