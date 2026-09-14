@@ -43,6 +43,8 @@ export function Hero() {
   const analysis = useRef<Analysis | null>(null)
   const heights = useRef(new Float32Array(128))
   const speeds = useRef(new Float32Array(128))
+  // 棒グラフを描き直す必要があるか。静止帯では phase が動かず結果も変わらない
+  const eqPending = useRef(true)
   const stateRef = useRef<SequenceState>(initialState({count: PHOTOS.length, shuffle: true}))
   const timingRef = useRef<Timing>(timingOf(DEFAULT_TUNING))
   const tuningRef = useRef<Tuning>(DEFAULT_TUNING)
@@ -74,6 +76,7 @@ export function Hero() {
 
   const {canvas, post, ref} = useCanvas<Analysis>(Worker, (reply) => {
     analysis.current = reply
+    eqPending.current = true
   })
   useCanvasResize(post, ref)
   const takePointer = usePointer(ref)
@@ -103,6 +106,11 @@ export function Hero() {
     },
     [post]
   )
+
+  // 棒グラフのつまみを動かしたときは、静止帯でも描き直す
+  useEffect(() => {
+    eqPending.current = true
+  }, [layout.eqAxis, layout.eqBars, layout.eqCurve, layout.eqMotion, layout.eqSource])
 
   const applyInteraction = useCallback(
     (interaction: Interaction) => {
@@ -182,9 +190,10 @@ export function Hero() {
       if (command.render || command.pointer || command.catchUp) post(command)
       // 進み具合も帯の境目も、バーの一番外側に CSS 変数として書く。
       // 中の3枚（遷移帯・静止帯・通過ぶん）はそれを継承して描き分ける
-      // 棒グラフ。静止帯では値が動かないが、transform だけの書き込みなので毎フレームで問題ない
+      // 棒グラフ。静止帯では phase が止まっていて結果も変わらないので計算ごと飛ばす
       const equalizer = equalizerRef.current
-      if (equalizer && analysis.current) {
+      if (equalizer && analysis.current && (command.render || eqPending.current)) {
+        eqPending.current = false
         const bars = Math.min(layout.eqBars, equalizer.children.length)
         barHeights(
           analysis.current,

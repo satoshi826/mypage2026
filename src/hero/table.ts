@@ -143,8 +143,12 @@ export const blockOrigin = (layer: number, {cols}: AtlasLayout, grid: Grid) => (
   y: Math.floor(layer / cols) * grid.height
 })
 
-/** 輝度の分位点の数。棒の本数より細かく持ち、表示側で丸める */
-export const TONE_STEPS = 256
+/**
+ * 輝度の分位点の数。棒グラフの縦の刻みがそのまま 1/TONE_STEPS になるので、
+ * 棒の本数よりずっと細かく取る。256 だと棒あたりの標本が中央値2〜5個しかなく、
+ * 1個の増減で高さが2〜5割跳ねていた。
+ */
+export const TONE_STEPS = 4096
 
 /**
  * 輝度の分位点。i 番目は「下から i/(TONE_STEPS-1) の位置にある粒子の輝度」。
