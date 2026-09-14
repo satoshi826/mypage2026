@@ -26,7 +26,9 @@ const easeInOut = (t: number, p: number) => (t < 0.5 ? Math.pow(2 * t, p) * 0.5 
 const easeSlope = (t: number, p: number) => (t <= 0 || t >= 1 ? 0 : p * Math.pow(t < 0.5 ? 2 * t : 2 * (1 - t), p - 1))
 
 /**
- * 棒の高さ（0〜1）を作る。一番高い棒が 1 になるよう毎フレーム正規化する。
+ * 棒の高さ（0〜1）を作る。一番高い棒が 1 になるよう毎フレーム正規化し、
+ * その一番高い棒が全画素に占める割合を返す。正規化すると目盛りが消えて
+ * 「動いていない棒まで一緒に上下する」ことになるので、基準線を引くのに使う。
  *
  * tone は「輝度の分布」。分位点を粒子ごとの進み具合で補間してから数えるので、
  * 遷移中の分布も厳密に出る（ランクどうしが結ばれたまま値が動くため）。
@@ -92,9 +94,10 @@ export function barHeights(
   // 絶対値ではなく形を見せたいので、毎フレーム最大値で割る
   let max = 0
   for (let i = 0; i < bars; i++) if (out[i] > max) max = out[i]
-  if (max <= 0) return out
+  if (max <= 0) return 0
 
   const power = 1 / Math.max(curve, 0.05)
   for (let i = 0; i < bars; i++) out[i] = Math.pow(out[i] / max, power)
-  return out
+  // 割合が意味を持つのは数を数えている tone だけ
+  return source === 'tone' ? max / TONE_STEPS : 0
 }

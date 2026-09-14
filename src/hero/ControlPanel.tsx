@@ -134,7 +134,11 @@ export const ControlPanel = forwardRef<
 
         {/* 横並びのときだけ出す。縦並びでは写真とパネルで画面を使い切っている */}
         {direction === 'side' && layout.eqHeight > 0 && (
-          <div ref={equalizerRef} aria-hidden className="mt-4 flex w-full items-end gap-px [height:var(--eq-height)]">
+          <div
+            ref={equalizerRef}
+            aria-hidden
+            className="relative mt-4 flex w-full items-end gap-px [height:var(--eq-height)]"
+          >
             {Array.from({length: layout.eqBars}, (_, i) => (
               <div
                 key={i}
@@ -142,6 +146,9 @@ export const ControlPanel = forwardRef<
                 style={{transform: 'scaleY(0)', opacity: 0}}
               />
             ))}
+            {/* 正規化で消える目盛りの代わり。全画素の一定割合にあたる高さを示す。
+                必ず棒のあとに置く（Hero が添字で棒を引くため） */}
+            <div className="pointer-events-none absolute inset-x-0 h-px bg-ink opacity-25" hidden />
           </div>
         )}
       </div>
