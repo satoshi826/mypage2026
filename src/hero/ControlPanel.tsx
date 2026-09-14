@@ -134,13 +134,13 @@ export const ControlPanel = forwardRef<
 
         {/* 横並びのときだけ出す。縦並びでは写真とパネルで画面を使い切っている */}
         {direction === 'side' && layout.eqHeight > 0 && (
-          <div
-            ref={equalizerRef}
-            aria-hidden
-            className="mt-4 flex w-full items-end gap-px opacity-40 [height:var(--eq-height)]"
-          >
+          <div ref={equalizerRef} aria-hidden className="mt-4 flex w-full items-end gap-px [height:var(--eq-height)]">
             {Array.from({length: layout.eqBars}, (_, i) => (
-              <div key={i} className="h-full flex-1 origin-bottom bg-ink" style={{transform: 'scaleY(0)'}} />
+              <div
+                key={i}
+                className="h-full flex-1 origin-bottom bg-ink"
+                style={{transform: 'scaleY(0)', opacity: 0}}
+              />
             ))}
           </div>
         )}

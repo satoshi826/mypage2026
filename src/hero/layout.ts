@@ -38,6 +38,8 @@ export type Layout = {
   eqCurve: number
   /** 棒が表す値。0 = 輝度の分布、1 = 横方向の最大輝度 */
   eqSource: number
+  /** 飛行中の棒をどれだけ明るくするか。0 で濃さが一定 */
+  eqMotion: number
   /** パネルの左右の余白 px。狭い画面ではここを削ると列数を稼げる */
   padding: number
 }
@@ -61,6 +63,7 @@ export const STACKED_LAYOUT: Layout = {
   eqBars: 48,
   eqCurve: 1,
   eqSource: 0,
+  eqMotion: 1,
   padding: 16
 }
 
@@ -80,6 +83,7 @@ export const SIDE_LAYOUT: Layout = {
   eqBars: 48,
   eqCurve: 1,
   eqSource: 0,
+  eqMotion: 1,
   padding: 32
 }
 
@@ -144,6 +148,7 @@ export const LAYOUT_PARAMS: SliderParam<Layout>[] = [
     hint: '1 で素のまま。上げるほど低い棒が持ち上がる'
   },
   {key: 'eqSource', label: '棒が表す値', min: 0, max: 1, step: 1, hint: '0 = 輝度の分布、1 = 横方向の最大輝度'},
+  {key: 'eqMotion', label: '飛行中の明るさ', min: 0, max: 4, step: 0.1, hint: '0 で一定。上げると速い棒ほど明るくなる'},
   {key: 'padding', label: '左右の余白', min: 8, max: 64, step: 4, hint: 'px'}
 ]
 

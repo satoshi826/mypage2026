@@ -42,8 +42,10 @@ export function Hero() {
   // 写真の要約は画素を持っている worker 側でしか作れないので、起動時に受け取る
   const analysis = useRef<Analysis | null>(null)
   const heights = useRef(new Float32Array(128))
+  const speeds = useRef(new Float32Array(128))
   const stateRef = useRef<SequenceState>(initialState({count: PHOTOS.length, shuffle: true}))
   const timingRef = useRef<Timing>(timingOf(DEFAULT_TUNING))
+  const tuningRef = useRef<Tuning>(DEFAULT_TUNING)
   const interactionRef = useRef<Interaction>(DEFAULT_INTERACTION)
   const lastFrame = useRef<Frame>({from: -1, to: -1, phase: -1})
   const lastTime = useRef(0)
@@ -96,6 +98,7 @@ export function Hero() {
   const applyTuning = useCallback(
     (tuning: Tuning) => {
       timingRef.current = timingOf(tuning)
+      tuningRef.current = tuning
       post({tuning})
     },
     [post]
@@ -183,14 +186,21 @@ export function Hero() {
       const equalizer = equalizerRef.current
       if (equalizer && analysis.current) {
         const bars = Math.min(layout.eqBars, equalizer.children.length)
-        const values = barHeights(
+        barHeights(
           analysis.current,
           {from, to, phase},
+          tuningRef.current,
           {source: layout.eqSource < 0.5 ? 'tone' : 'profile', bars, curve: layout.eqCurve},
-          heights.current
+          heights.current,
+          speeds.current
         )
+        // 高さは分布、濃さは速度。次元が違うので別のチャンネルに出す
         for (let i = 0; i < bars; i++) {
-          ;(equalizer.children[i] as HTMLElement).style.transform = `scaleY(${values[i]})`
+          const bar = equalizer.children[i] as HTMLElement
+          bar.style.transform = `scaleY(${heights.current[i]})`
+          bar.style.opacity = String(
+            REST_OPACITY + (1 - REST_OPACITY) * Math.min(1, speeds.current[i] * layout.eqMotion)
+          )
         }
       }
 
@@ -199,7 +209,7 @@ export function Hero() {
         bar.style.setProperty('--progress', String(cycleProgress(stateRef.current, timing)))
         bar.style.setProperty('--morph', `${morphRatio(timing) * 100}%`)
       }
-    }, [autoplay, layout.eqBars, layout.eqCurve, layout.eqSource, order, post, reduced, takePointer])
+    }, [autoplay, layout.eqBars, layout.eqCurve, layout.eqMotion, layout.eqSource, order, post, reduced, takePointer])
   )
 
   // 行き先が変わったフレームは worker 側で位置の飛びを打ち消す。
@@ -279,6 +289,9 @@ export function Hero() {
     </section>
   )
 }
+
+/** 棒グラフの、飛んでいないときの濃さ */
+const REST_OPACITY = 0.35
 
 /** 写真とパネルのあいだ、および外周の余白 px。section の gap / px-8 と合わせる */
 const GAP = 32
