@@ -46,10 +46,6 @@ export type Layout = {
   hoverSpread: number
   /** 強調の裾の形。2 でガウス、下げるほど尖って裾が長く、上げるほど角ばる */
   hoverCurve: number
-  /** ホバー中、帯の中心の粒子の大きさ（倍） */
-  hoverNear: number
-  /** ホバー中、帯から外れた粒子の大きさ（倍） */
-  hoverFar: number
   /** ホバー中、帯の粒子の暗部をどれだけ持ち上げるか。1 でそのまま */
   hoverGamma: number
   /** 棒グラフの横軸。1 で sRGB のまま、下げるほど暗部が広がる */
@@ -81,8 +77,6 @@ export const STACKED_LAYOUT: Layout = {
   hoverLift: 100,
   hoverSpread: 2,
   hoverCurve: 2,
-  hoverNear: 1,
-  hoverFar: 2,
   hoverGamma: 2,
   eqAxis: 1,
   padding: 16
@@ -90,29 +84,27 @@ export const STACKED_LAYOUT: Layout = {
 
 /** 写真の横にパネルを置く。横長の画面ではこちらが有利 */
 export const SIDE_LAYOUT: Layout = {
+  blockGap: 20,
+  padding: 32,
   cell: 28,
   gapX: 8,
   gapY: 12,
   columns: 7,
+  idleOpacity: 20,
   markerBorder: 1,
   markerDuration: 800,
   progressHeight: 1,
   morphOpacity: 30,
   dwellOpacity: 16,
-  idleOpacity: 20,
   eqHeight: 96,
-  blockGap: 20,
   eqBars: 48,
   eqCurve: 2.5,
-  eqMotion: 2.5,
-  hoverLift: 100,
-  hoverSpread: 2,
-  hoverCurve: 2,
-  hoverNear: 1,
-  hoverFar: 2,
-  hoverGamma: 2,
   eqAxis: 0.8,
-  padding: 32
+  eqMotion: 2.5,
+  hoverSpread: 4,
+  hoverCurve: 2,
+  hoverLift: 80,
+  hoverGamma: 1
 }
 
 export const LAYOUT_PRESETS: Record<Direction, Layout> = {stacked: STACKED_LAYOUT, side: SIDE_LAYOUT}
@@ -252,16 +244,6 @@ export const LAYOUT_PARAMS: SliderParam<Layout>[] = [
     max: 4,
     step: 0.1,
     hint: '暗部。1 でそのまま'
-  },
-  {group: 'ホバー', key: 'hoverNear', label: '粒の大きさ（対象）', min: 0.2, max: 8, step: 0.2, hint: '倍'},
-  {
-    group: 'ホバー',
-    key: 'hoverFar',
-    label: '粒の大きさ（対象外）',
-    min: 0.2,
-    max: 8,
-    step: 0.2,
-    hint: '倍。1px 未満には縮まない'
   }
 ]
 
