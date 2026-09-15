@@ -110,10 +110,27 @@ export const DEFAULT_INTERACTION: Interaction = {
 }
 
 export const INTERACTION_PARAMS: SliderParam<Interaction>[] = [
-  {key: 'radius', label: '力の半径', min: 0.02, max: 1, step: 0.01, hint: '写真の半幅が 1'},
-  {key: 'push', label: '押しのける強さ', min: 0, max: 0.3, step: 0.005, hint: 'ポインタ起点で放射状に押す'},
-  {key: 'drag', label: '引きずる強さ', min: 0, max: 0.3, step: 0.005, hint: 'ポインタの進行方向へ連れていく'},
+  {group: '力', key: 'radius', label: '力の半径', min: 0.02, max: 1, step: 0.01, hint: '写真の半幅が 1'},
   {
+    group: '力',
+    key: 'push',
+    label: '押しのける強さ',
+    min: 0,
+    max: 0.3,
+    step: 0.005,
+    hint: 'ポインタ起点で放射状に押す'
+  },
+  {
+    group: '力',
+    key: 'drag',
+    label: '引きずる強さ',
+    min: 0,
+    max: 0.3,
+    step: 0.005,
+    hint: 'ポインタの進行方向へ連れていく'
+  },
+  {
+    group: '質量',
     key: 'massGain',
     label: '輝度による重さ',
     min: -3,
@@ -122,6 +139,7 @@ export const INTERACTION_PARAMS: SliderParam<Interaction>[] = [
     hint: '正で明るいほど軽い。0 で差なし。1 で最暗と最明が約7倍'
   },
   {
+    group: '質量',
     key: 'massCurve',
     label: '重さのカーブ',
     min: 0.5,
@@ -129,13 +147,46 @@ export const INTERACTION_PARAMS: SliderParam<Interaction>[] = [
     step: 0.1,
     hint: '1 で線形。上げるほど暗部の差が広がる'
   },
-  {key: 'spread', label: '重さのばらつき', min: 0, max: 0.9, step: 0.05, hint: '粒子ごとに質量を散らす'},
-  {key: 'scatter', label: '向きのゆらぎ', min: 0, max: 1.5, step: 0.05, hint: 'ラジアン。0 で放射状に揃う'},
-  {key: 'attack', label: '立ち上がり', min: 0.01, max: 2, step: 0.01, hint: '秒。上げるほど力がゆっくり乗る'},
-  {key: 'release', label: '余韻', min: 0.05, max: 3, step: 0.05, hint: '秒。上げるほど長く尾を引く'},
-  {key: 'returnSeconds', label: '戻る速さ', min: 0.15, max: 3, step: 0.05, hint: '秒。小さいほど硬く速く戻る'},
-  {key: 'damping', label: '減衰比', min: 0.2, max: 2, step: 0.05, hint: '1 で行き過ぎなし。下げるほどしなる'},
+  {group: '質量', key: 'spread', label: '重さのばらつき', min: 0, max: 0.9, step: 0.05, hint: '粒子ごとに質量を散らす'},
   {
+    group: '質量',
+    key: 'scatter',
+    label: '向きのゆらぎ',
+    min: 0,
+    max: 1.5,
+    step: 0.05,
+    hint: 'ラジアン。0 で放射状に揃う'
+  },
+  {
+    group: '時間',
+    key: 'attack',
+    label: '立ち上がり',
+    min: 0.01,
+    max: 2,
+    step: 0.01,
+    hint: '秒。上げるほど力がゆっくり乗る'
+  },
+  {group: '時間', key: 'release', label: '余韻', min: 0.05, max: 3, step: 0.05, hint: '秒。上げるほど長く尾を引く'},
+  {
+    group: 'バネ',
+    key: 'returnSeconds',
+    label: '戻る速さ',
+    min: 0.15,
+    max: 3,
+    step: 0.05,
+    hint: '秒。小さいほど硬く速く戻る'
+  },
+  {
+    group: 'バネ',
+    key: 'damping',
+    label: '減衰比',
+    min: 0.2,
+    max: 2,
+    step: 0.05,
+    hint: '1 で行き過ぎなし。下げるほどしなる'
+  },
+  {
+    group: '描画',
     key: 'stopBelow',
     label: '描画を止める速度',
     min: 0,

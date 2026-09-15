@@ -2,6 +2,8 @@ import {useEffect, useState} from 'react'
 
 export type SliderParam<T> = {
   key: keyof T & string
+  /** 同じ名前が続くぶんを1つの折りたたみにまとめる。省くと常に開いたまま */
+  group?: string
   label: string
   min: number
   max: number
@@ -37,6 +39,10 @@ export function DevPanel<T extends Record<string, number>>({
 }) {
   const [values, setValues] = useState<T>(() => load(storageKey, defaults))
   const [open, setOpen] = useState(true)
+  // グループは畳んだ状態から始める。触るものだけ開いて使う
+  const [closed, setClosed] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(params.flatMap(({group}) => (group ? [[group, true]] : [])))
+  )
   const [copied, setCopied] = useState(false)
 
   useEffect(() => {
@@ -62,22 +68,36 @@ export function DevPanel<T extends Record<string, number>>({
       </button>
       {open && (
         <>
-          {params.map(({key, label, min, max, step, hint}) => (
-            <label key={key} className="flex flex-col gap-0.5" title={hint}>
-              <span className="flex justify-between">
-                <span>{label}</span>
-                <span className="opacity-60">{values[key]}</span>
-              </span>
-              <input
-                type="range"
-                min={min}
-                max={max}
-                step={step}
-                value={values[key]}
-                onChange={(e) => setValues({...values, [key]: Number(e.target.value)})}
-                className="w-full"
-              />
-            </label>
+          {groupOf(params).map(({name, items}) => (
+            <div key={name ?? ''} className="flex flex-col gap-2">
+              {name && (
+                <button
+                  type="button"
+                  onClick={() => setClosed({...closed, [name]: !closed[name]})}
+                  className={`${BUTTON} w-full`}
+                >
+                  {closed[name] ? '▸' : '▾'} {name}
+                </button>
+              )}
+              {(!name || !closed[name]) &&
+                items.map(({key, label, min, max, step, hint}) => (
+                  <label key={key} className="flex flex-col gap-0.5" title={hint}>
+                    <span className="flex justify-between">
+                      <span>{label}</span>
+                      <span className="opacity-60">{values[key]}</span>
+                    </span>
+                    <input
+                      type="range"
+                      min={min}
+                      max={max}
+                      step={step}
+                      value={values[key]}
+                      onChange={(e) => setValues({...values, [key]: Number(e.target.value)})}
+                      className="w-full"
+                    />
+                  </label>
+                ))}
+            </div>
           ))}
           <div className="mt-1 flex gap-2">
             <button type="button" onClick={() => setValues(defaults)} className={BUTTON}>
@@ -91,6 +111,17 @@ export function DevPanel<T extends Record<string, number>>({
       )}
     </div>
   )
+}
+
+/** 同じ group が続くぶんをまとめる。並び順はそのまま */
+function groupOf<T>(params: SliderParam<T>[]) {
+  const groups: {name?: string; items: SliderParam<T>[]}[] = []
+  for (const param of params) {
+    const last = groups[groups.length - 1]
+    if (last && last.name === param.group) last.items.push(param)
+    else groups.push({name: param.group, items: [param]})
+  }
+  return groups
 }
 
 function load<T>(storageKey: string, defaults: T): T {

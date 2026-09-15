@@ -152,34 +152,57 @@ export function chooseDirection(width: number, height: number, count: number): D
 }
 
 export const LAYOUT_PARAMS: SliderParam<Layout>[] = [
-  {key: 'cell', label: 'マスの一辺', min: 20, max: 72, step: 1, hint: '数字1つぶんの大きさ(px)'},
-  {key: 'gapX', label: 'マスの間隔（横）', min: 0, max: 32, step: 1, hint: 'px'},
-  {key: 'gapY', label: 'マスの間隔（縦）', min: 0, max: 32, step: 1, hint: 'px'},
-  {key: 'columns', label: '列数', min: 4, max: 20, step: 1, hint: 'カレンダーの横幅はこれと一辺・間隔で決まる'},
-  {key: 'markerBorder', label: '丸の線の太さ', min: 1, max: 4, step: 1, hint: 'px'},
-  {key: 'markerDuration', label: '丸の移動時間', min: 0, max: 1200, step: 50, hint: 'ms。0 で瞬間移動'},
-  {key: 'progressHeight', label: 'バーの太さ', min: 1, max: 8, step: 1, hint: 'px'},
-  {key: 'morphOpacity', label: 'バーの濃さ（遷移帯ぶん）', min: 0, max: 100, step: 1, hint: '%。通過ぶんは 100%'},
+  {group: '配置', key: 'blockGap', label: 'ブロックの間隔', min: 0, max: 80, step: 2, hint: 'px。各ブロックのあいだ'},
+  {group: '配置', key: 'padding', label: '左右の余白', min: 8, max: 64, step: 4, hint: 'px'},
+
+  {group: 'カレンダー', key: 'cell', label: 'マスの一辺', min: 20, max: 72, step: 1, hint: '数字1つぶんの大きさ(px)'},
+  {group: 'カレンダー', key: 'gapX', label: 'マスの間隔（横）', min: 0, max: 32, step: 1, hint: 'px'},
+  {group: 'カレンダー', key: 'gapY', label: 'マスの間隔（縦）', min: 0, max: 32, step: 1, hint: 'px'},
   {
-    key: 'dwellOpacity',
-    label: 'バーの濃さ（静止帯ぶん）',
+    group: 'カレンダー',
+    key: 'columns',
+    label: '列数',
+    min: 4,
+    max: 20,
+    step: 1,
+    hint: '横幅はこれと一辺・間隔で決まる'
+  },
+  {group: 'カレンダー', key: 'idleOpacity', label: '非選択の濃さ', min: 0, max: 100, step: 5, hint: '%'},
+  {group: 'カレンダー', key: 'markerBorder', label: '丸の線の太さ', min: 1, max: 4, step: 1, hint: 'px'},
+  {
+    group: 'カレンダー',
+    key: 'markerDuration',
+    label: '丸の移動時間',
+    min: 0,
+    max: 1200,
+    step: 50,
+    hint: 'ms。0 で瞬間移動'
+  },
+
+  {group: 'プログレスバー', key: 'progressHeight', label: '太さ', min: 1, max: 8, step: 1, hint: 'px'},
+  {
+    group: 'プログレスバー',
+    key: 'morphOpacity',
+    label: '濃さ（遷移帯）',
     min: 0,
     max: 100,
     step: 1,
-    hint: '%。遷移帯ぶんより薄くする'
+    hint: '%。通過ぶんは 100%'
   },
-  {key: 'idleOpacity', label: '非選択の濃さ', min: 0, max: 100, step: 5, hint: '%'},
-  {key: 'eqHeight', label: 'スペクトラムの高さ', min: 0, max: 240, step: 4, hint: 'px。0 で出さない'},
   {
-    key: 'blockGap',
-    label: 'ブロックの間隔',
+    group: 'プログレスバー',
+    key: 'dwellOpacity',
+    label: '濃さ（静止帯）',
     min: 0,
-    max: 80,
-    step: 2,
-    hint: 'px。操作・バー・カレンダー・スペクトラムのあいだ'
+    max: 100,
+    step: 1,
+    hint: '%。遷移帯より薄くする'
   },
-  {key: 'eqBars', label: '棒の本数', min: 8, max: 96, step: 1, hint: '本'},
+
+  {group: 'スペクトラム', key: 'eqHeight', label: '高さ', min: 0, max: 240, step: 4, hint: 'px。0 で出さない'},
+  {group: 'スペクトラム', key: 'eqBars', label: '棒の本数', min: 8, max: 96, step: 1, hint: '本'},
   {
+    group: 'スペクトラム',
     key: 'eqCurve',
     label: '棒のカーブ',
     min: 0.3,
@@ -187,22 +210,8 @@ export const LAYOUT_PARAMS: SliderParam<Layout>[] = [
     step: 0.05,
     hint: '1 で素のまま。上げるほど低い棒が持ち上がる'
   },
-  {key: 'eqMotion', label: '飛行中の明るさ', min: 0, max: 4, step: 0.1, hint: '0 で一定。上げると速い棒ほど明るくなる'},
-  {key: 'hoverLift', label: 'ホバーの明るさ', min: 0, max: 100, step: 5, hint: '%。棒をどこまで持ち上げるか'},
-  {key: 'hoverSpread', label: 'ホバーの広がり', min: 0.5, max: 12, step: 0.5, hint: '棒いくつ分に広がるか'},
   {
-    key: 'hoverCurve',
-    label: 'ホバーの裾',
-    min: 0.5,
-    max: 6,
-    step: 0.1,
-    hint: '2 でガウス。下げると尖り、上げると角ばる'
-  },
-  {key: 'hoverNear', label: 'ホバーの粒（対象）', min: 0.2, max: 8, step: 0.2, hint: '倍'},
-  {key: 'hoverFar', label: 'ホバーの粒（対象外）', min: 0.2, max: 8, step: 0.2, hint: '倍。1px 未満には縮まない'},
-  {key: 'hoverGamma', label: 'ホバーの持ち上げ', min: 1, max: 4, step: 0.1, hint: '対象の暗部。1 でそのまま'},
-  {key: 'hoverDim', label: 'ホバーの暗さ（対象外）', min: 0, max: 100, step: 5, hint: '%。100 でそのまま'},
-  {
+    group: 'スペクトラム',
     key: 'eqAxis',
     label: '横軸の引き伸ばし',
     min: 0.3,
@@ -210,7 +219,55 @@ export const LAYOUT_PARAMS: SliderParam<Layout>[] = [
     step: 0.05,
     hint: '1 で sRGB のまま。下げると暗部が広がる'
   },
-  {key: 'padding', label: '左右の余白', min: 8, max: 64, step: 4, hint: 'px'}
+  {
+    group: 'スペクトラム',
+    key: 'eqMotion',
+    label: '飛行中の明るさ',
+    min: 0,
+    max: 4,
+    step: 0.1,
+    hint: '0 で一定。上げると速い棒ほど明るくなる'
+  },
+
+  {group: 'ホバー', key: 'hoverSpread', label: '広がり', min: 0.5, max: 12, step: 0.5, hint: '棒いくつ分に広がるか'},
+  {
+    group: 'ホバー',
+    key: 'hoverCurve',
+    label: '裾',
+    min: 0.5,
+    max: 6,
+    step: 0.1,
+    hint: '2 でガウス。下げると尖り、上げると角ばる'
+  },
+  {
+    group: 'ホバー',
+    key: 'hoverLift',
+    label: '棒の明るさ',
+    min: 0,
+    max: 100,
+    step: 5,
+    hint: '%。棒をどこまで持ち上げるか'
+  },
+  {
+    group: 'ホバー',
+    key: 'hoverGamma',
+    label: '粒の持ち上げ（対象）',
+    min: 1,
+    max: 4,
+    step: 0.1,
+    hint: '暗部。1 でそのまま'
+  },
+  {group: 'ホバー', key: 'hoverDim', label: '粒の暗さ（対象外）', min: 0, max: 100, step: 5, hint: '%。100 でそのまま'},
+  {group: 'ホバー', key: 'hoverNear', label: '粒の大きさ（対象）', min: 0.2, max: 8, step: 0.2, hint: '倍'},
+  {
+    group: 'ホバー',
+    key: 'hoverFar',
+    label: '粒の大きさ（対象外）',
+    min: 0.2,
+    max: 8,
+    step: 0.2,
+    hint: '倍。1px 未満には縮まない'
+  }
 ]
 
 /** CSS 変数の形にする。ControlPanel のルートに style として渡す */
