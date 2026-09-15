@@ -184,20 +184,16 @@ async function createScene(canvas: OffscreenCanvas, pixelRatio: number, photos: 
         // 干渉によるズレ。更新パスが書いた値をそのまま足す
         vec2 offset = texelFetch(t_state, ivec2(k % ${grid.width}, k / ${grid.width}), 0).xy;
 
-        // スペクトラムにホバーしているあいだは、その明るさの粒子だけを残す。
-        // 幅 0 が「ホバーしていない」で、そのときは全部そのまま描く
-        bool hovering = u_bandWidth > 0.0;
-        float focus = hovering
+        // スペクトラムにホバーしているあいだ、その明るさの粒子だけを大きく描く。
+        // 写真はそのまま全部見えていて、該当する粒子が太るだけ。
+        // 幅 0 が「ホバーしていない」
+        float focus = u_bandWidth > 0.0
           ? exp(-pow(abs(lum - u_bandCenter) / u_bandWidth, u_bandCurve))
           : 0.0;
-        float weight = hovering ? focus : 1.0;
-        v_color = vec3(lum * weight);
 
-        // 外れた粒子は描かない。黒く塗ると地の色より暗い矩形になってしまう
-        gl_Position = weight < 0.02
-          ? vec4(2.0, 2.0, 2.0, 1.0)
-          : vec4((pos + offset) * u_fit, 0.0, 1.0);
-        // 帯だけ残すと粒が疎になるので、残った粒子を大きくして塊として見せる
+        v_color = vec3(lum);
+
+        gl_Position = vec4((pos + offset) * u_fit, 0.0, 1.0);
         gl_PointSize = u_pointSize * mix(1.0, u_bandGrow, focus);
       }`,
     frag: /* glsl */ `
