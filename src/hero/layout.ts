@@ -153,7 +153,7 @@ export const LAYOUT_PARAMS: SliderParam<Layout>[] = [
     hint: '%。遷移帯ぶんより薄くする'
   },
   {key: 'idleOpacity', label: '非選択の濃さ', min: 0, max: 100, step: 5, hint: '%'},
-  {key: 'eqHeight', label: '棒グラフの高さ', min: 0, max: 240, step: 4, hint: 'px。0 で出さない'},
+  {key: 'eqHeight', label: 'スペクトラムの高さ', min: 0, max: 240, step: 4, hint: 'px。0 で出さない'},
   {
     key: 'blockGap',
     label: 'ブロックの間隔',
@@ -172,6 +172,16 @@ export const LAYOUT_PARAMS: SliderParam<Layout>[] = [
     hint: '1 で素のまま。上げるほど低い棒が持ち上がる'
   },
   {key: 'eqMotion', label: '飛行中の明るさ', min: 0, max: 4, step: 0.1, hint: '0 で一定。上げると速い棒ほど明るくなる'},
+  {key: 'hoverLift', label: 'ホバーの明るさ', min: 0, max: 100, step: 5, hint: '%。棒をどこまで持ち上げるか'},
+  {key: 'hoverSpread', label: 'ホバーの広がり', min: 0.5, max: 12, step: 0.5, hint: '棒いくつ分に広がるか'},
+  {
+    key: 'hoverCurve',
+    label: 'ホバーの裾',
+    min: 0.5,
+    max: 6,
+    step: 0.1,
+    hint: '2 でガウス。下げると尖り、上げると角ばる'
+  },
   {
     key: 'eqAxis',
     label: '横軸の引き伸ばし',
