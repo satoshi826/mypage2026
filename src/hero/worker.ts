@@ -169,8 +169,7 @@ async function createScene(canvas: OffscreenCanvas, pixelRatio: number, photos: 
       u_bandCurve: 'float',
       u_bandNear: 'float',
       u_bandFar: 'float',
-      u_bandGamma: 'float',
-      u_bandDim: 'float'
+      u_bandGamma: 'float'
     },
     texture: {t_table: table, t_state: state[0].renderTexture[0]},
     primitive: 'POINTS',
@@ -189,13 +188,14 @@ async function createScene(canvas: OffscreenCanvas, pixelRatio: number, photos: 
 
         // スペクトラムにホバーしているあいだ、該当する明るさの粒子とそれ以外で
         // 明るさと点の大きさを変える。幅 0 が「ホバーしていない」。
-        // 帯はガンマで暗部を持ち上げ、外は暗く・大きくしてぼかす
+        // 帯はガンマで暗部を持ち上げ、そこから離れるほど暗く・大きくなる。
+        // 暗さに下限は置かない。どこまで見えるかは裾の広さと形で決める
         bool hovering = u_bandWidth > 0.0;
         float focus = hovering
           ? exp(-pow(abs(lum - u_bandCenter) / u_bandWidth, u_bandCurve))
           : 0.0;
 
-        v_color = vec3(hovering ? mix(lum * u_bandDim, pow(lum, 1.0 / u_bandGamma), focus) : lum);
+        v_color = vec3(hovering ? pow(lum, 1.0 / u_bandGamma) * focus : lum);
 
         gl_Position = vec4((pos + offset) * u_fit, 0.0, 1.0);
         gl_PointSize = u_pointSize * (hovering ? mix(u_bandFar, u_bandNear, focus) : 1.0);
@@ -368,15 +368,14 @@ async function createScene(canvas: OffscreenCanvas, pixelRatio: number, photos: 
   }
 
   /** 残す輝度の帯。幅 0 でホバーなし */
-  const setBand = ({center, width, curve, near, far, gamma, dim}: BandCommand) =>
+  const setBand = ({center, width, curve, near, far, gamma}: BandCommand) =>
     program.setUniform({
       u_bandCenter: center,
       u_bandWidth: width,
       u_bandCurve: curve,
       u_bandNear: near,
       u_bandFar: far,
-      u_bandGamma: gamma,
-      u_bandDim: dim
+      u_bandGamma: gamma
     })
 
   const draw = () => {
@@ -410,7 +409,7 @@ async function createScene(canvas: OffscreenCanvas, pixelRatio: number, photos: 
 
   applyTuning(DEFAULT_TUNING)
   applyInteraction(DEFAULT_INTERACTION)
-  setBand({center: 0, width: 0, curve: 2, near: 1, far: 1, gamma: 1, dim: 1})
+  setBand({center: 0, width: 0, curve: 2, near: 1, far: 1, gamma: 1})
   update.setUniform({u_prevFrom: 0, u_prevTo: 0, u_prevPhase: 0, u_catchUp: 0})
   resize({width: core.canvasWidth, height: core.canvasHeight})
 
@@ -442,7 +441,8 @@ async function createScene(canvas: OffscreenCanvas, pixelRatio: number, photos: 
 /** 残す輝度の帯。幅 0 なら全部描く */
 /**
  * ホバーで強調する輝度の帯。幅 0 なら何もしない。
- * near / far は点サイズの倍率、gamma は帯の暗部の持ち上げ、dim は帯の外の暗さ。
+ * near / far は点サイズの倍率、gamma は帯の暗部の持ち上げ。帯から離れた粒子は
+ * 裾に沿って暗くなるだけで、暗さの下限は持たない。
  */
 export type BandCommand = {
   center: number
@@ -451,7 +451,6 @@ export type BandCommand = {
   near: number
   far: number
   gamma: number
-  dim: number
 }
 
 /** ポインタの位置と速度。どちらも写真の半幅を 1 とした NDC（速度は 1秒あたり） */
