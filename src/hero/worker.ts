@@ -60,6 +60,9 @@ async function createScene(canvas: OffscreenCanvas, pixelRatio: number, photos: 
   const imageAspect = grid.width / grid.height
 
   const layout = layoutFor(textureLimit, photos.length, grid)
+  // 粒子の後ろにあるのは地の色1色だけなので、薄れさせるときはここへ混ぜる。
+  // 透過にしなくても同じ絵になり、描画順に意味が出ない
+  const groundColor = parseColor(ground)
 
   // 頂点ごとのランク。glaku の型は number[] だが内部で Float32Array に詰め直すだけ
   const rankIndices = Float32Array.from({length: grid.count}, (_, i) => i)
@@ -107,6 +110,11 @@ async function createScene(canvas: OffscreenCanvas, pixelRatio: number, photos: 
           (layer / ${layout.cols}) * ${grid.height} + row
         );
       }
+
+      const vec3 GROUND = vec3(${groundColor
+        .slice(0, 3)
+        .map((v) => v.toFixed(5))
+        .join(', ')});
 
       // p = 1 で等速、p = 3 で easeInOutCubic と一致する
       float easeInOut(float t, float p) {
@@ -188,14 +196,14 @@ async function createScene(canvas: OffscreenCanvas, pixelRatio: number, photos: 
 
         // スペクトラムにホバーしているあいだ、該当する明るさの粒子とそれ以外で
         // 明るさと点の大きさを変える。幅 0 が「ホバーしていない」。
-        // 帯はガンマで暗部を持ち上げ、そこから離れるほど暗く・大きくなる。
-        // 暗さに下限は置かない。どこまで見えるかは裾の広さと形で決める
+        // 帯はガンマで暗部を持ち上げ、そこから離れるほど地の色へ薄れて大きくなる。
+        // どこまで見えるかは裾の広さと形で決める
         bool hovering = u_bandWidth > 0.0;
         float focus = hovering
           ? exp(-pow(abs(lum - u_bandCenter) / u_bandWidth, u_bandCurve))
           : 0.0;
 
-        v_color = vec3(hovering ? pow(lum, 1.0 / u_bandGamma) * focus : lum);
+        v_color = hovering ? mix(GROUND, vec3(pow(lum, 1.0 / u_bandGamma)), focus) : vec3(lum);
 
         gl_Position = vec4((pos + offset) * u_fit, 0.0, 1.0);
         gl_PointSize = u_pointSize * (hovering ? mix(u_bandFar, u_bandNear, focus) : 1.0);
@@ -330,7 +338,7 @@ async function createScene(canvas: OffscreenCanvas, pixelRatio: number, photos: 
 
   postMessage((await fillAtlas(core, table, photos, grid, layout)) satisfies Analysis)
 
-  const renderer = new Renderer(core, {id: 'canvas', backgroundColor: parseColor(ground)})
+  const renderer = new Renderer(core, {id: 'canvas', backgroundColor: groundColor})
 
   // 粒子は u_fit を掛ける前の空間にいるので、ポインタも同じ空間へ戻してから渡す
   let fit = [1, 1]
