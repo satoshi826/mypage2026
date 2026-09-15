@@ -46,6 +46,8 @@ export type Layout = {
   hoverSpread: number
   /** 強調の裾の形。2 でガウス、下げるほど尖って裾が長く、上げるほど角ばる */
   hoverCurve: number
+  /** ホバー中に残った粒子を何倍の大きさで描くか */
+  hoverGrow: number
   /** 棒グラフの横軸。1 で sRGB のまま、下げるほど暗部が広がる */
   eqAxis: number
   /** パネルの左右の余白 px。狭い画面ではここを削ると列数を稼げる */
@@ -75,6 +77,7 @@ export const STACKED_LAYOUT: Layout = {
   hoverLift: 100,
   hoverSpread: 2,
   hoverCurve: 2,
+  hoverGrow: 3,
   eqAxis: 1,
   padding: 16
 }
@@ -99,6 +102,7 @@ export const SIDE_LAYOUT: Layout = {
   hoverLift: 100,
   hoverSpread: 2,
   hoverCurve: 2,
+  hoverGrow: 3,
   eqAxis: 0.8,
   padding: 32
 }
@@ -182,6 +186,7 @@ export const LAYOUT_PARAMS: SliderParam<Layout>[] = [
     step: 0.1,
     hint: '2 でガウス。下げると尖り、上げると角ばる'
   },
+  {key: 'hoverGrow', label: 'ホバーの粒の大きさ', min: 1, max: 8, step: 0.5, hint: '倍。残った粒子を大きくする'},
   {
     key: 'eqAxis',
     label: '横軸の引き伸ばし',

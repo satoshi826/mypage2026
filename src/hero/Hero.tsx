@@ -285,10 +285,11 @@ export function Hero() {
           post({
             band:
               index === null
-                ? {center: 0, width: 0, curve: layout.hoverCurve}
+                ? {center: 0, width: 0, curve: layout.hoverCurve, grow: layout.hoverGrow}
                 : {
                     ...bandOf(index, {bars: layout.eqBars, axis: layout.eqAxis}, layout.hoverSpread),
-                    curve: layout.hoverCurve
+                    curve: layout.hoverCurve,
+                    grow: layout.hoverGrow
                   }
           })
         }}
