@@ -40,10 +40,12 @@ export type Layout = {
   eqCurve: number
   /** 飛行中の棒をどれだけ明るくするか。0 で濃さが一定 */
   eqMotion: number
-  /** 棒にホバーしたとき、帯から外れた粒子の暗さ %。100 で強調なし */
-  hoverDim: number
+  /** 棒にホバーしたとき、そこをどこまで明るくするか %。0 で強調なし */
+  hoverLift: number
   /** 強調が広がる幅。棒いくつ分か */
   hoverSpread: number
+  /** 強調の裾の形。2 でガウス、下げるほど尖って裾が長く、上げるほど角ばる */
+  hoverCurve: number
   /** 棒グラフの横軸。1 で sRGB のまま、下げるほど暗部が広がる */
   eqAxis: number
   /** パネルの左右の余白 px。狭い画面ではここを削ると列数を稼げる */
@@ -70,8 +72,9 @@ export const STACKED_LAYOUT: Layout = {
   eqBars: 48,
   eqCurve: 1,
   eqMotion: 1,
-  hoverDim: 30,
+  hoverLift: 100,
   hoverSpread: 2,
+  hoverCurve: 2,
   eqAxis: 1,
   padding: 16
 }
@@ -93,8 +96,9 @@ export const SIDE_LAYOUT: Layout = {
   eqBars: 48,
   eqCurve: 2.5,
   eqMotion: 2.5,
-  hoverDim: 30,
+  hoverLift: 100,
   hoverSpread: 2,
+  hoverCurve: 2,
   eqAxis: 0.8,
   padding: 32
 }

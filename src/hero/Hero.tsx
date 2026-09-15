@@ -197,12 +197,12 @@ export function Hero() {
       if (equalizer && analysis.current && (command.render || eqPending.current)) {
         eqPending.current = false
         const bars = Math.min(layout.eqBars, equalizer.children.length)
-        // ホバー中の棒からの距離。粒子側と同じガウスで落とす
-        const dim = layout.hoverDim / 100
+        // ホバー中の棒からの距離で、その棒を明るくする。他は落とさない
+        const lift = layout.hoverLift / 100
         const near = (i: number) =>
           hovered.current === null
-            ? 1
-            : dim + (1 - dim) * Math.exp(-(((i - hovered.current) / layout.hoverSpread) ** 2))
+            ? 0
+            : lift * Math.exp(-((Math.abs(i - hovered.current) / layout.hoverSpread) ** layout.hoverCurve))
         barHeights(
           analysis.current,
           {from, to, phase},
@@ -216,7 +216,7 @@ export function Hero() {
           const bar = equalizer.children[i] as HTMLElement
           bar.style.transform = `scaleY(${heights.current[i]})`
           const lit = REST_OPACITY + (1 - REST_OPACITY) * Math.min(1, speeds.current[i] * layout.eqMotion)
-          bar.style.opacity = String(lit * near(i))
+          bar.style.opacity = String(lit + (1 - lit) * near(i))
         }
       }
 
@@ -231,7 +231,8 @@ export function Hero() {
       layout.eqBars,
       layout.eqCurve,
       layout.eqMotion,
-      layout.hoverDim,
+      layout.hoverCurve,
+      layout.hoverLift,
       layout.hoverSpread,
       order,
       post,
@@ -284,10 +285,10 @@ export function Hero() {
           post({
             band:
               index === null
-                ? {center: 0, width: 1, dim: 1}
+                ? {center: 0, width: 0, curve: layout.hoverCurve}
                 : {
                     ...bandOf(index, {bars: layout.eqBars, axis: layout.eqAxis}, layout.hoverSpread),
-                    dim: layout.hoverDim / 100
+                    curve: layout.hoverCurve
                   }
           })
         }}
