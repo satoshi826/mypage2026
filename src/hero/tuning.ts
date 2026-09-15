@@ -13,11 +13,11 @@ export type Tuning = {
 }
 
 export const DEFAULT_TUNING: Tuning = {
-  cycleSeconds: 9,
+  cycleSeconds: 8,
   dwellRatio: 0.5,
-  staggerTotal: 0.75,
-  toneCurve: 1.2,
-  easePower: 5
+  staggerTotal: 0.7,
+  toneCurve: 1.5,
+  easePower: 4
 }
 
 export const TUNING_PARAMS: SliderParam<Tuning>[] = [
