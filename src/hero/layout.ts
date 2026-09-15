@@ -50,6 +50,10 @@ export type Layout = {
   hoverNear: number
   /** ホバー中、帯から外れた粒子の大きさ（倍） */
   hoverFar: number
+  /** ホバー中、帯の粒子の暗部をどれだけ持ち上げるか。1 でそのまま */
+  hoverGamma: number
+  /** ホバー中、帯から外れた粒子の暗さ %。100 でそのまま */
+  hoverDim: number
   /** 棒グラフの横軸。1 で sRGB のまま、下げるほど暗部が広がる */
   eqAxis: number
   /** パネルの左右の余白 px。狭い画面ではここを削ると列数を稼げる */
@@ -80,7 +84,9 @@ export const STACKED_LAYOUT: Layout = {
   hoverSpread: 2,
   hoverCurve: 2,
   hoverNear: 1,
-  hoverFar: 0.4,
+  hoverFar: 2,
+  hoverGamma: 2,
+  hoverDim: 40,
   eqAxis: 1,
   padding: 16
 }
@@ -106,7 +112,9 @@ export const SIDE_LAYOUT: Layout = {
   hoverSpread: 2,
   hoverCurve: 2,
   hoverNear: 1,
-  hoverFar: 0.4,
+  hoverFar: 2,
+  hoverGamma: 2,
+  hoverDim: 40,
   eqAxis: 0.8,
   padding: 32
 }
@@ -192,6 +200,8 @@ export const LAYOUT_PARAMS: SliderParam<Layout>[] = [
   },
   {key: 'hoverNear', label: 'ホバーの粒（対象）', min: 0.2, max: 8, step: 0.2, hint: '倍'},
   {key: 'hoverFar', label: 'ホバーの粒（対象外）', min: 0.2, max: 8, step: 0.2, hint: '倍。1px 未満には縮まない'},
+  {key: 'hoverGamma', label: 'ホバーの持ち上げ', min: 1, max: 4, step: 0.1, hint: '対象の暗部。1 でそのまま'},
+  {key: 'hoverDim', label: 'ホバーの暗さ（対象外）', min: 0, max: 100, step: 5, hint: '%。100 でそのまま'},
   {
     key: 'eqAxis',
     label: '横軸の引き伸ばし',
