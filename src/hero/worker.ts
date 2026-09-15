@@ -167,7 +167,8 @@ async function createScene(canvas: OffscreenCanvas, pixelRatio: number, photos: 
       u_bandCenter: 'float',
       u_bandWidth: 'float',
       u_bandCurve: 'float',
-      u_bandGrow: 'float'
+      u_bandNear: 'float',
+      u_bandFar: 'float'
     },
     texture: {t_table: table, t_state: state[0].renderTexture[0]},
     primitive: 'POINTS',
@@ -184,17 +185,17 @@ async function createScene(canvas: OffscreenCanvas, pixelRatio: number, photos: 
         // 干渉によるズレ。更新パスが書いた値をそのまま足す
         vec2 offset = texelFetch(t_state, ivec2(k % ${grid.width}, k / ${grid.width}), 0).xy;
 
-        // スペクトラムにホバーしているあいだ、その明るさの粒子だけを大きく描く。
-        // 写真はそのまま全部見えていて、該当する粒子が太るだけ。
-        // 幅 0 が「ホバーしていない」
-        float focus = u_bandWidth > 0.0
+        // スペクトラムにホバーしているあいだ、点の大きさだけを変える。写真は全部
+        // 見えたままで、該当する明るさとそれ以外で倍率が違う。幅 0 が「ホバーしていない」
+        bool hovering = u_bandWidth > 0.0;
+        float focus = hovering
           ? exp(-pow(abs(lum - u_bandCenter) / u_bandWidth, u_bandCurve))
           : 0.0;
 
         v_color = vec3(lum);
 
         gl_Position = vec4((pos + offset) * u_fit, 0.0, 1.0);
-        gl_PointSize = u_pointSize * mix(1.0, u_bandGrow, focus);
+        gl_PointSize = u_pointSize * (hovering ? mix(u_bandFar, u_bandNear, focus) : 1.0);
       }`,
     frag: /* glsl */ `
       in vec3 v_color;
@@ -364,8 +365,14 @@ async function createScene(canvas: OffscreenCanvas, pixelRatio: number, photos: 
   }
 
   /** 残す輝度の帯。幅 0 でホバーなし */
-  const setBand = ({center, width, curve, grow}: BandCommand) =>
-    program.setUniform({u_bandCenter: center, u_bandWidth: width, u_bandCurve: curve, u_bandGrow: grow})
+  const setBand = ({center, width, curve, near, far}: BandCommand) =>
+    program.setUniform({
+      u_bandCenter: center,
+      u_bandWidth: width,
+      u_bandCurve: curve,
+      u_bandNear: near,
+      u_bandFar: far
+    })
 
   const draw = () => {
     core.setTexture('t_state', state[readIndex].renderTexture[0])
@@ -398,7 +405,7 @@ async function createScene(canvas: OffscreenCanvas, pixelRatio: number, photos: 
 
   applyTuning(DEFAULT_TUNING)
   applyInteraction(DEFAULT_INTERACTION)
-  setBand({center: 0, width: 0, curve: 2, grow: 1})
+  setBand({center: 0, width: 0, curve: 2, near: 1, far: 1})
   update.setUniform({u_prevFrom: 0, u_prevTo: 0, u_prevPhase: 0, u_catchUp: 0})
   resize({width: core.canvasWidth, height: core.canvasHeight})
 
@@ -428,7 +435,8 @@ async function createScene(canvas: OffscreenCanvas, pixelRatio: number, photos: 
 }
 
 /** 残す輝度の帯。幅 0 なら全部描く */
-export type BandCommand = {center: number; width: number; curve: number; grow: number}
+/** near は帯の中心、far は帯から外れた粒子の点サイズの倍率 */
+export type BandCommand = {center: number; width: number; curve: number; near: number; far: number}
 
 /** ポインタの位置と速度。どちらも写真の半幅を 1 とした NDC（速度は 1秒あたり） */
 export type PointerCommand = {x: number; y: number; vx: number; vy: number}
