@@ -132,11 +132,15 @@ export const ControlPanel = forwardRef<
       </div>
 
       <div className="relative">
+        {/* 丸の中だけを拡大鏡のように見せる。数字は下のマスでは隠し、ここに拡大して
+            描いたうえで丸で切り抜く */}
         <div
           ref={markerRef}
           aria-hidden
-          className="pointer-events-none absolute rounded-full border-ink transition-transform ease-out [border-width:var(--marker-border)] [transition-duration:var(--marker-duration)] size-(--marker-size)"
-        />
+          className="pointer-events-none absolute flex items-center justify-center overflow-hidden rounded-full border-ink transition-transform ease-out [border-width:var(--marker-border)] [transition-duration:var(--marker-duration)] size-(--marker-size)"
+        >
+          <span className="text-[0.7rem] tracking-[0.1em] [scale:var(--marker-zoom)]">{label(index)}</span>
+        </div>
         <ol
           ref={listRef}
           className="m-0 grid p-0 [column-gap:var(--gap-x)] [row-gap:var(--gap-y)] [grid-template-columns:repeat(var(--cols),var(--cell))]"
@@ -149,10 +153,9 @@ export const ControlPanel = forwardRef<
                 aria-current={i === index}
                 aria-label={`${label(i)} ${photo.title}`}
                 // 丸に入った数字だけ拡大する。拡大は丸の移動と同じ速さ、濃さは短く戻す
-                className={`size-full cursor-pointer text-[0.7rem] tracking-[0.1em] [transition:opacity_300ms,scale_var(--marker-duration)_ease-out] ${
-                  i === index
-                    ? 'opacity-100 [scale:var(--marker-zoom)]'
-                    : 'hover:opacity-70 [opacity:var(--idle-opacity)]'
+                // 選択中のマスは丸の中に描き直すので、こちらは消す
+                className={`size-full cursor-pointer text-[0.7rem] tracking-[0.1em] transition-opacity duration-300 ${
+                  i === index ? 'opacity-0' : 'hover:opacity-70 [opacity:var(--idle-opacity)]'
                 }`}
               >
                 {label(i)}
