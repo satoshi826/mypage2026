@@ -15,6 +15,18 @@
   --spacing-nav: 4.5rem;
 
   --font-sans: system-ui, sans-serif;
+  /* カレンダーの番号に使う書体。1 の字幅が広い lnum 側を lining-nums で選ぶ */
+  --font-number: 'F1.8', var(--font-sans);
+}
+
+/* 絞り値を模した数字が特徴の書体（Sora Sagano, 2021）。
+   カレンダーの番号を写真のメタデータのように見せるために使う */
+@font-face {
+  font-family: 'F1.8';
+  src: url('./assets/F1.8-Regular.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
 }
 
 /* 画面が狭いときのトークン上書き。utility 側は var を参照しているのでこれだけで効く */
