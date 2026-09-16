@@ -17,20 +17,29 @@ const vite = await createServer({root, appType: 'custom', server: {middlewareMod
 
 try {
   const {render} = await vite.ssrLoadModule('/src/entry-server.tsx')
-  const {ROUTES} = await vite.ssrLoadModule('/src/app/routes.ts')
+  const {ROUTES, NAME} = await vite.ssrLoadModule('/src/app/routes.ts')
   const template = await readFile(join(dist, 'index.html'), 'utf8')
 
-  for (const {path, title, description} of ROUTES) {
+  const page = (path, title, description) => {
     const head = `<title>${escapeHtml(title)}</title>\n    <meta name="description" content="${escapeHtml(description)}">`
-    const html = template
+    return template
       .replace(/<title>.*?<\/title>/, head)
       .replace('<div id="root"></div>', `<div id="root">${render(path)}</div>`)
+  }
 
-    const file = path === '/' ? join(dist, 'index.html') : join(dist, path.slice(1), 'index.html')
+  const write = async (file, html) => {
     await mkdir(dirname(file), {recursive: true})
     await writeFile(file, html)
-    console.log('prerendered', path, '->', file.replace(root + '/', ''))
+    console.log('prerendered', file.replace(root + '/', ''))
   }
+
+  for (const {path, title, description} of ROUTES) {
+    const file = path === '/' ? join(dist, 'index.html') : join(dist, path.slice(1), 'index.html')
+    await write(file, page(path, title, description))
+  }
+
+  // どのルートにも当たらないパス用。Cloudflare の not_found_handling がこれを返す
+  await write(join(dist, '404.html'), page('/404', `Not found — ${NAME}`, 'ページが見つかりません。'))
 } finally {
   await vite.close()
 }

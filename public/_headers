@@ -1,0 +1,7 @@
+# ファイル名にハッシュが入るので、中身が変わればパスが変わる
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# 写真はパスが変わらないので、差し替えが当日中に反映される長さにする
+/photos/*
+  Cache-Control: public, max-age=86400

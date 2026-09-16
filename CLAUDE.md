@@ -38,7 +38,7 @@ Vite + React 18 + TypeScript + [glaku](https://github.com/satoshi826/glaku)（We
   自動挿入、テクスチャの制約、Worker で使うときの注意など、毎回ハマる点が書いてある。
   glaku を触る前に読む。
 - 前作 mypage2025 は Cloudflare Workers + React 19 + Tailwind + Drizzle 構成だったが、
-  このリポジトリはまだ素の SPA。デプロイ先は未決（site.md 参照）。
+  このリポジトリは素の SPA。**Cloudflare Workers に静的アセットとして置く**（`wrangler.jsonc`）。
 
 ## 注意
 

@@ -1,0 +1,13 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  // 静的ファイルを配るだけの Worker。main を持たないので実行コードはない。
+  // dist は npm run build（vite build + prerender）が作る。
+  "name": "mypage2026",
+  "compatibility_date": "2026-09-16",
+  "assets": {
+    "directory": "./dist",
+    // 各ルートは prerender で HTML になっているので、どこにも当たらないパスだけ
+    // 404.html を返す。SPA 扱いにすると誤ったパスが 200 で返り検索に載る
+    "not_found_handling": "404-page"
+  }
+}
