@@ -151,6 +151,19 @@ export function cycleProgress({elapsed}: SequenceState, timing: Timing) {
 }
 
 /**
+ * 停止したときの状態。静止帯なら頭へ戻す。
+ *
+ * 表示上のバーは停止と同時に遷移の終了地点へ飛ぶので、内部の経過時間を途中に
+ * 残したままだと、再生したときにバーが飛び、しかも見た目より早く次の遷移が来る。
+ * 遷移中はそのまま返し、settle に完走させる（完走すると経過時間は周の終わり、
+ * つまり表示と同じ地点に着く）。
+ */
+export function pause(state: SequenceState, timing: Timing): SequenceState {
+  const dwell = cycleOf(timing) * clamp01(timing.dwellRatio)
+  return state.elapsed < dwell ? {...state, elapsed: 0} : state
+}
+
+/**
  * 次へ進まずに、進行中の遷移だけを完走させる。自動再生を切ったときに使う。
  *
  * 散ったまま止まると事故に見えるので遷移は走り切らせるが、静止帯では粒子が像を

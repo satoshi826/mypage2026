@@ -9,6 +9,7 @@ import {
   initialState,
   jumpTo,
   morphRatio,
+  pause,
   settle,
   type Frame,
   type Order,
@@ -277,7 +278,12 @@ export function Hero() {
         shuffle={shuffle}
         layout={layout}
         direction={direction}
-        onToggle={() => setAutoplay(!autoplay)}
+        onToggle={() => {
+          // 停止するときは静止帯の頭へ戻す。バーは停止と同時に遷移の終了地点へ
+          // 飛ぶので、内部を途中に残すと再生でバーが飛ぶ
+          if (autoplay) stateRef.current = pause(stateRef.current, timingRef.current)
+          setAutoplay(!autoplay)
+        }}
         onShuffle={() => setShuffle(!shuffle)}
         onPrev={() => go(goBack(stateRef.current, order, timingRef.current))}
         onNext={() => go(goNext(stateRef.current, order, timingRef.current))}
