@@ -180,7 +180,8 @@ function Transport({
       onClick={onClick}
       aria-label={label}
       aria-pressed={pressed}
-      className={`cursor-pointer transition-opacity duration-300 hover:opacity-60 ${className} ${
+      // before は指の当たり判定。配置を変えずに 44px を確保する
+      className={`relative cursor-pointer transition-opacity duration-300 before:absolute before:top-1/2 before:left-1/2 before:size-11 before:-translate-x-1/2 before:-translate-y-1/2 before:content-[''] hover:opacity-60 ${className} ${
         pressed === false ? '[opacity:var(--idle-opacity)]' : ''
       }`}
     >
