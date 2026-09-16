@@ -49,21 +49,34 @@ export const ControlPanel = forwardRef<
 ) {
   const listRef = useRef<HTMLOListElement>(null)
   const markerRef = useRef<HTMLDivElement>(null)
+  const lensRef = useRef<HTMLDivElement>(null)
 
-  // 丸を選択中のマスへ移動させる。座標は実測なので、列数や大きさが変わっても追従する
+  // 丸を選択中のマスへ移動させ、中の複製を「丸が重なっている一点」を基準に拡大する。
+  // 座標は実測なので、列数や大きさが変わっても追従する
   useLayoutEffect(() => {
     const move = () => {
       const item = listRef.current?.children[index] as HTMLElement | undefined
-      if (!item || !markerRef.current) return
+      const marker = markerRef.current
+      if (!item || !marker) return
+
       // 丸はマスより大きいので、はみ出すぶんの半分だけ戻して中心を合わせる
       const inset = layout.markerGrow / 2
-      markerRef.current.style.transform = `translate(${item.offsetLeft - inset}px, ${item.offsetTop - inset}px)`
+      marker.style.transform = `translate(${item.offsetLeft - inset}px, ${item.offsetTop - inset}px)`
+
+      // 丸の中心に来ているカレンダー上の点が、拡大後も中心に残るように置く
+      const lens = lensRef.current
+      if (!lens) return
+      const half = marker.clientWidth / 2
+      const zoom = layout.markerZoom
+      const x = item.offsetLeft + item.offsetWidth / 2
+      const y = item.offsetTop + item.offsetHeight / 2
+      lens.style.transform = `translate(${half - x * zoom}px, ${half - y * zoom}px) scale(${zoom})`
     }
     move()
     const observer = new ResizeObserver(move)
     if (listRef.current) observer.observe(listRef.current)
     return () => observer.disconnect()
-  }, [index, layout.markerGrow])
+  }, [index, layout.markerGrow, layout.markerZoom])
 
   return (
     // 幅はカレンダーに合わせる（列数・一辺・間隔から決まる）。バーと棒グラフの
@@ -132,41 +145,60 @@ export const ControlPanel = forwardRef<
       </div>
 
       <div className="relative">
-        {/* 丸の中だけを拡大鏡のように見せる。数字は下のマスでは隠し、ここに拡大して
-            描いたうえで丸で切り抜く */}
+        {/* 丸は拡大鏡。地の色で塗って下を隠し、中にカレンダーの複製を拡大して置く */}
         <div
           ref={markerRef}
           aria-hidden
-          className="pointer-events-none absolute flex items-center justify-center overflow-hidden rounded-full border-ink transition-transform ease-out [border-width:var(--marker-border)] [transition-duration:var(--marker-duration)] size-(--marker-size)"
+          className="pointer-events-none absolute overflow-hidden rounded-full border-ink bg-ground transition-transform ease-out [border-width:var(--marker-border)] [transition-duration:var(--marker-duration)] size-(--marker-size)"
         >
-          <span className="text-[0.7rem] tracking-[0.1em] [scale:var(--marker-zoom)]">{label(index)}</span>
+          <div
+            ref={lensRef}
+            className="absolute origin-top-left transition-transform ease-out [transition-duration:var(--marker-duration)]"
+          >
+            {numbers(index, null)}
+          </div>
         </div>
-        <ol
-          ref={listRef}
-          className="m-0 grid p-0 [column-gap:var(--gap-x)] [row-gap:var(--gap-y)] [grid-template-columns:repeat(var(--cols),var(--cell))]"
-        >
-          {PHOTOS.map((photo, i) => (
-            <li key={i} className="list-none size-(--cell)">
+        {numbers(index, onSelect, listRef)}
+      </div>
+    </div>
+  )
+})
+
+/**
+ * カレンダーの数字。onSelect を渡すと押せるボタンに、渡さないと拡大鏡用の複製になる。
+ * 複製は読み上げにもタブ移動にも出さない。
+ */
+function numbers(index: number, onSelect: ((index: number) => void) | null, ref?: RefObject<HTMLOListElement>) {
+  return (
+    <ol
+      ref={ref}
+      aria-hidden={onSelect ? undefined : true}
+      className="m-0 grid p-0 [column-gap:var(--gap-x)] [row-gap:var(--gap-y)] [grid-template-columns:repeat(var(--cols),var(--cell))]"
+    >
+      {PHOTOS.map((photo, i) => {
+        const tone = i === index ? 'opacity-100' : '[opacity:var(--idle-opacity)]'
+        const shared = `flex size-full items-center justify-center text-[0.7rem] tracking-[0.1em] transition-opacity duration-300 ${tone}`
+        return (
+          <li key={i} className="list-none size-(--cell)">
+            {onSelect ? (
               <button
                 type="button"
                 onClick={() => onSelect(i)}
                 aria-current={i === index}
                 aria-label={`${label(i)} ${photo.title}`}
-                // 丸に入った数字だけ拡大する。拡大は丸の移動と同じ速さ、濃さは短く戻す
-                // 選択中のマスは丸の中に描き直すので、こちらは消す
-                className={`size-full cursor-pointer text-[0.7rem] tracking-[0.1em] transition-opacity duration-300 ${
-                  i === index ? 'opacity-0' : 'hover:opacity-70 [opacity:var(--idle-opacity)]'
-                }`}
+                className={`${shared} cursor-pointer hover:opacity-70`}
               >
                 {label(i)}
               </button>
-            </li>
-          ))}
-        </ol>
-      </div>
-    </div>
+            ) : (
+              <span className={shared}>{label(i)}</span>
+            )}
+          </li>
+        )
+      })}
+    </ol>
   )
-})
+}
 
 /** 再生操作の1ボタン。`pressed` を渡したときだけ入り切りのあるモードとして扱う */
 function Transport({
