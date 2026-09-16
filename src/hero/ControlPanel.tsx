@@ -54,10 +54,13 @@ export const ControlPanel = forwardRef<
   // 丸を選択中のマスへ移動させ、中の複製を「丸が重なっている一点」を基準に拡大する。
   // 座標は実測なので、列数や大きさが変わっても追従する
   useLayoutEffect(() => {
-    const move = () => {
+    let settle = 0
+
+    const place = (zoom: number) => {
       const item = listRef.current?.children[index] as HTMLElement | undefined
       const marker = markerRef.current
-      if (!item || !marker) return
+      const lens = lensRef.current
+      if (!item || !marker || !lens) return
 
       // 丸はマスより大きいので、はみ出すぶんの半分だけ戻して中心を合わせる
       const inset = layout.markerGrow / 2
@@ -71,17 +74,27 @@ export const ControlPanel = forwardRef<
       listRef.current?.style.setProperty('--lens-y', `${y}px`)
 
       // 丸の中心に来ているカレンダー上の点が、拡大後も中心に残るように置く
-      const lens = lensRef.current
-      if (!lens) return
-      const half = marker.clientWidth / 2
-      const zoom = layout.markerZoom
-      lens.style.transform = `translate(${half - x * zoom}px, ${half - y * zoom}px) scale(${zoom})`
+      lens.style.transform = `translate(${marker.clientWidth / 2 - x * zoom}px, ${
+        marker.clientHeight / 2 - y * zoom
+      }px) scale(${zoom})`
     }
+
+    // 移動中は等倍にしておく。拡大したまま滑ると、丸の縁で内と外の数字が食い違い、
+    // 後ろの数字が削られているように見える。等倍なら複製が下と重なって継ぎ目が消える
+    const move = () => {
+      place(1)
+      clearTimeout(settle)
+      settle = setTimeout(() => place(layout.markerZoom), layout.markerDuration)
+    }
+
     move()
     const observer = new ResizeObserver(move)
     if (listRef.current) observer.observe(listRef.current)
-    return () => observer.disconnect()
-  }, [index, layout.markerGrow, layout.markerZoom])
+    return () => {
+      clearTimeout(settle)
+      observer.disconnect()
+    }
+  }, [index, layout.markerDuration, layout.markerGrow, layout.markerZoom])
 
   return (
     // 幅はカレンダーに合わせる（列数・一辺・間隔から決まる）。バーと棒グラフの
