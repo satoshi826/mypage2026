@@ -222,7 +222,10 @@ export function Hero() {
 
       const bar = progressRef.current
       if (bar) {
-        bar.style.setProperty('--progress', String(cycleProgress(stateRef.current, timing)))
+        // 停止中は遷移が終わった地点で止める。バーは次の遷移までの待ち時間なので、
+        // 待っていないあいだ中途半端な位置に居座らせない。粒子のほうは着地まで動く
+        const progress = autoplay ? cycleProgress(stateRef.current, timing) : morphRatio(timing)
+        bar.style.setProperty('--progress', String(progress))
         bar.style.setProperty('--morph', `${morphRatio(timing) * 100}%`)
       }
     }, [
