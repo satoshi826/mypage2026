@@ -19,7 +19,7 @@ import {
 import {PHOTOS} from './photos'
 import {ControlPanel} from './ControlPanel'
 import {DevPanel} from './DevPanel'
-import {LAYOUT_PARAMS, LAYOUT_PRESETS, chooseDirection, type Layout} from './layout'
+import {LAYOUT_PARAMS, LAYOUT_PRESETS, chooseDirection, fitStacked, panelWidth, type Layout} from './layout'
 import {SOURCE_H, SOURCE_W} from './table'
 import {
   DEFAULT_INTERACTION,
@@ -67,11 +67,9 @@ export function Hero() {
   const direction = chooseDirection(viewport.width, viewport.height, PHOTOS.length)
   // 開発用パネルで触っているあいだだけ上書きする
   const [override, setOverride] = useState<Layout | null>(null)
-  const panelRef = useRef<HTMLDivElement>(null)
   const preset = LAYOUT_PRESETS[direction]
   const layout = override ?? preset
   const content = useContentRect(sectionRef)
-  const panelSize = useContentRect(panelRef)
   const reduced = useMediaQuery('(prefers-reduced-motion: reduce)')
   // 動きを減らす設定の人には自動では動かさない。初期値だけで判断し、
   // あとはトグルに委ねる（押せば動かせる）
@@ -254,30 +252,34 @@ export function Hero() {
   }
 
   // 写真の枠は JS で寸法を決める。canvas を写真ぴったりにすると、
-  // 中でレターボックスされず、写真の端＝canvas の端になって配置が読める
-  const photo = fitPhoto(
-    content,
-    direction === 'side' ? panelSize.width + GAP : 0,
-    direction === 'side' ? 0 : panelSize.height
-  )
+  // 中でレターボックスされず、写真の端＝canvas の端になって配置が読める。
+  // 縦並びではパネルを写真と同じ幅に広げるので、両方まとめて解く
+  const photo =
+    direction === 'side'
+      ? fitPhoto(content, panelWidth(layout) + layout.photoGap)
+      : fitStacked(content, layout, PHOTOS.length)
+  // 縦並びのパネルは写真と同じ幅に広げる。マスが上限に達したらそこで止める
+  const panel = direction === 'side' ? panelWidth(layout) : Math.min(photo.width, panelWidth(layout))
 
   return (
     <section
       ref={sectionRef}
-      className={`flex h-[100svh] items-center justify-center gap-10 px-8 pt-[calc(var(--spacing-nav)+1.5rem)] pb-8 ${
-        direction === 'side' ? 'flex-row' : 'flex-col'
-      }`}
+      className={`flex h-[100svh] items-center justify-center ${direction === 'side' ? 'flex-row' : 'flex-col'}`}
+      style={{
+        gap: layout.photoGap,
+        padding: layout.padding,
+        paddingTop: `calc(var(--spacing-nav) + ${layout.padding}px)`
+      }}
     >
       <div className="relative flex shrink-0" style={{width: photo.width, height: photo.height}}>
         {canvas}
       </div>
       <ControlPanel
-        ref={panelRef}
         index={index}
         autoplay={autoplay}
         shuffle={shuffle}
         layout={layout}
-        direction={direction}
+        width={panel}
         onToggle={() => {
           // 停止するときは静止帯の頭へ戻す。バーは停止と同時に遷移の終了地点へ
           // 飛ぶので、内部を途中に残すと再生でバーが飛ぶ
@@ -345,16 +347,11 @@ export function Hero() {
 /** 棒グラフの、飛んでいないときの濃さ */
 const REST_OPACITY = 0.35
 
-/** 写真とパネルのあいだ、および外周の余白 px。section の gap / px-8 と合わせる */
-const GAP = 32
-
-/** 使える領域から、3:2 を保った最大の枠を出す */
-function fitPhoto({width, height}: {width: number; height: number}, takenX: number, takenY: number) {
+/** 使える領域から、パネルに取られるぶんを引いて、3:2 を保った最大の枠を出す */
+function fitPhoto({width, height}: {width: number; height: number}, takenX: number) {
   const aspect = SOURCE_W / SOURCE_H
-  const w = Math.max(0, width - takenX)
-  const h = Math.max(0, height - takenY)
-  const fitted = Math.min(w, h * aspect)
-  return {width: Math.round(fitted), height: Math.round(fitted / aspect)}
+  const fitted = Math.round(Math.min(Math.max(0, width - takenX), height * aspect))
+  return {width: fitted, height: Math.round(fitted / aspect)}
 }
 
 /** 要素のコンテンツ領域（padding を除いた大きさ）を測る */

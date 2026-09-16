@@ -1,63 +1,62 @@
-import {forwardRef, useLayoutEffect, useRef, type ReactNode, type RefObject} from 'react'
+import {useLayoutEffect, useRef, type ReactNode, type RefObject} from 'react'
 import {PHOTOS} from './photos'
-import {layoutVars, type Direction, type Layout} from './layout'
+import {layoutVars, type Layout} from './layout'
 
 const label = (index: number) => String(index + 1).padStart(2, '0')
 
 /**
- * 写真の下に置く操作面。自動再生の切り替えと、カレンダー状に並べた番号。
+ * 写真に添える操作面。自動再生の切り替えと、カレンダー状に並べた番号。
  * 選択中の1枚は丸で囲み、その丸が数字から数字へ移動する。
- * 寸法は layout の CSS 変数から取る。
+ *
+ * 幅は呼び出し側が決める。マスは列数で等分するので、横並びでも縦並びでも
+ * 同じ作りで、並べ方をこのコンポーネントは知らない。
  */
-export const ControlPanel = forwardRef<
-  HTMLDivElement,
-  {
-    index: number
-    autoplay: boolean
-    shuffle: boolean
-    layout: Layout
-    direction: Direction
-    onToggle: () => void
-    onShuffle: () => void
-    onPrev: () => void
-    onNext: () => void
-    onSelect: (index: number) => void
-    /** スペクトラムの棒にホバーしたときの添字。外れたら null */
-    onHover: (index: number | null) => void
-    /** カレンダー下の棒グラフ。Hero が毎フレーム各棒の scaleY を書き込む */
-    equalizerRef: RefObject<HTMLDivElement>
-    /** カレンダー上部のプログレス。Hero が --progress と --morph を毎フレーム書き込む */
-    progressRef: RefObject<HTMLDivElement>
-  }
->(function ControlPanel(
-  {
-    index,
-    autoplay,
-    shuffle,
-    layout,
-    direction,
-    onToggle,
-    onShuffle,
-    onPrev,
-    onNext,
-    onSelect,
-    onHover,
-    progressRef,
-    equalizerRef
-  },
-  ref
-) {
+export function ControlPanel({
+  index,
+  autoplay,
+  shuffle,
+  layout,
+  width,
+  onToggle,
+  onShuffle,
+  onPrev,
+  onNext,
+  onSelect,
+  onHover,
+  progressRef,
+  equalizerRef
+}: {
+  index: number
+  autoplay: boolean
+  shuffle: boolean
+  layout: Layout
+  /** パネルの幅 px。カレンダーはこの幅を列数で等分する */
+  width: number
+  onToggle: () => void
+  onShuffle: () => void
+  onPrev: () => void
+  onNext: () => void
+  onSelect: (index: number) => void
+  /** スペクトラムの棒にホバーしたときの添字。外れたら null */
+  onHover: (index: number | null) => void
+  /** カレンダー下の棒グラフ。Hero が毎フレーム各棒の scaleY を書き込む */
+  equalizerRef: RefObject<HTMLDivElement>
+  /** カレンダー上部のプログレス。Hero が --progress と --morph を毎フレーム書き込む */
+  progressRef: RefObject<HTMLDivElement>
+}) {
   const listRef = useRef<HTMLOListElement>(null)
   const markerRef = useRef<HTMLDivElement>(null)
 
-  // 丸を選択中のマスへ移動させる。座標は実測なので、列数や大きさが変わっても追従する
+  // 丸を選択中のマスへ移動させる。マスは幅で決まるので、大きさも位置も実測する
   useLayoutEffect(() => {
     const move = () => {
       const item = listRef.current?.children[index] as HTMLElement | undefined
-      if (!item || !markerRef.current) return
+      const marker = markerRef.current
+      if (!item || !marker) return
       // 丸はマスより大きいので、はみ出すぶんの半分だけ戻して中心を合わせる
       const inset = layout.markerGrow / 2
-      markerRef.current.style.transform = `translate(${item.offsetLeft - inset}px, ${item.offsetTop - inset}px)`
+      marker.style.width = marker.style.height = `${item.offsetWidth + layout.markerGrow}px`
+      marker.style.transform = `translate(${item.offsetLeft - inset}px, ${item.offsetTop - inset}px)`
     }
     move()
     const observer = new ResizeObserver(move)
@@ -66,15 +65,8 @@ export const ControlPanel = forwardRef<
   }, [index, layout.markerGrow])
 
   return (
-    // 幅はカレンダーに合わせる（列数・一辺・間隔から決まる）。バーと棒グラフの
-    // w-full はこれを基準にする
-    <div
-      ref={ref}
-      className={`flex w-fit shrink-0 flex-col [gap:var(--block-gap)] ${direction === 'side' ? '' : 'pt-1'}`}
-      style={layoutVars(layout)}
-    >
-      {/* 横並びのときだけ出す。縦並びでは写真とパネルで画面を使い切っている */}
-      {direction === 'side' && layout.eqHeight > 0 && (
+    <div className="flex shrink-0 flex-col [gap:var(--block-gap)]" style={{...layoutVars(layout), width}}>
+      {layout.eqHeight > 0 && (
         <div
           ref={equalizerRef}
           aria-hidden
@@ -135,14 +127,14 @@ export const ControlPanel = forwardRef<
         <div
           ref={markerRef}
           aria-hidden
-          className="pointer-events-none absolute rounded-full transition-transform ease-out [border-color:var(--marker-line)] [border-width:var(--marker-border)] [transition-duration:var(--marker-duration)] size-(--marker-size)"
+          className="pointer-events-none absolute rounded-full transition-transform ease-out [border-color:var(--marker-line)] [border-width:var(--marker-border)] [transition-duration:var(--marker-duration)]"
         />
         <ol
           ref={listRef}
-          className="m-0 grid p-0 [column-gap:var(--gap-x)] [row-gap:var(--gap-y)] [grid-template-columns:repeat(var(--cols),var(--cell))]"
+          className="m-0 grid p-0 [column-gap:var(--gap-x)] [row-gap:var(--gap-y)] [grid-template-columns:repeat(var(--cols),1fr)]"
         >
           {PHOTOS.map((photo, i) => (
-            <li key={i} className="list-none size-(--cell)">
+            <li key={i} className="aspect-square list-none">
               {/* translate は数字の見た目の中心をマスの中心に合わせるためのもの。
                   縦は F1.8 の ascent 0.94em / descent 0.26em に対して数字の高さが
                   0.84em しかないぶん（(0.94-0.26)/2 - 0.84/2 = -0.08em）、横は
@@ -164,7 +156,7 @@ export const ControlPanel = forwardRef<
       </div>
     </div>
   )
-})
+}
 
 /** 再生操作の1ボタン。`pressed` を渡したときだけ入り切りのあるモードとして扱う */
 function Transport({
