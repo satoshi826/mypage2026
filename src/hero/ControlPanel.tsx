@@ -63,13 +63,18 @@ export const ControlPanel = forwardRef<
       const inset = layout.markerGrow / 2
       marker.style.transform = `translate(${item.offsetLeft - inset}px, ${item.offsetTop - inset}px)`
 
+      const x = item.offsetLeft + item.offsetWidth / 2
+      const y = item.offsetTop + item.offsetHeight / 2
+
+      // 下のカレンダーを丸くくり抜く。拡大鏡の中と外で同じ数字が二重に見えるのを防ぐ
+      listRef.current?.style.setProperty('--lens-x', `${x}px`)
+      listRef.current?.style.setProperty('--lens-y', `${y}px`)
+
       // 丸の中心に来ているカレンダー上の点が、拡大後も中心に残るように置く
       const lens = lensRef.current
       if (!lens) return
       const half = marker.clientWidth / 2
       const zoom = layout.markerZoom
-      const x = item.offsetLeft + item.offsetWidth / 2
-      const y = item.offsetTop + item.offsetHeight / 2
       lens.style.transform = `translate(${half - x * zoom}px, ${half - y * zoom}px) scale(${zoom})`
     }
     move()
@@ -173,7 +178,9 @@ function numbers(index: number, onSelect: ((index: number) => void) | null, ref?
     <ol
       ref={ref}
       aria-hidden={onSelect ? undefined : true}
-      className="m-0 grid p-0 [column-gap:var(--gap-x)] [row-gap:var(--gap-y)] [grid-template-columns:repeat(var(--cols),var(--cell))]"
+      className={`m-0 grid p-0 [column-gap:var(--gap-x)] [row-gap:var(--gap-y)] [grid-template-columns:repeat(var(--cols),var(--cell))] ${
+        onSelect ? 'lens-hole' : ''
+      }`}
     >
       {PHOTOS.map((photo, i) => {
         const tone = i === index ? 'opacity-100' : '[opacity:var(--idle-opacity)] [scale:var(--idle-scale)]'
