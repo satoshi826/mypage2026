@@ -143,12 +143,16 @@ export const ControlPanel = forwardRef<
         >
           {PHOTOS.map((photo, i) => (
             <li key={i} className="list-none size-(--cell)">
+              {/* translate は数字の見た目の中心をマスの中心に合わせるためのもの。
+                  縦は F1.8 の ascent 0.94em / descent 0.26em に対して数字の高さが
+                  0.84em しかないぶん（(0.94-0.26)/2 - 0.84/2 = -0.08em）、横は
+                  字間 0.1em が最後の数字のうしろにも入るぶん（0.05em）を戻す */}
               <button
                 type="button"
                 onClick={() => onSelect(i)}
                 aria-current={i === index}
                 aria-label={`${label(i)} ${photo.title}`}
-                className={`flex size-full cursor-pointer items-center justify-center font-number tracking-[0.1em] lining-nums transition-opacity duration-300 hover:opacity-70 text-(length:--number-size) ${
+                className={`flex size-full cursor-pointer items-center justify-center font-number tracking-[0.1em] lining-nums transition-opacity duration-300 hover:opacity-70 text-(length:--number-size) [translate:0.05em_0.08em] ${
                   i === index ? 'opacity-100' : '[opacity:var(--idle-opacity)]'
                 }`}
               >
