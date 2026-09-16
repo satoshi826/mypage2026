@@ -148,8 +148,8 @@ export const ControlPanel = forwardRef<
                 onClick={() => onSelect(i)}
                 aria-current={i === index}
                 aria-label={`${label(i)} ${photo.title}`}
-                className={`flex size-full cursor-pointer items-center justify-center font-number text-[0.7rem] tracking-[0.1em] lining-nums transition-opacity duration-300 hover:opacity-70 ${
-                  i === index ? 'opacity-100' : '[opacity:var(--idle-opacity)] [scale:var(--idle-scale)]'
+                className={`flex size-full cursor-pointer items-center justify-center font-number tracking-[0.1em] lining-nums transition-opacity duration-300 hover:opacity-70 text-(length:--number-size) ${
+                  i === index ? 'opacity-100' : '[opacity:var(--idle-opacity)]'
                 }`}
               >
                 {label(i)}

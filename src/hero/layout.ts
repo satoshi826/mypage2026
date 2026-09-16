@@ -24,8 +24,8 @@ export type Layout = {
   markerBorder: number
   /** 丸の線の濃さ % */
   markerOpacity: number
-  /** 非選択の数字の大きさ（倍） */
-  idleScale: number
+  /** 数字の大きさ px。選択・非選択で変えない */
+  fontSize: number
   /** 丸が隣のマスへ移る時間 ms */
   markerDuration: number
   /** カレンダー上部のプログレスバーの太さ px */
@@ -72,7 +72,7 @@ export const STACKED_LAYOUT: Layout = {
   markerGrow: 4,
   markerBorder: 1,
   markerOpacity: 100,
-  idleScale: 1,
+  fontSize: 11.2,
   markerDuration: 500,
   progressHeight: 1,
   morphOpacity: 15,
@@ -103,7 +103,7 @@ export const SIDE_LAYOUT: Layout = {
   markerGrow: 4,
   markerBorder: 1,
   markerOpacity: 100,
-  idleScale: 1,
+  fontSize: 11.2,
   markerDuration: 800,
   progressHeight: 1,
   morphOpacity: 30,
@@ -156,6 +156,7 @@ export const LAYOUT_PARAMS: SliderParam<Layout>[] = [
   {group: '配置', key: 'padding', label: '左右の余白', min: 8, max: 64, step: 4, hint: 'px'},
 
   {group: 'カレンダー', key: 'cell', label: 'マスの一辺', min: 20, max: 72, step: 1, hint: '数字1つぶんの大きさ(px)'},
+  {group: 'カレンダー', key: 'fontSize', label: '数字の大きさ', min: 8, max: 24, step: 0.2, hint: 'px'},
   {group: 'カレンダー', key: 'gapX', label: 'マスの間隔（横）', min: 0, max: 32, step: 1, hint: 'px'},
   {group: 'カレンダー', key: 'gapY', label: 'マスの間隔（縦）', min: 0, max: 32, step: 1, hint: 'px'},
   {
@@ -179,7 +180,6 @@ export const LAYOUT_PARAMS: SliderParam<Layout>[] = [
   },
   {group: 'カレンダー', key: 'markerBorder', label: '丸の線の太さ', min: 1, max: 4, step: 1, hint: 'px'},
   {group: 'カレンダー', key: 'markerOpacity', label: '丸の線の濃さ', min: 0, max: 100, step: 5, hint: '%'},
-  {group: 'カレンダー', key: 'idleScale', label: '非選択の大きさ', min: 0.5, max: 1.5, step: 0.05, hint: '倍'},
   {
     group: 'カレンダー',
     key: 'markerDuration',
@@ -280,7 +280,7 @@ export const layoutVars = (l: Layout) =>
     '--marker-size': `${l.cell + l.markerGrow}px`,
     '--marker-border': `${l.markerBorder}px`,
     '--marker-line': `color-mix(in srgb, var(--color-ink) ${l.markerOpacity}%, transparent)`,
-    '--idle-scale': `${l.idleScale}`,
+    '--number-size': `${l.fontSize}px`,
     '--marker-duration': `${l.markerDuration}ms`,
     '--progress-height': `${l.progressHeight}px`,
     '--morph-opacity': `${l.morphOpacity}%`,
