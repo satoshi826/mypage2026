@@ -151,11 +151,17 @@ export function cycleProgress({elapsed}: SequenceState, timing: Timing) {
 }
 
 /**
- * 次へ進まずに、進行中の遷移だけを完走させる。
- * 自動再生を切ったときに使う。散ったまま止まると事故に見えるため
+ * 次へ進まずに、進行中の遷移だけを完走させる。自動再生を切ったときに使う。
+ *
+ * 散ったまま止まると事故に見えるので遷移は走り切らせるが、静止帯では粒子が像を
+ * 結んでいるのでその場で止める。周の終わりまで進めると、静止帯で止めたときに
+ * 写真が1枚余分に進んでしまう。
+ *
+ * 前後送りや番号のクリックは静止帯の終わりに時計を合わせるので、止めたままでも
+ * その遷移は完走する。
  */
 export function settle(state: SequenceState, seconds: number, timing: Timing): SequenceState {
   const cycle = cycleOf(timing)
-  if (state.elapsed >= cycle) return state
+  if (state.elapsed < cycle * clamp01(timing.dwellRatio) || state.elapsed >= cycle) return state
   return {...state, elapsed: Math.min(state.elapsed + seconds, cycle)}
 }
