@@ -19,10 +19,12 @@ function NavLink({path, label}: {path: string; label: string}) {
 export function Nav() {
   return (
     <nav className="pointer-events-none fixed inset-x-0 top-0 z-10 box-border flex min-h-(--spacing-nav) items-baseline justify-between gap-4 border-b border-white/10 bg-black/35 px-8 py-6 backdrop-blur-[14px] max-sm:px-5 max-sm:py-4">
-      <Link href="/" className={`${LINK} text-sm`}>
+      <Link href="/" className={`${LINK} text-sm max-sm:text-xs`}>
         {NAME}
       </Link>
-      <div className="flex gap-6 text-xs max-sm:gap-4 max-sm:text-[0.6875rem]">
+      {/* 狭い画面では名前とリンクが1行に収まらず、ナビが2行に伸びて
+          --spacing-nav とずれる。360px で収まるところまで詰める */}
+      <div className="flex gap-6 text-xs max-sm:gap-3 max-sm:text-[0.625rem]">
         {NAV_ROUTES.map(({path, label}) => (
           <NavLink key={path} path={path} label={label!} />
         ))}
