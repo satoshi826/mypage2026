@@ -4,6 +4,12 @@ import {layoutVars, type Direction, type Layout} from './layout'
 
 const label = (index: number) => String(index + 1).padStart(2, '0')
 
+/** 拡大にかける時間 ms。移動に比べて短くし、着地と同時に終わらせる */
+const ZOOM_MS = 220
+
+/** 移動のどこで拡大を終えるか。1 で着地と同時 */
+const ZOOM_AT = 1
+
 /**
  * 写真の下に置く操作面。自動再生の切り替えと、カレンダー状に並べた番号。
  * 選択中の1枚は丸で囲み、その丸が数字から数字へ移動する。
@@ -50,17 +56,19 @@ export const ControlPanel = forwardRef<
   const listRef = useRef<HTMLOListElement>(null)
   const markerRef = useRef<HTMLDivElement>(null)
   const lensRef = useRef<HTMLDivElement>(null)
+  const trackRef = useRef<HTMLDivElement>(null)
 
   // 丸を選択中のマスへ移動させ、中の複製を「丸が重なっている一点」を基準に拡大する。
   // 座標は実測なので、列数や大きさが変わっても追従する
   useLayoutEffect(() => {
     let settle = 0
 
-    const place = (zoom: number) => {
+    const place = (zoom: number, instant: boolean) => {
       const item = listRef.current?.children[index] as HTMLElement | undefined
       const marker = markerRef.current
       const lens = lensRef.current
-      if (!item || !marker || !lens) return
+      const track = trackRef.current
+      if (!item || !marker || !lens || !track) return
 
       // 丸はマスより大きいので、はみ出すぶんの半分だけ戻して中心を合わせる
       const inset = layout.markerGrow / 2
@@ -73,18 +81,19 @@ export const ControlPanel = forwardRef<
       listRef.current?.style.setProperty('--lens-x', `${x}px`)
       listRef.current?.style.setProperty('--lens-y', `${y}px`)
 
-      // 丸の中心に来ているカレンダー上の点が、拡大後も中心に残るように置く
-      lens.style.transform = `translate(${marker.clientWidth / 2 - x * zoom}px, ${
-        marker.clientHeight / 2 - y * zoom
-      }px) scale(${zoom})`
+      // 平行移動と拡大を別の要素に分け、別々の速さで動かす。合成すると
+      // 「丸の中心に来ている一点が、拡大後も中心に残る」式になる
+      lens.style.transitionDuration = instant ? '0s' : `${ZOOM_MS}ms`
+      lens.style.transform = `translate(${marker.clientWidth / 2}px, ${marker.clientHeight / 2}px) scale(${zoom})`
+      track.style.transform = `translate(${-x}px, ${-y}px)`
     }
 
-    // 移動中は等倍にしておく。拡大したまま滑ると、丸の縁で内と外の数字が食い違い、
-    // 後ろの数字が削られているように見える。等倍なら複製が下と重なって継ぎ目が消える
+    // 拡大したまま滑ると、丸の縁で内と外の数字が食い違って削られたように見える。
+    // 移動のあいだは等倍にしておき、終盤で素早く拡大し切る
     const move = () => {
-      place(1)
+      place(1, true)
       clearTimeout(settle)
-      settle = setTimeout(() => place(layout.markerZoom), layout.markerDuration)
+      settle = setTimeout(() => place(layout.markerZoom, false), layout.markerDuration * ZOOM_AT - ZOOM_MS)
     }
 
     move()
@@ -169,11 +178,13 @@ export const ControlPanel = forwardRef<
           aria-hidden
           className="pointer-events-none absolute overflow-hidden rounded-full bg-ground transition-transform ease-out [border-color:var(--marker-line)] [border-width:var(--marker-border)] [transition-duration:var(--marker-duration)] size-(--marker-size)"
         >
-          <div
-            ref={lensRef}
-            className="absolute origin-top-left transition-transform ease-out [transition-duration:var(--marker-duration)]"
-          >
-            {numbers(index, null)}
+          <div ref={lensRef} className="absolute origin-top-left transition-transform ease-out">
+            <div
+              ref={trackRef}
+              className="origin-top-left transition-transform ease-out [transition-duration:var(--marker-duration)]"
+            >
+              {numbers(index, null)}
+            </div>
           </div>
         </div>
         {numbers(index, onSelect, listRef)}
