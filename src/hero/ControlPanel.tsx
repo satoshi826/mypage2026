@@ -55,13 +55,15 @@ export const ControlPanel = forwardRef<
     const move = () => {
       const item = listRef.current?.children[index] as HTMLElement | undefined
       if (!item || !markerRef.current) return
-      markerRef.current.style.transform = `translate(${item.offsetLeft}px, ${item.offsetTop}px)`
+      // 丸はマスより大きいので、はみ出すぶんの半分だけ戻して中心を合わせる
+      const inset = layout.markerGrow / 2
+      markerRef.current.style.transform = `translate(${item.offsetLeft - inset}px, ${item.offsetTop - inset}px)`
     }
     move()
     const observer = new ResizeObserver(move)
     if (listRef.current) observer.observe(listRef.current)
     return () => observer.disconnect()
-  }, [index])
+  }, [index, layout.markerGrow])
 
   return (
     // 幅はカレンダーに合わせる（列数・一辺・間隔から決まる）。バーと棒グラフの
@@ -133,7 +135,7 @@ export const ControlPanel = forwardRef<
         <div
           ref={markerRef}
           aria-hidden
-          className="pointer-events-none absolute rounded-full border-ink transition-transform ease-out [border-width:var(--marker-border)] [transition-duration:var(--marker-duration)] size-(--cell)"
+          className="pointer-events-none absolute rounded-full border-ink transition-transform ease-out [border-width:var(--marker-border)] [transition-duration:var(--marker-duration)] size-(--marker-size)"
         />
         <ol
           ref={listRef}

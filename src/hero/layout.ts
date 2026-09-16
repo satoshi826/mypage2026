@@ -18,6 +18,8 @@ export type Layout = {
   gapY: number
   /** 列数。カレンダーの横幅はこれと cell / gapX から決まる */
   columns: number
+  /** 選択中を囲む丸が、マスより何 px 大きいか */
+  markerGrow: number
   /** 選択中を囲む丸の線の太さ px */
   markerBorder: number
   /** 丸が隣のマスへ移る時間 ms */
@@ -63,6 +65,7 @@ export const STACKED_LAYOUT: Layout = {
   gapX: 4,
   gapY: 4,
   columns: 7,
+  markerGrow: 4,
   markerBorder: 1,
   markerDuration: 500,
   progressHeight: 1,
@@ -91,6 +94,7 @@ export const SIDE_LAYOUT: Layout = {
   gapY: 12,
   columns: 7,
   idleOpacity: 20,
+  markerGrow: 4,
   markerBorder: 1,
   markerDuration: 800,
   progressHeight: 1,
@@ -156,6 +160,15 @@ export const LAYOUT_PARAMS: SliderParam<Layout>[] = [
     hint: '横幅はこれと一辺・間隔で決まる'
   },
   {group: 'カレンダー', key: 'idleOpacity', label: '非選択の濃さ', min: 0, max: 100, step: 5, hint: '%'},
+  {
+    group: 'カレンダー',
+    key: 'markerGrow',
+    label: '丸の大きさ',
+    min: 0,
+    max: 20,
+    step: 1,
+    hint: 'px。マスより何px大きいか'
+  },
   {group: 'カレンダー', key: 'markerBorder', label: '丸の線の太さ', min: 1, max: 4, step: 1, hint: 'px'},
   {
     group: 'カレンダー',
@@ -254,6 +267,7 @@ export const layoutVars = (l: Layout) =>
     '--gap-x': `${l.gapX}px`,
     '--gap-y': `${l.gapY}px`,
     '--cols': l.columns,
+    '--marker-size': `${l.cell + l.markerGrow}px`,
     '--marker-border': `${l.markerBorder}px`,
     '--marker-duration': `${l.markerDuration}ms`,
     '--progress-height': `${l.progressHeight}px`,
