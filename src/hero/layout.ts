@@ -74,7 +74,7 @@ export const STACKED_LAYOUT: Layout = {
   markerGrow: 4,
   markerBorder: 1,
   markerOpacity: 100,
-  fontSize: 11.2,
+  fontSize: 13,
   markerDuration: 500,
   progressHeight: 1,
   morphOpacity: 15,
