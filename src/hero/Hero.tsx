@@ -271,7 +271,9 @@ export function Hero() {
         paddingTop: `calc(var(--spacing-nav) + ${layout.padding}px)`
       }}
     >
-      <div className="relative flex shrink-0" style={{width: photo.width, height: photo.height}}>
+      {/* touch-none で写真の上の指をブラウザに渡さない。指がスクロールに移ると
+          pointercancel で干渉が切れてしまうため */}
+      <div className="relative flex shrink-0 touch-none" style={{width: photo.width, height: photo.height}}>
         {canvas}
       </div>
       <ControlPanel

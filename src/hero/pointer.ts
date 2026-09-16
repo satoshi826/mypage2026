@@ -46,7 +46,7 @@ export function usePointer(ref: {current: HTMLElement | null}) {
       p.active = true
     }
 
-    // スクロールに移った指は pointercancel で切れる。ページのスクロールは妨げない
+    // 指が離れたときと、システムのジェスチャに取られたときに切る
     const leave = () => {
       pointer.current.active = false
     }
