@@ -20,8 +20,6 @@ export type Layout = {
   columns: number
   /** 選択中を囲む丸が、マスより何 px 大きいか */
   markerGrow: number
-  /** 丸の中の数字を何倍に拡大するか */
-  markerZoom: number
   /** 選択中を囲む丸の線の太さ px */
   markerBorder: number
   /** 丸の線の濃さ % */
@@ -72,7 +70,6 @@ export const STACKED_LAYOUT: Layout = {
   gapY: 4,
   columns: 7,
   markerGrow: 4,
-  markerZoom: 1.3,
   markerBorder: 1,
   markerOpacity: 100,
   idleScale: 1,
@@ -104,7 +101,6 @@ export const SIDE_LAYOUT: Layout = {
   columns: 7,
   idleOpacity: 20,
   markerGrow: 4,
-  markerZoom: 1.3,
   markerBorder: 1,
   markerOpacity: 100,
   idleScale: 1,
@@ -181,7 +177,6 @@ export const LAYOUT_PARAMS: SliderParam<Layout>[] = [
     step: 1,
     hint: 'px。マスより何px大きいか'
   },
-  {group: 'カレンダー', key: 'markerZoom', label: '丸の中の拡大', min: 1, max: 2.5, step: 0.05, hint: '倍。1 で等倍'},
   {group: 'カレンダー', key: 'markerBorder', label: '丸の線の太さ', min: 1, max: 4, step: 1, hint: 'px'},
   {group: 'カレンダー', key: 'markerOpacity', label: '丸の線の濃さ', min: 0, max: 100, step: 5, hint: '%'},
   {group: 'カレンダー', key: 'idleScale', label: '非選択の大きさ', min: 0.5, max: 1.5, step: 0.05, hint: '倍'},
@@ -283,7 +278,6 @@ export const layoutVars = (l: Layout) =>
     '--gap-y': `${l.gapY}px`,
     '--cols': l.columns,
     '--marker-size': `${l.cell + l.markerGrow}px`,
-    '--marker-zoom': `${l.markerZoom}`,
     '--marker-border': `${l.markerBorder}px`,
     '--marker-line': `color-mix(in srgb, var(--color-ink) ${l.markerOpacity}%, transparent)`,
     '--idle-scale': `${l.idleScale}`,

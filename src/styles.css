@@ -68,31 +68,3 @@ html {
 a {
   color: inherit;
 }
-
-/*
- * 拡大鏡がくり抜く穴の中心。mask-image はトランジションで補間できないが、
- * @property で型を宣言した変数は補間できるので、こちら側を動かす。
- */
-@property --lens-x {
-  syntax: '<length>';
-  inherits: false;
-  initial-value: 0px;
-}
-
-@property --lens-y {
-  syntax: '<length>';
-  inherits: false;
-  initial-value: 0px;
-}
-
-/* 拡大鏡の下をくり抜く。穴の大きさは丸の外径に合わせ、移動は丸と同じ速さで追う */
-.lens-hole {
-  mask-image: radial-gradient(
-    circle calc(var(--marker-size) / 2) at var(--lens-x) var(--lens-y),
-    transparent 99%,
-    #000 100%
-  );
-  transition:
-    --lens-x var(--marker-duration) ease-out,
-    --lens-y var(--marker-duration) ease-out;
-}
