@@ -148,8 +148,11 @@ export const ControlPanel = forwardRef<
                 onClick={() => onSelect(i)}
                 aria-current={i === index}
                 aria-label={`${label(i)} ${photo.title}`}
-                className={`size-full cursor-pointer text-[0.7rem] tracking-[0.1em] transition-opacity duration-300 ${
-                  i === index ? 'opacity-100' : 'hover:opacity-70 [opacity:var(--idle-opacity)]'
+                // 丸に入った数字だけ拡大する。拡大は丸の移動と同じ速さ、濃さは短く戻す
+                className={`size-full cursor-pointer text-[0.7rem] tracking-[0.1em] [transition:opacity_300ms,scale_var(--marker-duration)_ease-out] ${
+                  i === index
+                    ? 'opacity-100 [scale:var(--marker-zoom)]'
+                    : 'hover:opacity-70 [opacity:var(--idle-opacity)]'
                 }`}
               >
                 {label(i)}
