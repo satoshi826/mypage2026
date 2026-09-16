@@ -24,6 +24,10 @@ export type Layout = {
   markerZoom: number
   /** 選択中を囲む丸の線の太さ px */
   markerBorder: number
+  /** 丸の線の濃さ % */
+  markerOpacity: number
+  /** 非選択の数字の大きさ（倍） */
+  idleScale: number
   /** 丸が隣のマスへ移る時間 ms */
   markerDuration: number
   /** カレンダー上部のプログレスバーの太さ px */
@@ -70,6 +74,8 @@ export const STACKED_LAYOUT: Layout = {
   markerGrow: 4,
   markerZoom: 1.3,
   markerBorder: 1,
+  markerOpacity: 100,
+  idleScale: 1,
   markerDuration: 500,
   progressHeight: 1,
   morphOpacity: 15,
@@ -100,6 +106,8 @@ export const SIDE_LAYOUT: Layout = {
   markerGrow: 4,
   markerZoom: 1.3,
   markerBorder: 1,
+  markerOpacity: 100,
+  idleScale: 1,
   markerDuration: 800,
   progressHeight: 1,
   morphOpacity: 30,
@@ -175,6 +183,8 @@ export const LAYOUT_PARAMS: SliderParam<Layout>[] = [
   },
   {group: 'カレンダー', key: 'markerZoom', label: '丸の中の拡大', min: 1, max: 2.5, step: 0.05, hint: '倍。1 で等倍'},
   {group: 'カレンダー', key: 'markerBorder', label: '丸の線の太さ', min: 1, max: 4, step: 1, hint: 'px'},
+  {group: 'カレンダー', key: 'markerOpacity', label: '丸の線の濃さ', min: 0, max: 100, step: 5, hint: '%'},
+  {group: 'カレンダー', key: 'idleScale', label: '非選択の大きさ', min: 0.5, max: 1.5, step: 0.05, hint: '倍'},
   {
     group: 'カレンダー',
     key: 'markerDuration',
@@ -275,6 +285,8 @@ export const layoutVars = (l: Layout) =>
     '--marker-size': `${l.cell + l.markerGrow}px`,
     '--marker-zoom': `${l.markerZoom}`,
     '--marker-border': `${l.markerBorder}px`,
+    '--marker-line': `color-mix(in srgb, var(--color-ink) ${l.markerOpacity}%, transparent)`,
+    '--idle-scale': `${l.idleScale}`,
     '--marker-duration': `${l.markerDuration}ms`,
     '--progress-height': `${l.progressHeight}px`,
     '--morph-opacity': `${l.morphOpacity}%`,

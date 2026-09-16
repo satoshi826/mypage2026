@@ -149,7 +149,7 @@ export const ControlPanel = forwardRef<
         <div
           ref={markerRef}
           aria-hidden
-          className="pointer-events-none absolute overflow-hidden rounded-full border-ink bg-ground transition-transform ease-out [border-width:var(--marker-border)] [transition-duration:var(--marker-duration)] size-(--marker-size)"
+          className="pointer-events-none absolute overflow-hidden rounded-full bg-ground transition-transform ease-out [border-color:var(--marker-line)] [border-width:var(--marker-border)] [transition-duration:var(--marker-duration)] size-(--marker-size)"
         >
           <div
             ref={lensRef}
@@ -176,7 +176,7 @@ function numbers(index: number, onSelect: ((index: number) => void) | null, ref?
       className="m-0 grid p-0 [column-gap:var(--gap-x)] [row-gap:var(--gap-y)] [grid-template-columns:repeat(var(--cols),var(--cell))]"
     >
       {PHOTOS.map((photo, i) => {
-        const tone = i === index ? 'opacity-100' : '[opacity:var(--idle-opacity)]'
+        const tone = i === index ? 'opacity-100' : '[opacity:var(--idle-opacity)] [scale:var(--idle-scale)]'
         const shared = `flex size-full items-center justify-center text-[0.7rem] tracking-[0.1em] transition-opacity duration-300 ${tone}`
         return (
           <li key={i} className="list-none size-(--cell)">
