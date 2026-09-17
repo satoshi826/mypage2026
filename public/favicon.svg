@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- 仮。カレンダーで選択中の1枚を囲む丸と同じモチーフ。色はサイトのトークン
+       （地 #101010 / 線 #fdfdfd）と揃えている。タブが明るい配色のこともあるので
+       地を塗り、線は 16px でも潰れない太さにしてある -->
+  <rect width="32" height="32" rx="6" fill="#101010"/>
+  <circle cx="16" cy="16" r="9.5" fill="none" stroke="#fdfdfd" stroke-width="3"/>
+</svg>
