@@ -6,6 +6,9 @@
   "compatibility_date": "2026-09-16",
   "assets": {
     "directory": "./dist",
+    // サイト内のリンクは /about のように末尾のスラッシュを持たない。既定では
+    // /about が /about/ へ 307 で飛ぶので、1ページに2つの URL ができてしまう
+    "html_handling": "drop-trailing-slash",
     // 各ルートは prerender で HTML になっているので、どこにも当たらないパスだけ
     // 404.html を返す。SPA 扱いにすると誤ったパスが 200 で返り検索に載る
     "not_found_handling": "404-page"
