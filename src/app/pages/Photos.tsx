@@ -11,11 +11,12 @@ export function Photos() {
   return (
     <Page title="Photos">
       <div className="grid grid-cols-1 gap-16">
-        {PHOTOS.map(({src, title}, i) => (
+        {PHOTOS.map((src, i) => (
           <img
             key={i}
             src={src}
-            alt={title}
+            // 題を付けていないので、読み上げでは番号だけを手がかりにする
+            alt={`写真 ${i + 1}`}
             width={1152}
             height={768}
             loading="lazy"

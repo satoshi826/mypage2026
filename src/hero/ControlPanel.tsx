@@ -133,7 +133,7 @@ export function ControlPanel({
           ref={listRef}
           className="m-0 grid p-0 [column-gap:var(--gap-x)] [row-gap:var(--gap-y)] [grid-template-columns:repeat(var(--cols),1fr)]"
         >
-          {PHOTOS.map((photo, i) => (
+          {PHOTOS.map((_, i) => (
             <li key={i} className="aspect-square list-none">
               {/* translate は数字の見た目の中心をマスの中心に合わせるためのもの。
                   縦は F1.8 の ascent 0.94em / descent 0.26em に対して数字の高さが
@@ -143,7 +143,6 @@ export function ControlPanel({
                 type="button"
                 onClick={() => onSelect(i)}
                 aria-current={i === index}
-                aria-label={`${label(i)} ${photo.title}`}
                 className={`flex size-full cursor-pointer items-center justify-center font-number tracking-[0.1em] lining-nums transition-opacity duration-300 hover:opacity-70 text-(length:--number-size) [translate:0.05em_0.08em] ${
                   i === index ? 'opacity-100' : '[opacity:var(--idle-opacity)]'
                 }`}

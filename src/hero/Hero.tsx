@@ -85,7 +85,7 @@ export function Hero() {
   useEffect(() => {
     // canvas の余白をページ背景に合わせる。worker から CSS は読めないので値を渡す
     const ground = getComputedStyle(document.documentElement).getPropertyValue('--color-ground')
-    post({photos: PHOTOS.map(({src}) => src), ground})
+    post({photos: PHOTOS, ground})
   }, [post])
 
   // 画面外では時計を止める。下のセクションを読んでいる間 GPU を回す意味がない
