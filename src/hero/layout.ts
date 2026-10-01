@@ -67,31 +67,31 @@ export type Direction = 'stacked' | 'side'
 
 /** 写真の下にパネルを置く。縦長の画面ではこちらが有利 */
 export const STACKED_LAYOUT: Layout = {
-  cell: 56,
-  gapX: 4,
-  gapY: 4,
+  blockGap: 28,
+  padding: 16,
+  photoGap: 40,
+  cell: 40,
+  fontSize: 11,
+  gapX: 2,
+  gapY: 6,
   columns: 7,
+  idleOpacity: 35,
   markerGrow: 4,
   markerBorder: 1,
   markerOpacity: 100,
-  fontSize: 13,
-  markerDuration: 500,
+  markerDuration: 800,
   progressHeight: 1,
   morphOpacity: 15,
   dwellOpacity: 8,
-  idleOpacity: 35,
   eqHeight: 0,
-  blockGap: 16,
   eqBars: 48,
   eqCurve: 1,
+  eqAxis: 1,
   eqMotion: 1,
-  hoverLift: 100,
   hoverSpread: 2,
   hoverCurve: 2,
-  hoverGamma: 2,
-  eqAxis: 1,
-  padding: 16,
-  photoGap: 40
+  hoverLift: 100,
+  hoverGamma: 2
 }
 
 /** 写真の横にパネルを置く。横長の画面ではこちらが有利 */
