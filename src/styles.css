@@ -80,3 +80,85 @@ html {
 a {
   color: inherit;
 }
+
+/* Lenis（慣性スクロール）が付けるクラスへの指定。ライブラリ側の要求で、独自クラスではない */
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+.lenis.lenis-stopped {
+  overflow: hidden;
+}
+
+/* 視界に入った要素を現す演出（src/gallery/reveal.ts）。
+   候補を比べる段階なので variant が複数ある。決まったら1つに絞る。
+   <html data-reveal-variant> で切り替え、[data-revealed] が付いたら現す。
+   見た目は [data-reveal] 自体ではなく直下の子に当てる。clip-path や mask で本体を
+   切り取ると IntersectionObserver が交差なしと判定し、永久に現れなくなるため。 */
+:root {
+  --reveal-duration: 1.4s;
+  --reveal-ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+[data-reveal] > * {
+  transition:
+    opacity var(--reveal-duration) var(--reveal-ease),
+    transform var(--reveal-duration) var(--reveal-ease),
+    filter calc(var(--reveal-duration) * 0.75) var(--reveal-ease),
+    clip-path var(--reveal-duration) var(--reveal-ease),
+    mask-size var(--reveal-duration) var(--reveal-ease);
+}
+
+/* fade: 透明から、わずかに上昇しながら */
+[data-reveal-variant='fade'] [data-reveal]:not([data-revealed]) > * {
+  opacity: 0;
+  transform: translateY(16px);
+}
+
+/* blur: 強いぼけから結像する */
+[data-reveal-variant='blur'] [data-reveal]:not([data-revealed]) > * {
+  opacity: 0;
+  filter: blur(18px);
+}
+
+/* wipe: 下から現像するように */
+[data-reveal-variant='wipe'] [data-reveal] > * {
+  clip-path: inset(0 0 0 0);
+}
+[data-reveal-variant='wipe'] [data-reveal]:not([data-revealed]) > * {
+  clip-path: inset(100% 0 0 0);
+}
+
+/* bloom: ぼけから結像しつつ、中心から周辺へマスクが広がる */
+[data-reveal-variant='bloom'] [data-reveal] > * {
+  mask-image: radial-gradient(black 50%, transparent 90%);
+  mask-position: center;
+  mask-repeat: no-repeat;
+  mask-size: 300% 300%;
+}
+[data-reveal-variant='bloom'] [data-reveal]:not([data-revealed]) > * {
+  opacity: 0;
+  filter: blur(12px);
+  mask-size: 60% 60%;
+}
+
+/* scale: わずかに大きい状態から収まる */
+[data-reveal-variant='scale'] [data-reveal]:not([data-revealed]) > * {
+  opacity: 0;
+  transform: scale(1.04);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-reveal] > * {
+    transition: none;
+  }
+  [data-reveal]:not([data-revealed]) > * {
+    opacity: 1;
+    transform: none;
+    filter: none;
+    clip-path: none;
+    mask-size: 300% 300%;
+  }
+}

@@ -16,7 +16,7 @@ import {
   type SequenceState,
   type Timing
 } from './sequence'
-import {PHOTOS} from './photos'
+import {HERO_PHOTOS as PHOTOS} from '../photos'
 import {ControlPanel} from './ControlPanel'
 import {DevPanel} from './DevPanel'
 import {LAYOUT_PARAMS, LAYOUT_PRESETS, chooseDirection, fitStacked, panelWidth, type Layout} from './layout'

@@ -28,13 +28,11 @@ export function Top() {
         </Suspense>
       )}
       <Page title={NAME}>
-        <Text>
-          モノクロームの street / architecture を撮っています。あわせて WebGL を中心に Web の実装をしています。
-        </Text>
+        <Text>street / architecture を撮っています。Web エンジニアでもあります。</Text>
         <Text>
           <Link href="/photos">写真を見る</Link>
           {' / '}
-          <Link href="/works">実装を見る</Link>
+          <Link href="/works">撮影実績</Link>
           {' / '}
           <Link href="/contact">撮影のご依頼</Link>
         </Text>

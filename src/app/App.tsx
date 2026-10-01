@@ -8,9 +8,11 @@ import {Photos} from './pages/Photos'
 import {Works} from './pages/Works'
 import {About} from './pages/About'
 import {Contact} from './pages/Contact'
+import {useSmoothScroll} from './useSmoothScroll'
 
 export function App() {
   useDocumentTitle()
+  useSmoothScroll()
   return (
     <>
       <Nav />
@@ -18,6 +20,7 @@ export function App() {
         <Switch>
           <Route path="/" component={Top} />
           <Route path="/photos" component={Photos} />
+          <Route path="/photos/:category" component={Photos} />
           <Route path="/works" component={Works} />
           <Route path="/about" component={About} />
           <Route path="/contact" component={Contact} />

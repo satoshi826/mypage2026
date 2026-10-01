@@ -1,6 +1,5 @@
 // ルート定義。アプリのナビとプリレンダリングの両方がここを唯一の出典として使う。
 // title / description はプリレンダ時に HTML へ差し込まれる（検索結果と SNS プレビューに出る）。
-// TODO: 撮影ジャンルが決まったら description を具体化する。今は仮。
 
 type RouteDef = {
   path: string
@@ -16,8 +15,8 @@ export const ROUTES: RouteDef[] = [
   {
     path: '/',
     label: null,
-    title: `${NAME} — Photographer / Engineer`,
-    description: 'モノクロームの street / architecture を撮る写真家であり、WebGL を書くエンジニア。'
+    title: `${NAME} (mu) — Photographer / Web Engineer`,
+    description: 'mu / Satoshi Hata。神奈川を拠点に street / architecture を撮る写真家、Web エンジニア。'
   },
   {
     path: '/photos',
@@ -25,11 +24,24 @@ export const ROUTES: RouteDef[] = [
     title: `Photos — ${NAME}`,
     description: `${NAME} の写真作品。`
   },
+  // カテゴリ別の URL。ナビには出さず、Photos 内の切り替えから辿る
+  {
+    path: '/photos/abstract',
+    label: null,
+    title: `Abstract — ${NAME}`,
+    description: `${NAME} の写真作品（Abstract）。`
+  },
+  {
+    path: '/photos/color',
+    label: null,
+    title: `Color — ${NAME}`,
+    description: `${NAME} の写真作品（Color）。`
+  },
   {
     path: '/works',
     label: 'Works',
     title: `Works — ${NAME}`,
-    description: 'WebGL を中心とした実装と、その仕組みの解説。'
+    description: `${NAME} の撮影実績。`
   },
   {
     path: '/about',
@@ -41,7 +53,7 @@ export const ROUTES: RouteDef[] = [
     path: '/contact',
     label: 'Contact',
     title: `Contact — ${NAME}`,
-    description: '撮影のご依頼とお問い合わせ。'
+    description: '撮影のご依頼とお問い合わせ。ジャンルは問いません。'
   }
 ]
 

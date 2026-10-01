@@ -31,3 +31,7 @@ dist-ssr
 
 # 借り物のスキル。launch.json だけ追跡する
 .claude/skills/
+
+# Photos ページの写真。scripts/encode-gallery.sh で原本から書き出す。
+# 175枚で数十MBになるので、リポジトリに入れるかは未決（docs/site.md）
+public/gallery/

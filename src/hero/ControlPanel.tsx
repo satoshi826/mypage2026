@@ -1,5 +1,5 @@
 import {useLayoutEffect, useRef, type ReactNode, type RefObject} from 'react'
-import {PHOTOS} from './photos'
+import {HERO_PHOTOS as PHOTOS} from '../photos'
 import {layoutVars, type Layout} from './layout'
 
 const label = (index: number) => String(index + 1).padStart(2, '0')

@@ -108,8 +108,10 @@ React の state に載せるのは現在の index だけ。`phase` のような�
 ```
 src/
   main.tsx  entry-server.tsx  styles.css
-  app/    サイトの骨格
-  hero/   粒子ギミック（トップ専用）
+  app/      サイトの骨格
+  hero/     粒子ギミック（トップ専用）
+  photos/   写真の一覧（manifest.json）。hero と Photos の両方がここを見る
+  gallery/  Photos ページの見せ方と現れ方
 ```
 
 | ファイル | 役割 |
@@ -121,13 +123,16 @@ src/
 | `hero/pointer.ts`   | ポインタを写真の枠基準の NDC で追う。マウスも指も同じ経路 |
 | `hero/Hero.tsx`     | 100svh の hero、時計の駆動 |
 | `hero/ControlPanel.tsx` | 自動再生の切り替え、番号、次までのプログレス |
-| `hero/photos.ts`    | 写真リストと表示名 |
 | `hero/tuning.ts`    | 調整値の既定と開発用パネルの定義 |
 | `hero/DevPanel.tsx` | 開発用パネル（`import.meta.env.DEV` の中でのみ描画） |
 | `hero/layout.ts`    | コントロールパネルの寸法と、写真との並べ方の決定 |
 | `app/routes.ts`     | ルート定義。ナビ・プリレンダ・title/description の唯一の出典 |
 | `app/pages/`        | 各ページ |
-| `scripts/encode-photos.sh` | 原本を配信解像度のグレースケール WebP に変換する |
+| `app/useSmoothScroll.ts` | 慣性スクロール（Lenis）。全ページ共通 |
+| `photos/index.ts`   | 写真一覧の型と、hero 用・Photos 用の派生画像の URL |
+| `gallery/layouts.tsx` | Photos の見せ方の候補 |
+| `gallery/reveal.ts` | 視界に入った要素を現す演出（`data-reveal`）。見た目は `styles.css` |
+| `scripts/encode-photos.sh` | 原本から hero 用・Photos 用の派生画像を書き出し、manifest.json を生成する |
 | `scripts/prerender.js` | ビルド後に各ルートを HTML 化する |
 
 Worker には `requestAnimationFrame` がないため、駆動はメインスレッドの rAF から。
