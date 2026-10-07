@@ -81,18 +81,6 @@ a {
   color: inherit;
 }
 
-/* Lenis（慣性スクロール）が付けるクラスへの指定。ライブラリ側の要求で、独自クラスではない */
-html.lenis,
-html.lenis body {
-  height: auto;
-}
-.lenis.lenis-smooth {
-  scroll-behavior: auto !important;
-}
-.lenis.lenis-stopped {
-  overflow: hidden;
-}
-
 /* 視界に入った要素を現す演出（src/gallery/reveal.ts）。下から現像するワイプ。
    [data-revealed] が付いたら現す。
 
