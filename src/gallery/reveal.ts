@@ -16,7 +16,8 @@ const MARGIN = 0.08
  * 要素が出て、しきい値の通知では拾えないため。読むだけなので再レイアウトは起きない。
  *
  * 中に画像があるときは、読み込みが終わるまで待ってから現す。空の枠に演出をかけて
- * あとから画像が突然出るのを避けるため。
+ * あとから画像が突然出るのを避けるため。待っている写真は候補に残したまま、スクロールと
+ * 画像の読み込み完了のたびに見直す。1 回きりのリスナーだと、src の付け外しの順序次第で取りこぼす。
  * deps は一覧の中身が変わったときに見直すため。
  */
 export function useReveal(root: React.RefObject<HTMLElement | null>, deps: unknown[]) {
@@ -36,29 +37,27 @@ export function useReveal(root: React.RefObject<HTMLElement | null>, deps: unkno
         const visible = Math.min(rect.bottom, bottom) - Math.max(rect.top, 0)
         // 上辺が画面の上に出ているものは、通り過ぎた（通り過ぎつつある）ので出す
         if (rect.top >= 0 && visible < rect.height * THRESHOLD) continue
+        // 画像が届くまでは残しておき、届いたとき（load）に見直す
+        const img = target.querySelector('img')
+        if (img && !isLoaded(img)) continue
         pending.delete(target)
-        whenLoaded(target, () => {
-          target.dataset.revealed = ''
-        })
+        target.dataset.revealed = ''
       }
     }
     check()
     addEventListener('scroll', check, {passive: true})
     addEventListener('resize', check)
+    // load はバブリングしないので capture で拾う。読み込みの完了を待っていた写真を見直す
+    el.addEventListener('load', check, true)
+    el.addEventListener('error', check, true)
     return () => {
       removeEventListener('scroll', check)
       removeEventListener('resize', check)
+      el.removeEventListener('load', check, true)
+      el.removeEventListener('error', check, true)
     }
     // oxlint-disable-next-line react-hooks/exhaustive-deps
   }, deps)
-}
-
-/** 中の画像が読み込み済みなら即座に、まだなら読み込み後に呼ぶ */
-function whenLoaded(target: HTMLElement, fn: () => void) {
-  const img = target.querySelector('img')
-  if (!img || isLoaded(img)) return fn()
-  img.addEventListener('load', fn, {once: true})
-  img.addEventListener('error', fn, {once: true})
 }
 
 /** src がまだ無い img も complete は true になるので、実際に画素があるかで見る */
