@@ -1,4 +1,4 @@
-import type {SliderParam} from './DevPanel'
+import type {Param} from '../app/DevPanel'
 
 // 粒子の遷移まわりの調整値。worker（既定値）と開発用パネル（スライダー）の
 // 両方がここを唯一の出典として使う。
@@ -20,7 +20,7 @@ export const DEFAULT_TUNING: Tuning = {
   easePower: 2.2
 }
 
-export const TUNING_PARAMS: SliderParam<Tuning>[] = [
+export const TUNING_PARAMS: Param<Tuning>[] = [
   {
     key: 'cycleSeconds',
     label: '1枚あたりの秒数',
@@ -109,7 +109,7 @@ export const DEFAULT_INTERACTION: Interaction = {
   stopBelow: 0
 }
 
-export const INTERACTION_PARAMS: SliderParam<Interaction>[] = [
+export const INTERACTION_PARAMS: Param<Interaction>[] = [
   {group: '力', key: 'radius', label: '力の半径', min: 0.02, max: 1, step: 0.01, hint: '写真の半幅が 1'},
   {
     group: '力',

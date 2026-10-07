@@ -1,15 +1,16 @@
 import {useEffect, useState} from 'react'
 
-export type SliderParam<T> = {
+export type Param<T> = {
   key: keyof T & string
   /** 同じ名前が続くぶんを1つの折りたたみにまとめる。省くと常に開いたまま */
   group?: string
   label: string
-  min: number
-  max: number
-  step: number
   hint: string
-}
+} & (
+  | {min: number; max: number; step: number}
+  /** 名前から選ぶ。値は文字列 */
+  | {options: readonly string[]}
+)
 
 const BUTTON = 'flex-1 cursor-pointer border border-white/25 bg-white/10 p-1 text-inherit'
 
@@ -19,7 +20,7 @@ const BUTTON = 'flex-1 cursor-pointer border border-white/25 bg-white/10 p-1 tex
  *
  * 決まった値は「コードをコピー」で定義の形にして、既定値へ貼り戻す。
  */
-export function DevPanel<T extends Record<string, number>>({
+export function DevPanel<T extends Record<string, number | string>>({
   title,
   typeName,
   constName,
@@ -32,7 +33,7 @@ export function DevPanel<T extends Record<string, number>>({
   /** コピーする定義の型注釈と定数名 */
   typeName: string
   constName: string
-  params: SliderParam<T>[]
+  params: Param<T>[]
   defaults: T
   storageKey: string
   onChange: (values: T) => void
@@ -55,7 +56,8 @@ export function DevPanel<T extends Record<string, number>>({
   }, [values, onChange, storageKey])
 
   const copy = () => {
-    const body = params.map(({key}) => `  ${key}: ${values[key]}`).join(',\n')
+    const literal = (value: number | string) => (typeof value === 'string' ? `'${value}'` : value)
+    const body = params.map(({key}) => `  ${key}: ${literal(values[key])}`).join(',\n')
     navigator.clipboard.writeText(`export const ${constName}: ${typeName} = {\n${body}\n}\n`)
     setCopied(true)
     setTimeout(() => setCopied(false), 1500)
@@ -80,21 +82,35 @@ export function DevPanel<T extends Record<string, number>>({
                 </button>
               )}
               {(!name || !closed[name]) &&
-                items.map(({key, label, min, max, step, hint}) => (
-                  <label key={key} className="flex flex-col gap-0.5" title={hint}>
+                items.map((param) => (
+                  <label key={param.key} className="flex flex-col gap-0.5" title={param.hint}>
                     <span className="flex justify-between">
-                      <span>{label}</span>
-                      <span className="opacity-60">{values[key]}</span>
+                      <span>{param.label}</span>
+                      {'options' in param || <span className="opacity-60">{values[param.key]}</span>}
                     </span>
-                    <input
-                      type="range"
-                      min={min}
-                      max={max}
-                      step={step}
-                      value={values[key]}
-                      onChange={(e) => setValues({...values, [key]: Number(e.target.value)})}
-                      className="w-full"
-                    />
+                    {'options' in param ? (
+                      <select
+                        value={values[param.key]}
+                        onChange={(e) => setValues({...values, [param.key]: e.target.value})}
+                        className="w-full border border-white/25 bg-black/75 p-0.5 text-inherit"
+                      >
+                        {param.options.map((option) => (
+                          <option key={option} value={option}>
+                            {option}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        type="range"
+                        min={param.min}
+                        max={param.max}
+                        step={param.step}
+                        value={values[param.key]}
+                        onChange={(e) => setValues({...values, [param.key]: Number(e.target.value)})}
+                        className="w-full"
+                      />
+                    )}
                   </label>
                 ))}
             </div>
@@ -114,8 +130,8 @@ export function DevPanel<T extends Record<string, number>>({
 }
 
 /** 同じ group が続くぶんをまとめる。並び順はそのまま */
-function groupOf<T>(params: SliderParam<T>[]) {
-  const groups: {name?: string; items: SliderParam<T>[]}[] = []
+function groupOf<T>(params: Param<T>[]) {
+  const groups: {name?: string; items: Param<T>[]}[] = []
   for (const param of params) {
     const last = groups[groups.length - 1]
     if (last && last.name === param.group) last.items.push(param)

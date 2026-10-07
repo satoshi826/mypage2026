@@ -164,7 +164,7 @@ worker/     Cloudflare Worker（写真の API）
 | `hero/Hero.tsx`     | 100svh の hero、時計の駆動 |
 | `hero/ControlPanel.tsx` | 自動再生の切り替え、番号、次までのプログレス |
 | `hero/tuning.ts`    | 調整値の既定と開発用パネルの定義 |
-| `hero/DevPanel.tsx` | 開発用パネル（`import.meta.env.DEV` の中でのみ描画） |
+| `app/DevPanel.tsx`  | 数値や選択肢を詰める開発用パネル（`import.meta.env.DEV` の中でのみ描画）。hero と Photos が使う |
 | `hero/layout.ts`    | コントロールパネルの寸法と、写真との並べ方の決定 |
 | `app/routes.ts`     | ルート定義。ナビ・プリレンダ・title/description の唯一の出典 |
 | `app/pages/`        | 各ページ |

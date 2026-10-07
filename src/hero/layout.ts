@@ -1,5 +1,5 @@
 import type {CSSProperties} from 'react'
-import type {SliderParam} from './DevPanel'
+import type {Param} from '../app/DevPanel'
 import {SOURCE_H, SOURCE_W} from './table'
 
 const ASPECT = SOURCE_W / SOURCE_H
@@ -176,7 +176,7 @@ export function chooseDirection(width: number, height: number, count: number): D
   return side > stacked ? 'side' : 'stacked'
 }
 
-export const LAYOUT_PARAMS: SliderParam<Layout>[] = [
+export const LAYOUT_PARAMS: Param<Layout>[] = [
   {group: '配置', key: 'blockGap', label: 'ブロックの間隔', min: 0, max: 80, step: 2, hint: 'px。各ブロックのあいだ'},
   {group: '配置', key: 'padding', label: '画面の外周の余白', min: 8, max: 64, step: 4, hint: 'px'},
   {group: '配置', key: 'photoGap', label: '写真とパネルの間隔', min: 0, max: 80, step: 4, hint: 'px'},

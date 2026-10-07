@@ -4,9 +4,12 @@ import {useLocation} from 'wouter'
 
 let current: Lenis | null = null
 
-/** 要素の上辺へ慣性つきで寄せる。offset は上辺からのずらし px（負で手前に止める） */
-export function scrollToElement(el: HTMLElement, offset: number) {
-  current?.scrollTo(el, {offset, duration: 0.8})
+/** 要素の上辺へ寄せる。offset は上辺からのずらし px（負で手前に止める）、duration は秒、easing は 0〜1 → 0〜1 */
+export function scrollToElement(
+  el: HTMLElement,
+  {offset, duration, easing}: {offset: number; duration: number; easing: (t: number) => number}
+) {
+  current?.scrollTo(el, {offset, duration, easing})
 }
 
 /** 即座にその位置へ。進行中の慣性スクロールは打ち切る。レイアウトの変化に合わせて視点を固定するために使う */

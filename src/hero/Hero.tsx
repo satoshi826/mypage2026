@@ -17,7 +17,7 @@ import {
   type Timing
 } from './sequence'
 import {ControlPanel} from './ControlPanel'
-import {DevPanel} from './DevPanel'
+import {DevPanel} from '../app/DevPanel'
 import {LAYOUT_PARAMS, LAYOUT_PRESETS, chooseDirection, fitStacked, panelWidth, type Layout} from './layout'
 import {SOURCE_H, SOURCE_W} from './table'
 import {

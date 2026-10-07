@@ -2,11 +2,10 @@ import {useEffect, useLayoutEffect, useMemo, useRef, useState} from 'react'
 import {Img} from './Img'
 import {GAP, layout, type Expansion} from './layout'
 import {useReveal} from './reveal'
+import {DEFAULT_MOTION, EASINGS, MOTION_PARAMS, type Motion} from './tuning'
+import {DevPanel} from '../app/DevPanel'
 import {jumpTo, scrollToElement} from '../app/useSmoothScroll'
 import type {Photo} from '../photos'
-
-const EASE = 'cubic-bezier(0.2, 0.7, 0.2, 1)'
-const DURATION = 700
 
 /** 容器の幅、列数、広げた写真に許す高さ（画面からナビと余白を引いたもの） */
 type Metrics = {width: number; cols: number; maxHeight: number}
@@ -27,6 +26,7 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
   const root = useRef<HTMLDivElement>(null)
   const [metrics, setMetrics] = useState<Metrics | null>(null)
   const [expanded, setExpanded] = useState<string | null>(null)
+  const [motion, setMotion] = useState(DEFAULT_MOTION)
   const before = useRef<Before | null>(null)
   // 直前に広げていた写真。戻すときの基準
   const focus = useRef<string | null>(null)
@@ -102,7 +102,7 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
     if (!still) {
       for (const figure of el.querySelectorAll<HTMLElement>('figure[data-file]')) {
         const from = first.get(figure.dataset.file!)
-        if (from) flip(figure, from, figure.getBoundingClientRect())
+        if (from) flip(figure, from, figure.getBoundingClientRect(), motion)
       }
     }
 
@@ -110,9 +110,14 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
     if (expanded && anchor) {
       const nav = document.querySelector('nav')?.getBoundingClientRect().height ?? 0
       const rect = anchor.getBoundingClientRect()
-      if (rect.top < nav + GAP || rect.bottom > innerHeight) scrollToElement(anchor, -(nav + GAP))
+      if (rect.top < nav + GAP || rect.bottom > innerHeight)
+        scrollToElement(anchor, {
+          offset: -(nav + GAP),
+          duration: motion.scrollSeconds,
+          easing: EASINGS[motion.easing].fn
+        })
     }
-  }, [expanded, photos])
+  }, [expanded, photos, motion])
 
   useEffect(() => {
     if (!expanded) return
@@ -123,6 +128,19 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
 
   return (
     <div ref={root} className="relative" style={{height: placed?.height ?? 0}}>
+      {import.meta.env.DEV && (
+        <div className="pointer-events-none fixed top-16 left-4 z-10">
+          <DevPanel
+            title="Photos の動き"
+            typeName="Motion"
+            constName="DEFAULT_MOTION"
+            params={MOTION_PARAMS}
+            defaults={DEFAULT_MOTION}
+            storageKey="mypage2026.motion"
+            onChange={setMotion}
+          />
+        </div>
+      )}
       {placed &&
         photos.map((photo, i) => {
           const at = placed.items.get(photo.file)!
@@ -158,7 +176,7 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
 }
 
 /** 変更前の位置・大きさから今の位置へ、transform の差分を戻す形で動かす */
-function flip(el: HTMLElement, from: DOMRect, to: DOMRect) {
+function flip(el: HTMLElement, from: DOMRect, to: DOMRect, motion: Motion) {
   const dx = from.left - to.left
   const dy = from.top - to.top
   const sx = from.width / to.width
@@ -169,6 +187,6 @@ function flip(el: HTMLElement, from: DOMRect, to: DOMRect) {
       {transformOrigin: '0 0', transform: `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})`},
       {transformOrigin: '0 0', transform: 'none'}
     ],
-    {duration: DURATION, easing: EASE}
+    {duration: motion.expandSeconds * 1000, easing: EASINGS[motion.easing].css}
   )
 }
