@@ -2,6 +2,20 @@ import {useEffect} from 'react'
 import Lenis from 'lenis'
 import {useLocation} from 'wouter'
 
+let current: Lenis | null = null
+
+/** 要素の上辺へ慣性つきで寄せる。offset は上辺からのずらし px（負で手前に止める） */
+export function scrollToElement(el: HTMLElement, offset: number) {
+  current?.scrollTo(el, {offset, duration: 0.8})
+}
+
+/** 即座にその位置へ。進行中の慣性スクロールは打ち切る。レイアウトの変化に合わせて視点を固定するために使う */
+export function jumpTo(y: number) {
+  // レイアウトが変わった直後に呼ぶので、Lenis が覚えている文書の高さを先に更新する（古いと目標が丸められる）
+  current?.resize()
+  current?.scrollTo(y, {immediate: true, force: true})
+}
+
 /**
  * 慣性スクロール。ホイールの入力を直接使わず、少し遅れて滑らかに追従させる（docs/design.md）。
  * ネイティブのスクロール位置を Lenis が rAF で動かすので、IntersectionObserver や
@@ -12,6 +26,7 @@ export function useSmoothScroll() {
 
   useEffect(() => {
     const lenis = new Lenis({lerp: 0.1})
+    current = lenis
     let frame = requestAnimationFrame(function loop(time) {
       lenis.raf(time)
       frame = requestAnimationFrame(loop)
@@ -19,6 +34,7 @@ export function useSmoothScroll() {
     return () => {
       cancelAnimationFrame(frame)
       lenis.destroy()
+      current = null
     }
   }, [])
 

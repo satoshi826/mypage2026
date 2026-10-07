@@ -1,30 +1,21 @@
-import {useRef} from 'react'
 import {Link, useParams} from 'wouter'
-import {CATEGORIES, PHOTOS, type Category} from '../../photos'
-import {LAYOUTS, useChoice} from '../../gallery/options'
-import {useReveal, useRevealVariant} from '../../gallery/reveal'
-import {Gallery} from '../../gallery/layouts'
-import {GalleryPanel} from '../../gallery/GalleryPanel'
+import {CATEGORIES, usePhotos, type Category} from '../../photos'
+import {Gallery} from '../../gallery/Gallery'
 
 const LABEL: Record<Category, string> = {street: 'Street', abstract: 'Abstract', color: 'Color'}
 
 /**
  * 作品の一覧。カテゴリは URL（/photos/:category）で持ち、既定は street。
  * モノクロとカラーを同じ流れに混ぜないので「すべて」は置かない（docs/site.md）。
- * 現れ方と見せ方は候補を比べる段階（docs/design.md）。
  */
 export function Photos() {
   const params = useParams<{category?: string}>()
   const category = toCategory(params.category)
-  const photos = PHOTOS.filter((photo) => photo.category === category)
-
-  const root = useRef<HTMLDivElement>(null)
-  const [variant, setVariant] = useRevealVariant()
-  const [layout, setLayout] = useChoice('gallery-layout', LAYOUTS, 'masonry')
-  useReveal(root, [category, variant, layout])
+  const all = usePhotos()
+  const photos = all?.filter((photo) => photo.category === category) ?? []
 
   return (
-    <div ref={root} className="mx-auto min-h-[100svh] max-w-5xl px-8 pt-32 pb-24 max-sm:px-4">
+    <div className="mx-auto min-h-[100svh] max-w-5xl px-8 pt-32 pb-24 max-sm:px-4">
       <nav className="mb-16 flex items-baseline gap-6 text-sm tracking-[0.12em]">
         {CATEGORIES.map((c) => (
           <Link
@@ -37,10 +28,7 @@ export function Photos() {
           </Link>
         ))}
       </nav>
-      <Gallery key={`${layout}-${category}`} layout={layout} photos={photos} label={LABEL[category]} />
-      {import.meta.env.DEV && (
-        <GalleryPanel variant={variant} onVariant={setVariant} layout={layout} onLayout={setLayout} />
-      )}
+      <Gallery key={category} photos={photos} label={LABEL[category]} />
     </div>
   )
 }

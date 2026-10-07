@@ -93,72 +93,38 @@ html.lenis body {
   overflow: hidden;
 }
 
-/* 視界に入った要素を現す演出（src/gallery/reveal.ts）。
-   候補を比べる段階なので variant が複数ある。決まったら1つに絞る。
-   <html data-reveal-variant> で切り替え、[data-revealed] が付いたら現す。
-   見た目は [data-reveal] 自体ではなく直下の子に当てる。clip-path や mask で本体を
-   切り取ると IntersectionObserver が交差なしと判定し、永久に現れなくなるため。 */
-:root {
-  --reveal-duration: 1.4s;
-  --reveal-ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+/* 視界に入った要素を現す演出（src/gallery/reveal.ts）。下から現像するワイプ。
+   [data-revealed] が付いたら現す。
+
+   構造は [data-reveal] > 窓（overflow: hidden） > 中身。窓を下へ 100% ずらし、中身を上へ 100%
+   ずらして相殺すると、中身は元の位置のまま窓だけが動き、窓が戻るにつれて下から見えてくる。
+   clip-path を使わないのは、transform だけならどのブラウザでも GPU 側で処理され、
+   スクロール中の描画に負荷をかけないため。
+   [data-reveal] 自体は動かさない。動かすと IntersectionObserver の判定が狂うため。 */
+[data-reveal] > *,
+[data-reveal] > * > * {
+  transition: transform 1.4s cubic-bezier(0.2, 0.7, 0.2, 1);
 }
-[data-reveal] > * {
-  transition:
-    opacity var(--reveal-duration) var(--reveal-ease),
-    transform var(--reveal-duration) var(--reveal-ease),
-    filter calc(var(--reveal-duration) * 0.75) var(--reveal-ease),
-    clip-path var(--reveal-duration) var(--reveal-ease),
-    mask-size var(--reveal-duration) var(--reveal-ease);
+[data-reveal]:not([data-revealed]) > * {
+  transform: translateY(100%);
+}
+[data-reveal]:not([data-revealed]) > * > * {
+  transform: translateY(-100%);
 }
 
-/* fade: 透明から、わずかに上昇しながら */
-[data-reveal-variant='fade'] [data-reveal]:not([data-revealed]) > * {
-  opacity: 0;
-  transform: translateY(16px);
-}
-
-/* blur: 強いぼけから結像する */
-[data-reveal-variant='blur'] [data-reveal]:not([data-revealed]) > * {
-  opacity: 0;
-  filter: blur(18px);
-}
-
-/* wipe: 下から現像するように */
-[data-reveal-variant='wipe'] [data-reveal] > * {
-  clip-path: inset(0 0 0 0);
-}
-[data-reveal-variant='wipe'] [data-reveal]:not([data-revealed]) > * {
-  clip-path: inset(100% 0 0 0);
-}
-
-/* bloom: ぼけから結像しつつ、中心から周辺へマスクが広がる */
-[data-reveal-variant='bloom'] [data-reveal] > * {
-  mask-image: radial-gradient(black 50%, transparent 90%);
-  mask-position: center;
-  mask-repeat: no-repeat;
-  mask-size: 300% 300%;
-}
-[data-reveal-variant='bloom'] [data-reveal]:not([data-revealed]) > * {
-  opacity: 0;
-  filter: blur(12px);
-  mask-size: 60% 60%;
-}
-
-/* scale: わずかに大きい状態から収まる */
-[data-reveal-variant='scale'] [data-reveal]:not([data-revealed]) > * {
-  opacity: 0;
-  transform: scale(1.04);
+/* 配置が変わる瞬間（Photos で写真を広げる・戻す）は、ワイプを挟まず即座に出す */
+[data-reveal-instant] [data-reveal] > *,
+[data-reveal-instant] [data-reveal] > * > * {
+  transition: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  [data-reveal] > * {
+  [data-reveal] > *,
+  [data-reveal] > * > * {
     transition: none;
   }
-  [data-reveal]:not([data-revealed]) > * {
-    opacity: 1;
+  [data-reveal]:not([data-revealed]) > *,
+  [data-reveal]:not([data-revealed]) > * > * {
     transform: none;
-    filter: none;
-    clip-path: none;
-    mask-size: 300% 300%;
   }
 }
