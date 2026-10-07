@@ -32,6 +32,10 @@ dist-ssr
 # 借り物のスキル。launch.json だけ追跡する
 .claude/skills/
 
-# Photos ページの写真。scripts/encode-gallery.sh で原本から書き出す。
-# 175枚で数十MBになるので、リポジトリに入れるかは未決（docs/site.md）
-public/gallery/
+# 原本から書き出した派生画像と manifest。scripts/encode-photos.sh が作り、
+# `npm run photos:import` がローカルの R2 へ入れる。正本は R2 で、ここは作業用
+.photos/
+# wrangler dev のローカル状態（R2 の模擬など）
+.wrangler/
+# Worker の型。`wrangler types` が wrangler.jsonc から生成する（build が先に走らせる）
+worker-configuration.d.ts

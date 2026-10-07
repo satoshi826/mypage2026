@@ -1,6 +1,7 @@
 import {lazy, Suspense, useSyncExternalStore} from 'react'
 import {Link} from 'wouter'
 import {NAME} from '../routes'
+import {heroSrc, usePhotos} from '../../photos'
 import {Page, Text} from '../Page'
 
 // Hero は Worker と OffscreenCanvas を使うのでサーバーでは動かせない。
@@ -19,12 +20,14 @@ const useIsClient = () =>
 
 export function Top() {
   const isClient = useIsClient()
+  const photos = usePhotos()
+  const heroPhotos = photos?.filter((photo) => photo.hero).map(heroSrc) ?? []
 
   return (
     <>
-      {isClient && (
+      {isClient && heroPhotos.length > 0 && (
         <Suspense fallback={null}>
-          <Hero />
+          <Hero photos={heroPhotos} />
         </Suspense>
       )}
       <Page title={NAME}>

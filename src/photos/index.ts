@@ -1,39 +1,61 @@
-import manifest from './manifest.json'
+import {useEffect, useState} from 'react'
 
-// サイトに載せる写真の一覧。唯一の出典は manifest.json で、scripts/encode-photos.sh が
-// 原本から派生画像を書き出すときに生成する。カテゴリと hero の選択は manifest.json を
-// 直接編集する（再生成しても引き継がれる）。
+// サイトに載せる写真の一覧。正本は R2 の manifest.json で、Worker の /api/manifest から
+// 実行時に読む（写真の追加・入れ替えで再ビルドしない）。画像も /images/ 経由で R2 から。
+// 形は worker/manifest.ts と同じ。管理画面（/admin）が書き換える。
 //
-// 将来は管理画面（CMS）が同じ形の JSON を生成する予定なので、サイト側は
-// この一覧と画像 URL だけを見る（docs/site.md）。
-//
-// | 派生        | 置き場           | 形 |
-// |-------------|------------------|----|
-// | hero 用     | public/photos/   | 1152x768、中央トリミング、グレースケール。hero: true のものだけ |
-// | photos 用   | public/gallery/  | 長辺 2000px、カラー、トリミングなし。全部 |
+// | 派生      | キー            | 形 |
+// |-----------|-----------------|----|
+// | 一覧用    | thumb/<file>.webp   | 長辺 800px。Photos の格子で使う |
+// | 拡大用    | gallery/<file>.webp | 長辺 2000px、カラー、トリミングなし。クリックで開く拡大表示と大判の見せ方で使う |
+// | hero 用   | hero/<file>.webp    | 1152x768、中央トリミング、グレースケール。hero: true のものだけ |
+// | 原本      | originals/<file>.<ext> | 再派生のために置く。公開しない |
 
-export const CATEGORIES = ['street', 'abstract', 'color'] as const
-export type Category = (typeof CATEGORIES)[number]
+export {CATEGORIES, isCategory, type Category, type Photo} from './manifest'
+import {parseManifest, type Photo} from './manifest'
 
-export type Photo = {
-  file: string
-  /** photos 用の派生画像の寸法 */
-  w: number
-  h: number
-  category: Category
-  /** トップの hero に使うか */
-  hero: boolean
+export const thumbSrc = (photo: Photo) => `/images/thumb/${photo.file}.webp`
+export const gallerySrc = (photo: Photo) => `/images/gallery/${photo.file}.webp`
+export const heroSrc = (photo: Photo) => `/images/hero/${photo.file}.webp`
+
+function parse(body: unknown): Photo[] {
+  const result = parseManifest(body)
+  if ('error' in result) throw new Error(`manifest: ${result.error}`)
+  return result.photos
 }
 
-const isCategory = (value: string): value is Category => (CATEGORIES as readonly string[]).includes(value)
+let loading: Promise<Photo[]> | null = null
 
-export const PHOTOS: Photo[] = manifest.map((entry) => {
-  if (!isCategory(entry.category))
-    throw new Error(`manifest.json: ${entry.file} のカテゴリ "${entry.category}" は未定義`)
-  return {...entry, category: entry.category}
-})
+/** 一覧を取得する。同じセッション内では1回だけ取りに行く */
+export function loadPhotos(): Promise<Photo[]> {
+  loading ??= fetch('/api/manifest')
+    .then((res) => {
+      if (!res.ok) throw new Error(`manifest: ${res.status}`)
+      return res.json()
+    })
+    .then(parse)
+    .catch((e) => {
+      loading = null
+      throw e
+    })
+  return loading
+}
 
-export const gallerySrc = (photo: Photo) => `/gallery/${photo.file}.webp`
-
-/** hero が読む画像。再生順は実行時にランダムなので、この並びが決めるのは番号表示と最初の1枚だけ */
-export const HERO_PHOTOS = PHOTOS.filter((photo) => photo.hero).map((photo) => `/photos/${photo.file}.webp`)
+/** 一覧。取得が終わるまで null。失敗したら空配列（写真がないのと同じ扱い） */
+export function usePhotos(): Photo[] | null {
+  const [photos, setPhotos] = useState<Photo[] | null>(null)
+  useEffect(() => {
+    let alive = true
+    loadPhotos().then(
+      (list) => alive && setPhotos(list),
+      (e) => {
+        console.error(e)
+        if (alive) setPhotos([])
+      }
+    )
+    return () => {
+      alive = false
+    }
+  }, [])
+  return photos
+}

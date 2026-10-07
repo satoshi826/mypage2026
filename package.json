@@ -8,11 +8,15 @@
   },
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build && node scripts/prerender.js",
-    "lint": "oxlint src vite.config.ts",
-    "format": "oxfmt src vite.config.ts",
+    "build": "wrangler types && tsc -b && vite build && node scripts/prerender.js",
+    "lint": "oxlint src worker vite.config.ts",
+    "format": "oxfmt src worker vite.config.ts",
     "preview": "vite preview",
-    "deploy": "npm run build && wrangler deploy"
+    "deploy": "npm run build && wrangler deploy",
+    "dev:api": "wrangler dev --port 8787",
+    "photos:import": "node scripts/sync-photos.mjs import",
+    "photos:pull": "node scripts/sync-photos.mjs pull",
+    "photos:push": "node scripts/sync-photos.mjs push"
   },
   "dependencies": {
     "glaku": "^0.5.2",
@@ -23,6 +27,7 @@
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",
+    "@types/node": "^26.6.4",
     "@types/react": "^18.3.10",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^6.1.1",

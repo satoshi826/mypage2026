@@ -1,26 +1,33 @@
 #!/bin/sh
-# 原本から、サイトで使う派生画像を書き出し、一覧 src/photos/manifest.json を生成する。
+# 原本から、サイトで使う派生画像を .photos/ に書き出し、一覧 .photos/manifest.json を生成する。
+# できたものは `npm run photos:import` でローカルの R2 へ入れ、`npm run photos:push` で本番へ送る。
+# 正本は R2 で、.photos/ は作業用。
+# 日常の追加・入れ替えは管理画面（/admin）で行い、これは最初の移行と再派生のためのもの。
 #
 #   ./scripts/encode-photos.sh ~/path/to/originals
 #
-# | 派生      | 置き場          | 形 |
-# |-----------|-----------------|----|
-# | photos 用 | public/gallery/ | 長辺 LONG px、カラー、トリミングなし。全部 |
-# | hero 用   | public/photos/  | 粒子グリッド実寸（src/hero/table.ts の SOURCE_W/H）、中央トリミング、
-# |           |                 | グレースケール。manifest で hero: true のものだけ |
+# | 派生      | 置き場           | 形 |
+# |-----------|------------------|----|
+# | 一覧用    | .photos/thumb/   | 長辺 THUMB px。全部 |
+# | 拡大用    | .photos/gallery/ | 長辺 LONG px、カラー、トリミングなし。全部 |
+# | hero 用   | .photos/hero/    | 粒子グリッド実寸（src/hero/table.ts の SOURCE_W/H）、中央トリミング、
+# |           |                  | グレースケール。manifest で hero: true のものだけ |
 #
-# カテゴリと hero の選択は既存の manifest から引き継ぐ。新規の写真は彩度で color / street を
-# 仮置きし、hero は false。手で manifest.json を編集して調整する。
+# カテゴリと hero の選択は既存の .photos/manifest.json から引き継ぐ。新規の写真は彩度で
+# color / street を仮置きし、hero は false。
 # 必要なツール: imagemagick, cwebp
 set -eu
 
 SRC=${1:?使い方: ./scripts/encode-photos.sh <原本のディレクトリ>}
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
-GALLERY=${GALLERY:-$ROOT/public/gallery}
-HERO=${HERO:-$ROOT/public/photos}
-LIST=${LIST:-$ROOT/src/photos/manifest.json}
+THUMB=${THUMB:-$ROOT/.photos/thumb}
+GALLERY=${GALLERY:-$ROOT/.photos/gallery}
+HERO=${HERO:-$ROOT/.photos/hero}
+LIST=${LIST:-$ROOT/.photos/manifest.json}
 LONG=${LONG:-2000}
+THUMB_LONG=${THUMB_LONG:-800}
 QUALITY=${QUALITY:-82}
+THUMB_QUALITY=${THUMB_QUALITY:-60}
 HERO_QUALITY=${HERO_QUALITY:-92}
 # 平均彩度（HSL の S、0〜1）がこれを超えたらカラー扱い
 COLOR_THRESHOLD=${COLOR_THRESHOLD:-0.08}
@@ -30,7 +37,7 @@ TABLE=$ROOT/src/hero/table.ts
 W=$(grep "export const SOURCE_W" "$TABLE" | sed "s/[^0-9]//g")
 H=$(grep "export const SOURCE_H" "$TABLE" | sed "s/[^0-9]//g")
 
-mkdir -p "$GALLERY" "$HERO" "$(dirname "$LIST")"
+mkdir -p "$THUMB" "$GALLERY" "$HERO" "$(dirname "$LIST")"
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 
@@ -62,6 +69,9 @@ for f in "$SRC"/*; do
   read -r w h <<EOS
 $(magick identify -format '%w %h' "$GALLERY/$name.webp")
 EOS
+  # 一覧用: 拡大用からさらに縮める
+  magick "$tmp/$name.png" -resize "${THUMB_LONG}x${THUMB_LONG}>" "$tmp/$name-thumb.png"
+  cwebp -quiet -q "$THUMB_QUALITY" "$tmp/$name-thumb.png" -o "$THUMB/$name.webp"
   # hero 用: 中央基準で切り出してグリッド実寸へ、グレースケール
   if [ "$hero" = true ]; then
     magick "$f" -auto-orient -resize "${W}x${H}^" -gravity center -extent "${W}x${H}" -colorspace Gray "$tmp/$name-hero.png"

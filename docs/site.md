@@ -12,7 +12,7 @@
 | ページ | 役割 | 状態 |
 |---|---|---|
 | `/` | 粒子の hero と導線 | 動いている |
-| `/photos` | 作品。street / abstract / color を URL で切り替え | 試作。見せ方は masonry、現れ方は wipe で仮決定 |
+| `/photos` | 作品。street / abstract / color を URL で切り替え。段組の一覧。クリックでその場で全幅に広がる | 実装済み |
 | `/works` | 撮影実績（指揮者・公演・インタビュー） | 写真待ち。準備中の表示 |
 | `/about` | ステートメント・プロフィール・受賞・機材・リンク | 仮実装。ステートメントは本人の言葉に差し替える |
 | `/contact` | 撮影の依頼。ジャンルは問わない。メールのみ | 実装済み |
@@ -22,9 +22,10 @@
 
 ## 写真の管理
 
-一覧は `src/photos/manifest.json` の1本。hero と Photos の両方がこれを見る。
-原本からの派生は `scripts/encode-photos.sh`。画像は R2 に置く前提でリポジトリに入れない。
-将来は自前の管理画面が同じ形の JSON を生成する。順序は「形を固定 → サイト完成 → 管理画面」。
+正本は R2 の manifest.json。hero と Photos の両方がこれを実行時に読む。
+追加・入れ替えは管理画面 `/admin`（Cloudflare Access で保護、本人のメールのみ）。
+本番は R2・Access・Worker の secret まで設定済みで動いている。最初の移行は
+`scripts/encode-photos.sh` と `scripts/sync-photos.mjs` で済ませた。
 
 ## 未決
 
@@ -32,5 +33,4 @@
 - works に載せる写真
 - about のステートメント、インタビュー掲載の媒体名
 - Instagram / X のリンクの置き場
-- R2 の有効化
 - 独自ドメイン、ファビコンの本番版

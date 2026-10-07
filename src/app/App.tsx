@@ -8,6 +8,7 @@ import {Photos} from './pages/Photos'
 import {Works} from './pages/Works'
 import {About} from './pages/About'
 import {Contact} from './pages/Contact'
+import {Admin} from '../admin/Admin'
 import {useSmoothScroll} from './useSmoothScroll'
 
 export function App() {
@@ -24,6 +25,7 @@ export function App() {
           <Route path="/works" component={Works} />
           <Route path="/about" component={About} />
           <Route path="/contact" component={Contact} />
+          <Route path="/admin" component={Admin} />
           <Route>
             <Page title="Not found">{null}</Page>
           </Route>

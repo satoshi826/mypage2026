@@ -1,9 +1,10 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  // 静的ファイルを配るだけの Worker。main を持たないので実行コードはない。
-  // dist は npm run build（vite build + prerender）が作る。
   "name": "mypage2026",
   "compatibility_date": "2026-09-16",
+  // 静的ファイルの配信と、写真の API（worker/index.ts）。
+  // dist は npm run build（vite build + prerender）が作る。
+  "main": "worker/index.ts",
   "assets": {
     "directory": "./dist",
     // サイト内のリンクは /about のように末尾のスラッシュを持たない。既定では
@@ -11,6 +12,14 @@
     "html_handling": "drop-trailing-slash",
     // 各ルートは prerender で HTML になっているので、どこにも当たらないパスだけ
     // 404.html を返す。SPA 扱いにすると誤ったパスが 200 で返り検索に載る
-    "not_found_handling": "404-page"
-  }
+    "not_found_handling": "404-page",
+    // これらのパスだけ Worker が受ける。それ以外は静的ファイルへ直接。
+    // トップは Worker が静的ファイルに先読みヘッダを足して返す
+    "run_worker_first": ["/", "/api/*", "/images/*"],
+    "binding": "ASSETS"
+  },
+  // 写真の置き場。原本・派生画像・manifest.json をすべてここに置く
+  // 認証に使う変数は wrangler.jsonc に書かず、dashboard の Variables か wrangler secret で入れる
+  // （worker/env.d.ts）。未設定だと localhost からの書き込みだけ通す（wrangler dev 用）。
+  "r2_buckets": [{"binding": "PHOTOS", "bucket_name": "mypage2026-photos"}]
 }
