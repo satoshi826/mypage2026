@@ -96,8 +96,8 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
       jumpTo(Math.max(0, Math.min(limit, scrollY + anchor.getBoundingClientRect().top - was.top)))
     }
 
-    // 大きさが変わる写真も figure ごと動かす。中の img だけを scale すると、ワイプ用の窓
-    // （overflow: hidden）が先に新しい大きさになり、縮むときに画像が窓で切り取られる
+    // 大きさが変わる写真も figure ごと動かす。img とワイプ用の覆いが一緒に動くので、中身だけを
+    // 動かすより単純で、枠と中身がずれない
     const still = matchMedia('(prefers-reduced-motion: reduce)').matches
     if (!still) {
       for (const figure of el.querySelectorAll<HTMLElement>('figure[data-file]')) {
@@ -151,7 +151,7 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
               data-file={photo.file}
               data-reveal
               onClick={() => go(wide ? null : photo.file)}
-              className={`absolute m-0 ${wide ? 'cursor-zoom-out' : 'cursor-zoom-in'}`}
+              className={`absolute m-0 overflow-hidden ${wide ? 'cursor-zoom-out' : 'cursor-zoom-in'}`}
               // 高さも配置の計算値で与える。src を外した img は高さ 0 になり、figure が面積 0 だと
               // content-visibility が中身を飛ばして img が箱を失い、IntersectionObserver が二度と拾えない。
               // content-visibility: 画面外の写真は描画を丸ごと飛ばす
@@ -164,10 +164,9 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
                 containIntrinsicSize: `${at.w}px ${at.h}px`
               }}
             >
-              {/* ワイプ用の窓。styles.css の [data-reveal] を参照 */}
-              <div className="overflow-hidden">
-                <Img photo={photo} alt={`${label} ${i + 1}`} index={i} large={wide} />
-              </div>
+              <Img photo={photo} alt={`${label} ${i + 1}`} index={i} large={wide} />
+              {/* ワイプ用の覆い。styles.css の [data-reveal] を参照 */}
+              <div data-reveal-cover aria-hidden />
             </figure>
           )
         })}

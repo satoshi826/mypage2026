@@ -84,35 +84,34 @@ a {
 /* 視界に入った要素を現す演出（src/gallery/reveal.ts）。下から現像するワイプ。
    [data-revealed] が付いたら現す。
 
-   構造は [data-reveal] > 窓（overflow: hidden） > 中身。窓を下へ 100% ずらし、中身を上へ 100%
-   ずらして相殺すると、中身は元の位置のまま窓だけが動き、窓が戻るにつれて下から見えてくる。
-   clip-path を使わないのは、transform だけならどのブラウザでも GPU 側で処理され、
-   スクロール中の描画に負荷をかけないため。
+   [data-reveal]（position と overflow: hidden を持つこと）の中に地の色の覆い [data-reveal-cover] を重ね、
+   上端を基準に scaleY で 1 → 0 に縮める。中身は動かさず、覆いが上へ引いていくので下から見えてくる。
+   transform だけならどのブラウザでも GPU 側で処理され、スクロール中の描画に負荷をかけない。
+
+   動かすのは覆いの 1 つだけにする。窓と中身を逆向きに動かして相殺する形だと、2 つの transform が
+   別々のスレッド（compositor と main）で進み、画像のデコードで main が詰まった間に写真がずれて見える。
    [data-reveal] 自体は動かさない。動かすと IntersectionObserver の判定が狂うため。 */
-[data-reveal] > *,
-[data-reveal] > * > * {
+[data-reveal-cover] {
+  position: absolute;
+  /* 覆いは compositor 側で画素に揃えられるので、中身の縁が 1px 以下だけ覗くことがある。
+     1px 大きくして [data-reveal] の overflow: hidden で切る */
+  inset: -1px;
+  background: var(--color-ground);
+  transform-origin: top;
+  pointer-events: none;
   transition: transform 1s cubic-bezier(0.2, 0.7, 0.2, 1);
 }
-[data-reveal]:not([data-revealed]) > * {
-  transform: translateY(100%);
-}
-[data-reveal]:not([data-revealed]) > * > * {
-  transform: translateY(-100%);
+[data-revealed] > [data-reveal-cover] {
+  transform: scaleY(0);
 }
 
 /* 配置が変わる瞬間（Photos で写真を広げる・戻す）は、ワイプを挟まず即座に出す */
-[data-reveal-instant] [data-reveal] > *,
-[data-reveal-instant] [data-reveal] > * > * {
+[data-reveal-instant] [data-reveal-cover] {
   transition: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  [data-reveal] > *,
-  [data-reveal] > * > * {
-    transition: none;
-  }
-  [data-reveal]:not([data-revealed]) > *,
-  [data-reveal]:not([data-revealed]) > * > * {
-    transform: none;
+  [data-reveal-cover] {
+    display: none;
   }
 }
