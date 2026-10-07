@@ -12,9 +12,20 @@ const LINKS = [
   ['500px', 'https://500px.com/p/satoshi826']
 ] as const
 
+// 作品名は出さない。賞名のリンク先は代表する1点の公式ページ
 const AWARDS = [
-  ['2024', 'Tokyo International Foto Awards', 'Honorable Mention'],
-  ['2024', 'Fine Art Photography Awards', 'Nominee']
+  [
+    '2024',
+    'Tokyo International Foto Awards',
+    'Honorable Mention, Street Photography',
+    'https://www.tokyofotoawards.jp/winners/hm/2024/12681/'
+  ],
+  [
+    '2025',
+    '11th Fine Art Photography Awards',
+    'Nominee, Street Photography',
+    'https://fineartphotoawards.com/winners-gallery/fapa-2024-2025/amateur/street-photography/hm/23448'
+  ]
 ] as const
 
 export function About() {
@@ -37,9 +48,12 @@ export function About() {
       </Section>
 
       <Section label="Awards">
-        {AWARDS.map(([year, name, result]) => (
+        {AWARDS.map(([year, name, result, href]) => (
           <Row key={name} label={year}>
-            {name} <span className="opacity-55">— {result}</span>
+            <a href={href} target="_blank" rel="noreferrer" className="no-underline hover:underline">
+              {name}
+            </a>{' '}
+            <span className="opacity-55">— {result}</span>
           </Row>
         ))}
       </Section>

@@ -32,9 +32,17 @@ About ページとサイトの meta 情報の元になる事実をまとめた�
 
 ## 実績
 
-- 2024 Tokyo International Foto Awards: Honorable Mention（佳作）
-- 2024 Fine Art Photography Awards（11th）: Nominee
-  - この2件は 1x のプロフィール記載による。公式サイトの受賞者一覧との照合は未了
+- 2024 Tokyo International Foto Awards: Special / Street Photography 部門 Honorable Mention（佳作）**2 件**。
+  公式の受賞者一覧で確認済み（2026-10-06）
+  - 「Path」（撮影 2023-09-18、1/160 秒・F4・ISO 100）: https://www.tokyofotoawards.jp/winners/hm/2024/12677/
+  - 「Stripe」（撮影 2024-01-13、1/60 秒・F16・ISO 100）: https://www.tokyofotoawards.jp/winners/hm/2024/12681/
+  - About には作品名を出さず、リンク先は Stripe のページにする（本人の意向、2026-10-06）
+- 11th Fine Art Photography Awards（FAPA 2024–2025）: Amateur / Street Photography 部門 Nominee。
+  作品は「Path」（単写真）。公式ページで確認済み（2026-10-06）:
+  https://fineartphotoawards.com/winners-gallery/fapa-2024-2025/amateur/street-photography/hm/23448
+  - 公式ページの著者欄の英文: "Street Photographer. Based in Tokyo and Kanagawa, capturing the
+    interplay of light and shadow, form and flow created by the city and its people in monochrome."
+    About の英文ステートメントの材料になる
 - 2026 Tokyo International Foto Awards: 2026-09-30 応募済み、結果待ち
 - 1x.com: PRO 会員（2020年6月〜）。審査通過の掲載作品 277枚、一部プリント販売あり。
   作品タイトル例: hole, spiral, perspective, connection, skyscraper, umbrella, stairs,
