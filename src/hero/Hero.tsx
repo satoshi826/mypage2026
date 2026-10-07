@@ -16,7 +16,6 @@ import {
   type SequenceState,
   type Timing
 } from './sequence'
-import {HERO_PHOTOS as PHOTOS} from '../photos'
 import {ControlPanel} from './ControlPanel'
 import {DevPanel} from './DevPanel'
 import {LAYOUT_PARAMS, LAYOUT_PRESETS, chooseDirection, fitStacked, panelWidth, type Layout} from './layout'
@@ -31,24 +30,25 @@ import {
 } from './tuning'
 import {usePointer} from './pointer'
 import {bandOf, barHeights} from './equalizer'
-import type {Analysis, Command} from './worker'
+import type {Analysis, Command, Loaded} from './worker'
 import Worker from './worker?worker'
 
 const timingOf = ({cycleSeconds, dwellRatio}: Tuning): Timing => ({cycleSeconds, dwellRatio})
 
-export function Hero() {
+/** @param photos hero 用の派生画像の URL。空では呼ばない */
+export function Hero({photos: PHOTOS}: {photos: string[]}) {
   const sectionRef = useRef<HTMLElement | null>(null)
   const progressRef = useRef<HTMLDivElement>(null)
   const equalizerRef = useRef<HTMLDivElement>(null)
-  // 写真の要約は画素を持っている worker 側でしか作れないので、起動時に受け取る
-  const analysis = useRef<Analysis | null>(null)
+  // 写真の要約は画素を持っている worker 側でしか作れないので、1枚上がるごとに受け取る
+  const analysis = useRef<Analysis>({tones: []})
   const heights = useRef(new Float32Array(128))
   const speeds = useRef(new Float32Array(128))
   // 棒グラフを描き直す必要があるか。静止帯では phase が動かず結果も変わらない
   const eqPending = useRef(true)
   // スペクトラムでホバーしている棒。粒子と棒の両方で、そこから離れたものを暗くする
   const hovered = useRef<number | null>(null)
-  const stateRef = useRef<SequenceState>(initialState({count: PHOTOS.length, shuffle: true}))
+  const stateRef = useRef<SequenceState>(initialState())
   const timingRef = useRef<Timing>(timingOf(DEFAULT_TUNING))
   const tuningRef = useRef<Tuning>(DEFAULT_TUNING)
   const interactionRef = useRef<Interaction>(DEFAULT_INTERACTION)
@@ -61,7 +61,9 @@ export function Hero() {
 
   const [index, setIndex] = useState(0)
   const [shuffle, setShuffle] = useState(true)
-  const order = useMemo<Order>(() => ({count: PHOTOS.length, shuffle}), [shuffle])
+  // 読み込みが済んだ写真の番号。worker が1枚上げるごとに増える。抽選はこの中から
+  const [available, setAvailable] = useState<number[]>([])
+  const order = useMemo<Order>(() => ({shuffle, available}), [shuffle, available])
   // 並べ方は画面の形で決める。写真が大きくなるほうを選ぶ
   const viewport = useViewport()
   const direction = chooseDirection(viewport.width, viewport.height, PHOTOS.length)
@@ -75,9 +77,10 @@ export function Hero() {
   // あとはトグルに委ねる（押せば動かせる）
   const [autoplay, setAutoplay] = useState(!reduced)
 
-  const {canvas, post, ref} = useCanvas<Analysis>(Worker, (reply) => {
-    analysis.current = reply
+  const {canvas, post, ref} = useCanvas<Loaded>(Worker, ({layer, tone}) => {
+    analysis.current.tones[layer] = tone
     eqPending.current = true
+    setAvailable((prev) => [...prev, layer].sort((a, b) => a - b))
   })
   useCanvasResize(post, ref)
   const takePointer = usePointer(ref)
@@ -86,7 +89,7 @@ export function Hero() {
     // canvas の余白をページ背景に合わせる。worker から CSS は読めないので値を渡す
     const ground = getComputedStyle(document.documentElement).getPropertyValue('--color-ground')
     post({photos: PHOTOS, ground})
-  }, [post])
+  }, [post, PHOTOS])
 
   // 画面外では時計を止める。下のセクションを読んでいる間 GPU を回す意味がない
   useEffect(() => {
@@ -193,7 +196,7 @@ export function Hero() {
       // 中の3枚（遷移帯・静止帯・通過ぶん）はそれを継承して描き分ける
       // 棒グラフ。静止帯では phase が止まっていて結果も変わらないので計算ごと飛ばす
       const equalizer = equalizerRef.current
-      if (equalizer && analysis.current && (command.render || eqPending.current)) {
+      if (equalizer && (command.render || eqPending.current)) {
         eqPending.current = false
         const bars = Math.min(layout.eqBars, equalizer.children.length)
         // ホバー中の棒からの距離で、その棒を明るくする。他は落とさない
@@ -277,6 +280,8 @@ export function Hero() {
         {canvas}
       </div>
       <ControlPanel
+        count={PHOTOS.length}
+        available={available}
         index={index}
         autoplay={autoplay}
         shuffle={shuffle}
@@ -291,7 +296,7 @@ export function Hero() {
         onShuffle={() => setShuffle(!shuffle)}
         onPrev={() => go(goBack(stateRef.current, order, timingRef.current))}
         onNext={() => go(goNext(stateRef.current, order, timingRef.current))}
-        onSelect={(target) => go(jumpTo(stateRef.current, target, timingRef.current))}
+        onSelect={(target) => go(jumpTo(stateRef.current, target, order, timingRef.current))}
         onHover={(index) => {
           hovered.current = index
           eqPending.current = true

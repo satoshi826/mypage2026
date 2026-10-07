@@ -1,5 +1,4 @@
 import {useLayoutEffect, useRef, type ReactNode, type RefObject} from 'react'
-import {HERO_PHOTOS as PHOTOS} from '../photos'
 import {layoutVars, type Layout} from './layout'
 
 const label = (index: number) => String(index + 1).padStart(2, '0')
@@ -12,6 +11,8 @@ const label = (index: number) => String(index + 1).padStart(2, '0')
  * 同じ作りで、並べ方をこのコンポーネントは知らない。
  */
 export function ControlPanel({
+  count,
+  available,
   index,
   autoplay,
   shuffle,
@@ -26,6 +27,10 @@ export function ControlPanel({
   progressRef,
   equalizerRef
 }: {
+  /** 写真の枚数。カレンダーの番号はこの数だけ並ぶ */
+  count: number
+  /** 読み込みが済んだ番号。それ以外は薄く出し、押せない */
+  available: readonly number[]
   index: number
   autoplay: boolean
   shuffle: boolean
@@ -46,6 +51,7 @@ export function ControlPanel({
 }) {
   const listRef = useRef<HTMLOListElement>(null)
   const markerRef = useRef<HTMLDivElement>(null)
+  const loaded = new Set(available)
 
   // 丸を選択中のマスへ移動させる。マスは幅で決まるので、大きさも位置も実測する
   useLayoutEffect(() => {
@@ -133,7 +139,7 @@ export function ControlPanel({
           ref={listRef}
           className="m-0 grid p-0 [column-gap:var(--gap-x)] [row-gap:var(--gap-y)] [grid-template-columns:repeat(var(--cols),1fr)]"
         >
-          {PHOTOS.map((_, i) => (
+          {Array.from({length: count}, (_, i) => (
             <li key={i} className="aspect-square list-none">
               {/* translate は数字の見た目の中心をマスの中心に合わせるためのもの。
                   縦は F1.8 の ascent 0.94em / descent 0.26em に対して数字の高さが
@@ -143,8 +149,13 @@ export function ControlPanel({
                 type="button"
                 onClick={() => onSelect(i)}
                 aria-current={i === index}
-                className={`flex size-full cursor-pointer items-center justify-center font-number tracking-[0.1em] lining-nums transition-opacity duration-300 hover:opacity-70 text-(length:--number-size) [translate:0.05em_0.08em] ${
-                  i === index ? 'opacity-100' : '[opacity:var(--idle-opacity)]'
+                disabled={!loaded.has(i)}
+                className={`flex size-full items-center justify-center font-number tracking-[0.1em] lining-nums transition-opacity duration-300 text-(length:--number-size) [translate:0.05em_0.08em] enabled:cursor-pointer enabled:hover:opacity-70 ${
+                  i === index
+                    ? 'opacity-100'
+                    : loaded.has(i)
+                      ? '[opacity:var(--idle-opacity)]'
+                      : '[opacity:calc(var(--idle-opacity)*0.3)]'
                 }`}
               >
                 {label(i)}

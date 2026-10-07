@@ -12,37 +12,62 @@ export default {}
 const DECODE_LANES = 8
 
 /**
- * 写真を1枚ずつ読み込み、アトラスの自分の区画へ直接上げる。
+ * 写真を1枚ずつ読み込み、アトラスの自分の区画へ直接上げる。1枚上がるごとに onLoaded を呼ぶ。
+ *
+ * 最初の1枚（0 番）だけ単独で先に上げる。回線を分け合わずに済むので最初の1枚が
+ * 最速で届き、そこから描き始められる。残りは順番をばらして並列に上げる。
+ * 2枚目に届くものが最初の遷移先になるので、ばらさないと毎回同じ遷移で始まる。
  *
  * 全枚数ぶんを JS 側に溜めてから1枚の巨大な配列に詰め直すと、画素・テーブル・
  * アトラスが同時に生きる（31枚で 225MB）。区画ごとに上げれば、同時に生きるのは
  * 並列数ぶんだけになる。
  */
-async function fillAtlas(core: Core, texture: WebGLTexture, photos: string[], grid: Grid, layout: AtlasLayout) {
+async function fillAtlas(
+  core: Core,
+  texture: WebGLTexture,
+  photos: string[],
+  grid: Grid,
+  layout: AtlasLayout,
+  onLoaded: (layer: number, tone: Uint8Array) => void
+) {
   const {gl} = core
-  // スペクトラム用の要約。画素を触れるのはここだけなので、上げるついでに取る
-  const tones: Uint8Array[] = []
 
   const upload = async (layer: number) => {
-    const table = buildTable(await loadPixels(photos[layer], grid), grid)
-    tones[layer] = toneOf(table)
+    let table: Uint8Array
+    try {
+      table = buildTable(await loadPixels(photos[layer], grid), grid)
+    } catch (e) {
+      // 1枚の失敗で全体を止めない。届かなかった写真は選ばれないまま残る
+      console.error(`hero: ${photos[layer]} を読めない`, e)
+      return
+    }
     const {x, y} = blockOrigin(layer, layout, grid)
     gl.bindTexture(gl.TEXTURE_2D, texture)
     gl.texSubImage2D(gl.TEXTURE_2D, 0, x, y, grid.width, grid.height, gl.RGBA, gl.UNSIGNED_BYTE, table)
     gl.bindTexture(gl.TEXTURE_2D, null)
+    // スペクトラム用の要約。画素を触れるのはここだけなので、上げるついでに取る
+    onLoaded(layer, toneOf(table))
   }
 
+  await upload(0)
+
+  const rest = Array.from({length: photos.length - 1}, (_, i) => i + 1)
+  for (let i = rest.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[rest[i], rest[j]] = [rest[j], rest[i]]
+  }
   let next = 0
   await Promise.all(
-    Array.from({length: Math.min(DECODE_LANES, photos.length)}, async () => {
-      for (let layer = next++; layer < photos.length; layer = next++) await upload(layer)
+    Array.from({length: Math.min(DECODE_LANES, rest.length)}, async () => {
+      for (let i = next++; i < rest.length; i = next++) await upload(rest[i])
     })
   )
-
-  return {tones}
 }
 
-/** worker からメインスレッドへ返すもの。写真の要約は画素を持っている側でしか作れない */
+/** worker からメインスレッドへ返すもの。写真が1枚上がるごとに届く。要約は画素を持っている側でしか作れない */
+export type Loaded = {layer: number; tone: Uint8Array}
+
+/** メインスレッドが Loaded を集めたもの。届いていないレイヤは undefined */
 export type Analysis = {tones: Uint8Array[]}
 
 /** `#rrggbb` を WebGL のクリア色に変換する。ページ背景と canvas の余白を揃えるため */
@@ -51,7 +76,7 @@ function parseColor(hex: string): [number, number, number, number] {
   return [((value >> 16) & 255) / 255, ((value >> 8) & 255) / 255, (value & 255) / 255, 1]
 }
 
-async function createScene(canvas: OffscreenCanvas, pixelRatio: number, photos: string[], ground: string) {
+function createScene(canvas: OffscreenCanvas, pixelRatio: number, photos: string[], ground: string) {
   const core = new Core({canvas, pixelRatio})
 
   // 粒子グリッドは起動時に一度だけ決める。以後は変わらない
@@ -334,14 +359,23 @@ async function createScene(canvas: OffscreenCanvas, pixelRatio: number, photos: 
       }`
   })
 
-  postMessage((await fillAtlas(core, table, photos, grid, layout)) satisfies Analysis)
+  // 直前に描いた組。ジャンプのとき、基準位置の飛びを打ち消すのに要る
+  let frame: Frame = {from: 0, to: 0, phase: 0}
+  // 上がった写真。両端が揃っていないフレームは描かない（空の区画を読むと全粒子が隅に集まる）
+  const loaded = new Set<number>()
+  fillAtlas(core, table, photos, grid, layout, (layer, tone) => {
+    loaded.add(layer)
+    postMessage({layer, tone} satisfies Loaded, {transfer: [tone.buffer]})
+    // 待っていた写真が届いたら、次の指示を待たずに描く
+    if (layer === frame.from || layer === frame.to) draw()
+  }).catch((e) => console.error('hero: 写真の読み込みが止まった', e))
 
   const renderer = new Renderer(core, {id: 'canvas', backgroundColor: groundColor})
 
   // 粒子は u_fit を掛ける前の空間にいるので、ポインタも同じ空間へ戻してから渡す
   let fit = [1, 1]
-  // 直前に描いた組。ジャンプのとき、基準位置の飛びを打ち消すのに要る
-  let frame: Frame = {from: 0, to: 0, phase: 0}
+  // 正の寸法で resize されたか。canvas は枠の寸法が決まる前に 0×0 で渡ってくる
+  let sized = false
 
   /** 基準位置の計算に要る uniform は描画と更新の両方が持つ */
   const setMorph = (values: Record<string, number>) => {
@@ -378,6 +412,8 @@ async function createScene(canvas: OffscreenCanvas, pixelRatio: number, photos: 
     program.setUniform({u_bandCenter: center, u_bandWidth: width, u_bandCurve: curve, u_bandGamma: gamma})
 
   const draw = () => {
+    // 枠の寸法が決まる前（0×0）と、両端の写真が揃う前は描かない
+    if (!sized || !loaded.has(frame.from) || !loaded.has(frame.to)) return
     core.setTexture('t_state', state[readIndex].renderTexture[0])
     renderer.clear()
     renderer.render(vao, program)
@@ -396,6 +432,10 @@ async function createScene(canvas: OffscreenCanvas, pixelRatio: number, photos: 
   }
 
   const resize = ({width, height}: {width: number; height: number}) => {
+    // 枠が決まる前は 0×0 で届く。0 で割ると fit が NaN になり、描画だけでなく
+    // ポインタ経由で干渉の状態テクスチャまで NaN で埋まり、以後まともに描けなくなる
+    if (width <= 0 || height <= 0) return
+    sized = true
     renderer.resize({width, height})
     // 画像を歪めずに収める
     const canvasAR = width / height
@@ -466,11 +506,10 @@ export type Command = {
   band?: BandCommand
 }
 
-type Scene = Awaited<ReturnType<typeof createScene>>
+type Scene = ReturnType<typeof createScene>
 
 const pending: Command = {}
 let scene: Scene | null = null
-let booting = false
 
 /** uniform を全部入れてから1回だけ描く */
 const apply = (command: Command) => {
@@ -489,11 +528,8 @@ const apply = (command: Command) => {
 onmessage = ({data}: {data: Command}) => {
   Object.assign(pending, data)
   if (scene) return apply(data)
-  if (booting || !pending.canvas || !pending.photos) return
+  if (!pending.canvas || !pending.photos) return
 
-  booting = true
-  createScene(pending.canvas, pending.pixelRatio ?? 1, pending.photos, pending.ground ?? '#000').then((created) => {
-    scene = created
-    apply(pending)
-  })
+  scene = createScene(pending.canvas, pending.pixelRatio ?? 1, pending.photos, pending.ground ?? '#000')
+  apply(pending)
 }

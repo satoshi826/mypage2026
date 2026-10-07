@@ -6,9 +6,14 @@ type Message = Record<string, unknown>
 /**
  * canvas を作って OffscreenCanvas として worker に譲渡する。
  * 以降の描画は worker 側で完結し、React は再レンダリングに関与しない。
+ *
+ * 譲渡は枠の寸法が決まってから行う。0×0 のまま譲渡して最初のフレームが送られると、
+ * あとで寸法が付いても画面側の canvas に描画が反映されない（Chrome で確認）。
+ * それまでに post されたものは溜めておき、worker ができた時点で順に流す。
  */
 export function useCanvas<Reply>(Worker: new () => Worker, onReply?: (reply: Reply) => void) {
   const workerRef = useRef<Worker | null>(null)
+  const queue = useRef<[Message, Transferable[]][]>([])
   const wrapperRef = useRef<HTMLDivElement>(null)
   // 返信の受け手は毎レンダー作り直されるので、worker の作り直しを避けるため ref 越しに呼ぶ
   const latestReply = useRef(onReply)
@@ -16,10 +21,11 @@ export function useCanvas<Reply>(Worker: new () => Worker, onReply?: (reply: Rep
     latestReply.current = onReply
   })
 
-  const post = useCallback(
-    (message: Message, transfer: Transferable[] = []) => workerRef.current?.postMessage(message, transfer),
-    []
-  )
+  const post = useCallback((message: Message, transfer: Transferable[] = []) => {
+    const worker = workerRef.current
+    if (worker) worker.postMessage(message, transfer)
+    else queue.current.push([message, transfer])
+  }, [])
 
   useLayoutEffect(() => {
     const wrapper = wrapperRef.current
@@ -29,20 +35,39 @@ export function useCanvas<Reply>(Worker: new () => Worker, onReply?: (reply: Rep
     canvas.style.cssText = 'position:absolute; inset:0; width:100%; height:100%'
     wrapper.append(canvas)
 
-    const offscreen = canvas.transferControlToOffscreen()
+    let observer: ResizeObserver | null = null
+    const start = (width: number, height: number) => {
+      const offscreen = canvas.transferControlToOffscreen()
+      offscreen.width = width
+      offscreen.height = height
+
+      const worker = new Worker()
+      worker.onmessage = ({data}: MessageEvent<Reply>) => latestReply.current?.(data)
+      workerRef.current = worker
+      worker.postMessage({canvas: offscreen, pixelRatio: devicePixelRatio}, [offscreen])
+      for (const [message, transfer] of queue.current) worker.postMessage(message, transfer)
+      queue.current = []
+    }
+
     // canvas は absolute なので、寸法はラッパーから取る
     const {width, height} = wrapper.getBoundingClientRect()
-    offscreen.width = width
-    offscreen.height = height
-
-    const worker = new Worker()
-    worker.onmessage = ({data}: MessageEvent<Reply>) => latestReply.current?.(data)
-    workerRef.current = worker
-    worker.postMessage({canvas: offscreen, pixelRatio: devicePixelRatio}, [offscreen])
+    if (width > 0 && height > 0) start(width, height)
+    else {
+      observer = new ResizeObserver(([entry]) => {
+        const {width, height} = entry.contentRect
+        if (width <= 0 || height <= 0) return
+        observer?.disconnect()
+        observer = null
+        start(width, height)
+      })
+      observer.observe(wrapper)
+    }
 
     return () => {
-      worker.terminate()
+      observer?.disconnect()
+      workerRef.current?.terminate()
       workerRef.current = null
+      queue.current = []
       canvas.remove()
     }
   }, [Worker])

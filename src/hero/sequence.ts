@@ -7,14 +7,18 @@ export type Frame = {from: number; to: number; phase: number}
 /** elapsed は現在の1周のうち経過した秒数 */
 export type SequenceState = {
   from: number
-  to: number
+  /** 次の1枚。null は未定で、候補が読み込まれたら advance が選ぶ。それまで時計は止まる */
+  to: number | null
   elapsed: number
   /** たどってきた写真。シャッフル中の「前へ」で戻るために持つ */
   history: number[]
 }
 
-/** 再生の順番。枚数と順番は常にセットで要るのでまとめる */
-export type Order = {count: number; shuffle: boolean}
+/**
+ * 再生の順番。available は読み込みが終わって選べる写真の番号（昇順）。
+ * 写真は1枚ずつ届くので、起動直後は少なく、揃うにつれて増える
+ */
+export type Order = {shuffle: boolean; available: readonly number[]}
 
 /** 履歴の上限。戻れる深さで、これ以上は古いものから捨てる */
 const HISTORY_LIMIT = 64
@@ -31,31 +35,45 @@ export type Timing = {
 const clamp01 = (v: number) => Math.min(Math.max(v, 0), 1)
 const cycleOf = (timing: Timing) => Math.max(timing.cycleSeconds, 0.1)
 
-/** 次の1枚。シャッフル中は直前と同じものを避けて抽選し、そうでなければ番号順 */
-export function pickNext(current: number, {count, shuffle}: Order) {
-  if (count < 2) return current
-  if (!shuffle) return (current + 1) % count
-  return (current + 1 + Math.floor(Math.random() * (count - 1))) % count
+/** 次の1枚。シャッフル中は直前と同じものを避けて抽選し、そうでなければ番号順。候補がなければ今のまま */
+export function pickNext(current: number, {shuffle, available}: Order) {
+  const candidates = available.filter((i) => i !== current)
+  if (candidates.length === 0) return current
+  if (shuffle) return candidates[Math.floor(Math.random() * candidates.length)]
+  return candidates.find((i) => i > current) ?? candidates[0]
 }
 
-export const initialState = (order: Order): SequenceState => ({
-  from: 0,
-  to: pickNext(0, order),
-  elapsed: 0,
-  history: []
-})
+/** 番号順で1つ前。候補がなければ今のまま */
+function pickPrev(current: number, {available}: Order) {
+  const candidates = available.filter((i) => i !== current)
+  if (candidates.length === 0) return current
+  const before = candidates.filter((i) => i < current)
+  return before.length > 0 ? before[before.length - 1] : candidates[candidates.length - 1]
+}
+
+/** 最初の1枚は 0 番。次は読み込みが進んでから選ぶ */
+export const initialState = (): SequenceState => ({from: 0, to: null, elapsed: 0, history: []})
 
 /**
  * 経過時間を進める。1周を終えたら次の1枚へ移る。
+ *
+ * 次の1枚が未定（起動直後）なら候補から選び、候補がなければ時計を止めたまま返す。
+ * 遷移の途中で行き先が決まると粒子が飛ぶので、決まるまで静止帯の頭で待つ。
  *
  * 履歴に積むのは「静止帯が終わって、見ていた1枚を離れる瞬間」の1回だけ。周替わりで
  * 積むと、ボタンで始めた遷移のぶんが二重になる（ボタン側は押した時点で積むため）。
  * ボタンは静止帯の終わりに合わせて時計を進めるので、この判定では二度と拾われない。
  */
 export function advance(state: SequenceState, seconds: number, order: Order, timing: Timing): SequenceState {
+  let {from, to, history} = state
+  if (to === null) {
+    const picked = pickNext(from, order)
+    if (picked === from) return state
+    to = picked
+  }
+
   const cycle = cycleOf(timing)
   const dwell = cycle * clamp01(timing.dwellRatio)
-  let {from, to, history} = state
   let elapsed = state.elapsed
   let left = seconds
 
@@ -78,10 +96,10 @@ export function advance(state: SequenceState, seconds: number, order: Order, tim
 }
 
 /** 丸が示している1枚。遷移の開始で次へ切り替わる */
-const markedOf = ({from, to}: SequenceState, phase: number) => (phase > 0 ? to : from)
+const markedOf = ({from, to}: SequenceState, phase: number) => (phase > 0 ? (to ?? from) : from)
 
 /** 粒子が位置として近い1枚。中点で切り替わる */
-const originOf = ({from, to}: SequenceState, phase: number) => (phase < 0.5 ? from : to)
+const originOf = ({from, to}: SequenceState, phase: number) => (phase < 0.5 ? from : (to ?? from))
 
 /**
  * 遷移を始める。静止帯を飛ばして即座に動き出し、今の1枚を履歴に積む。
@@ -100,7 +118,9 @@ function startFrom(state: SequenceState, target: number, timing: Timing, history
   }
 }
 
-export function jumpTo(state: SequenceState, target: number, timing: Timing): SequenceState {
+/** 番号を選ぶ。読み込みが済んでいない番号は無視する */
+export function jumpTo(state: SequenceState, target: number, order: Order, timing: Timing): SequenceState {
+  if (!order.available.includes(target)) return state
   const {phase} = frameOf(state, timing)
   if (target === markedOf(state, phase)) return state
   return startFrom(state, target, timing, remember(state.history, markedOf(state, phase)))
@@ -108,10 +128,11 @@ export function jumpTo(state: SequenceState, target: number, timing: Timing): Se
 
 /** 「次へ」。自動再生が選ぶのと同じ1枚へ、静止帯を待たずに進む */
 export function goNext(state: SequenceState, order: Order, timing: Timing): SequenceState {
-  if (order.count < 2) return state
   const {phase} = frameOf(state, timing)
   const marked = markedOf(state, phase)
-  return startFrom(state, pickNext(marked, order), timing, remember(state.history, marked))
+  const target = pickNext(marked, order)
+  if (target === marked) return state
+  return startFrom(state, target, timing, remember(state.history, marked))
 }
 
 /**
@@ -119,22 +140,25 @@ export function goNext(state: SequenceState, order: Order, timing: Timing): Sequ
  * シャッフルでも履歴が空なら番号順に落とす。
  */
 export function goBack(state: SequenceState, order: Order, timing: Timing): SequenceState {
-  const {count, shuffle} = order
-  if (count < 2) return state
   const {phase} = frameOf(state, timing)
   const marked = markedOf(state, phase)
-  const previous = shuffle ? state.history[state.history.length - 1] : undefined
-  const target = previous ?? (marked - 1 + count) % count
+  const previous = order.shuffle ? state.history[state.history.length - 1] : undefined
+  const target = previous ?? pickPrev(marked, order)
+  if (target === marked) return state
   // 戻るときは積まない。積むと2回目で行き来するだけになる
   return startFrom(state, target, timing, previous === undefined ? state.history : state.history.slice(0, -1))
 }
 
-/** 進行状態を描画用の3値にする。phase は線形（イージングは頂点シェーダ側で掛かる） */
+/** 進行状態を描画用の3値にする。phase は線形（イージングは頂点シェーダ側で掛かる）。次が未定なら今の1枚を静止で描く */
 export function frameOf({from, to, elapsed}: SequenceState, timing: Timing): Frame {
   const cycle = cycleOf(timing)
   const dwell = cycle * clamp01(timing.dwellRatio)
   const morph = cycle - dwell
-  return {from, to, phase: morph > 0 ? clamp01((elapsed - dwell) / morph) : elapsed >= dwell ? 1 : 0}
+  return {
+    from,
+    to: to ?? from,
+    phase: morph > 0 ? clamp01((elapsed - dwell) / morph) : elapsed >= dwell ? 1 : 0
+  }
 }
 
 /** 1周のうち遷移が占める割合。cycleProgress のどの地点で静止帯に入るかでもある */

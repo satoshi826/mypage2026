@@ -3,7 +3,7 @@
 // Vite の dev サーバを middleware モードで立て、ssrLoadModule で entry-server を読む。
 // この経路なら動的 import は辿られないので、Hero（Worker / OffscreenCanvas）が
 // Node 側で読み込まれることがない。
-import {mkdir, readFile, writeFile} from 'node:fs/promises'
+import {mkdir, readdir, readFile, writeFile} from 'node:fs/promises'
 import {dirname, join} from 'node:path'
 import {fileURLToPath} from 'node:url'
 import {createServer} from 'vite'
@@ -19,9 +19,14 @@ try {
   const {render} = await vite.ssrLoadModule('/src/entry-server.tsx')
   const {ROUTES, NAME} = await vite.ssrLoadModule('/src/app/routes.ts')
   const template = await readFile(join(dist, 'index.html'), 'utf8')
+  const hints = await preloadHints()
 
   const page = (path, title, description) => {
-    const head = `<title>${escapeHtml(title)}</title>\n    <meta name="description" content="${escapeHtml(description)}">`
+    const head = [
+      `<title>${escapeHtml(title)}</title>`,
+      `<meta name="description" content="${escapeHtml(description)}">`,
+      ...hints(path)
+    ].join('\n    ')
     return template
       .replace(/<title>.*?<\/title>/, head)
       .replace('<div id="root"></div>', `<div id="root">${render(path)}</div>`)
@@ -42,4 +47,33 @@ try {
   await write(join(dist, '404.html'), page('/404', `Not found — ${NAME}`, 'ページが見つかりません。'))
 } finally {
   await vite.close()
+}
+
+/**
+ * 先読みのヒント。トップは「JS の起動 → 一覧の取得 → hero チャンク → worker」と
+ * 直列に待ってから写真を取りに行くので、HTML の時点で後ろの段を取り始めさせる。
+ * hero は lazy import なので、チャンク名はビルドの対応表から引く。
+ * worker のチャンクは対応表に出ないので、dist/assets の名前で探す。
+ * worker のスクリプトは別コンテキストが読むので preload では「使われない」扱いになり
+ * 警告が出る。HTTP キャッシュを温めるだけの prefetch にする。
+ * 写真そのものは一覧（R2）次第なので、ここでは出せない。Worker が応答ヘッダで足す（worker/index.ts）。
+ */
+async function preloadHints() {
+  const manifest = JSON.parse(await readFile(join(dist, '.vite', 'manifest.json'), 'utf8'))
+  const hero = manifest['src/hero/Hero.tsx']?.file
+  const worker = (await readdir(join(dist, 'assets'))).find((name) => /^worker-.*\.js$/.test(name))
+  if (!hero || !worker) throw new Error('hero のチャンクが見つからない。vite.config の build.manifest を確認する')
+
+  const photos = `<link rel="preload" href="/api/manifest" as="fetch" crossorigin>`
+  return (path) => {
+    if (path === '/') {
+      return [
+        photos,
+        `<link rel="prefetch" href="/assets/${worker}" as="script">`,
+        `<link rel="modulepreload" href="/${hero}">`
+      ]
+    }
+    if (path.startsWith('/photos')) return [photos]
+    return []
+  }
 }
