@@ -90,7 +90,7 @@ a {
 
    動かすのは覆いの 1 つだけにする。窓と中身を逆向きに動かして相殺する形だと、2 つの transform が
    別々のスレッド（compositor と main）で進み、画像のデコードで main が詰まった間に写真がずれて見える。
-   [data-reveal] 自体は動かさない。動かすと IntersectionObserver の判定が狂うため。 */
+   [data-reveal] 自体は動かさない。動かすと reveal.ts の位置の判定が狂うため。 */
 [data-reveal-cover] {
   position: absolute;
   /* 覆いは compositor 側で画素に揃えられるので、中身の縁が 1px 以下だけ覗くことがある。
