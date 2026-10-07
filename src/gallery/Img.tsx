@@ -35,8 +35,12 @@ export function Img({
   useEffect(() => {
     const img = ref.current
     if (!img) return
-    // 監視するのは枠（figure）。src を外した img は箱を持たなくなり、交差を拾えないため
-    const observer = new IntersectionObserver(([entry]) => setNear(entry.isIntersecting), {rootMargin: RANGE})
+    // 監視するのは枠（figure）。src を外した img は箱を持たなくなり、交差を拾えないため。
+    // 通知は複数件まとまって届くことがある（画像のデコードで main thread が止まっている間に
+    // スクロールが進み、入った・出たが両方起きる）。最後の 1 件が今の状態
+    const observer = new IntersectionObserver((entries) => setNear(entries[entries.length - 1].isIntersecting), {
+      rootMargin: RANGE
+    })
     observer.observe(img.closest('figure') ?? img)
     return () => observer.disconnect()
   }, [])
