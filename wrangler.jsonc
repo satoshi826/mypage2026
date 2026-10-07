@@ -14,8 +14,8 @@
     // 404.html を返す。SPA 扱いにすると誤ったパスが 200 で返り検索に載る
     "not_found_handling": "404-page",
     // これらのパスだけ Worker が受ける。それ以外は静的ファイルへ直接。
-    // トップは Worker が静的ファイルに先読みヘッダを足して返す
-    "run_worker_first": ["/", "/api/*", "/images/*"],
+    // トップと Photos は Worker が静的ファイルに写真の先読みヘッダを足して返す
+    "run_worker_first": ["/", "/photos", "/photos/*", "/api/*", "/images/*"],
     "binding": "ASSETS"
   },
   // 写真の置き場。原本・派生画像・manifest.json をすべてここに置く

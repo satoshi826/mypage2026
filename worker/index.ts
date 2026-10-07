@@ -11,12 +11,12 @@
 //
 // 認証は Cloudflare Access。Access が付ける JWT を検証する（access.ts）。
 //
-// トップ（/）だけは静的ファイルをここ経由で返し、hero が最初に読む写真の先読みヘッダを足す。
-// hero は JS の起動 → 一覧の取得 → チャンク → worker と直列に待ってから写真を取りに行くので、
-// HTML の時点でブラウザに取り始めさせる。どの写真かは一覧（R2）で決まるので、ビルド時には出せない。
+// トップ（/）と Photos（/photos*）は静的ファイルをここ経由で返し、最初に要る写真の先読みヘッダを足す。
+// どちらも JS の起動 → 一覧の取得と直列に待ってから写真を取りに行くので、HTML の時点でブラウザに
+// 取り始めさせる。どの写真かは一覧（R2）で決まるので、ビルド時には出せない。
 
 import {authorize} from './access'
-import {parseManifest} from '../src/photos/manifest'
+import {EAGER_THUMBS, isCategory, parseManifest, type Photo} from '../src/photos/manifest'
 
 const KINDS = ['thumb', 'gallery', 'hero', 'originals'] as const
 type Kind = (typeof KINDS)[number]
@@ -34,8 +34,8 @@ export default {
     const url = new URL(request.url)
     const parts = url.pathname.split('/').filter(Boolean)
 
-    if (url.pathname === '/' && (request.method === 'GET' || request.method === 'HEAD'))
-      return topWithHint(request, env)
+    if ((parts.length === 0 || parts[0] === 'photos') && (request.method === 'GET' || request.method === 'HEAD'))
+      return pageWithHints(request, env, parts)
 
     if (parts[0] === 'api' && parts[1] === 'manifest' && parts.length === 2) {
       if (request.method === 'GET' || request.method === 'HEAD') return getManifest(env)
@@ -60,21 +60,35 @@ export default {
   }
 } satisfies ExportedHandler<Env>
 
-/** 一覧の先頭にある hero 用の写真。hero は 0 番から描き始めるので、これが最初に要る */
-async function firstHero(env: Env): Promise<string | null> {
+async function photosOf(env: Env): Promise<Photo[]> {
   const object = await env.PHOTOS.get('manifest.json')
-  if (!object) return null
+  if (!object) return []
   const result = parseManifest(await object.json())
-  if ('error' in result) return null
-  return result.photos.find((photo) => photo.hero)?.file ?? null
+  return 'error' in result ? [] : result.photos
 }
 
-async function topWithHint(request: Request, env: Env) {
-  const [page, first] = await Promise.all([env.ASSETS.fetch(request), firstHero(env)])
-  if (!first || !page.ok) return page
+/** そのページが最初に要る写真の Link ヘッダ。parts はパスを / で割ったもの */
+function hintsOf(parts: string[], photos: Photo[]): string[] {
+  // トップ: hero は 0 番から描き始めるので、最初の hero 用の写真。読むのは Web Worker なので
+  // preload では「使われない」扱いになる。HTTP キャッシュを温める prefetch にする
+  if (parts.length === 0) {
+    const first = photos.find((photo) => photo.hero)
+    return first ? [`</images/hero/${first.file}.webp>; rel=prefetch`] : []
+  }
+  // Photos: 既定は street。カテゴリの先頭数枚（/photos/:category）
+  const category = parts[1] ?? 'street'
+  if (parts.length > 2 || !isCategory(category)) return []
+  return photos
+    .filter((photo) => photo.category === category)
+    .slice(0, EAGER_THUMBS)
+    .map((photo) => `</images/thumb/${photo.file}.webp>; rel=preload; as=image`)
+}
+
+async function pageWithHints(request: Request, env: Env, parts: string[]) {
+  const [page, photos] = await Promise.all([env.ASSETS.fetch(request), photosOf(env)])
+  if (!page.ok) return page
   const response = new Response(page.body, page)
-  // 読むのは Web Worker なので preload では「使われない」扱いになる。HTTP キャッシュを温める prefetch にする
-  response.headers.append('link', `</images/hero/${first}.webp>; rel=prefetch`)
+  for (const hint of hintsOf(parts, photos)) response.headers.append('link', hint)
   return response
 }
 

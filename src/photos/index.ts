@@ -11,7 +11,7 @@ import {useEffect, useState} from 'react'
 // | hero 用   | hero/<file>.webp    | 1152x768、中央トリミング、グレースケール。hero: true のものだけ |
 // | 原本      | originals/<file>.<ext> | 再派生のために置く。公開しない |
 
-export {CATEGORIES, isCategory, type Category, type Photo} from './manifest'
+export {CATEGORIES, EAGER_THUMBS, isCategory, type Category, type Photo} from './manifest'
 import {parseManifest, type Photo} from './manifest'
 
 export const thumbSrc = (photo: Photo) => `/images/thumb/${photo.file}.webp`

@@ -1,5 +1,5 @@
 import {useEffect, useRef, useState} from 'react'
-import {gallerySrc, thumbSrc, type Photo} from '../photos'
+import {EAGER_THUMBS, gallerySrc, thumbSrc, type Photo} from '../photos'
 
 /** 画面からこれだけ離れたら読み込み、これより離れたら外す。画面の高さに対する割合 */
 const RANGE = '250% 0px'
@@ -28,7 +28,7 @@ export function Img({
   large?: boolean
 }) {
   const ref = useRef<HTMLImageElement>(null)
-  const [near, setNear] = useState(index < 6)
+  const [near, setNear] = useState(index < EAGER_THUMBS)
   const [shown, setShown] = useState<string | null>(null)
   const src = large ? gallerySrc(photo) : thumbSrc(photo)
 

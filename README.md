@@ -89,7 +89,7 @@ local    = easeInOut((u_phase - delay) / (1 - u_staggerTotal), u_easePower)
 
 トップの HTML には hero のチャンクと一覧の先読み、worker のスクリプトと最初の写真の
 prefetch が入る（`scripts/prerender.js`、`worker/index.ts`）。JS の起動と並行して
-後ろの段を取り始めるため。
+後ろの段を取り始めるため。Photos も同じく、一覧の先読みと最初の数枚の preload が入る。
 
 ## 自動再生
 
