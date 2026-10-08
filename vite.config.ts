@@ -21,6 +21,9 @@ function apiDev(): Plugin {
     name: 'api-dev',
     apply: 'serve',
     configureServer(server) {
+      // prerender（middleware モード）では立てない。httpServer がなく止める契機もないので、
+      // 立てると wrangler dev が残ってビルドが終わらない
+      if (!server.httpServer) return
       const wrangler = fileURLToPath(new URL('./node_modules/.bin/wrangler', import.meta.url))
       // 同じプロセスグループに置く。端末の Ctrl+C は wrangler にも直接届き、自分で workerd を止める
       child = spawn(wrangler, ['dev', '--port', String(API_PORT)], {stdio: ['ignore', 'pipe', 'pipe']})
