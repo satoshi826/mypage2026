@@ -172,7 +172,6 @@ worker/     Cloudflare Worker（写真の API）
 | `gallery/layout.ts` | Photos の段組の計算。写真の順・幅・列数・広げている写真から各写真の位置を決める純粋関数 |
 | `gallery/Gallery.tsx` | Photos の一覧。layout.ts の結果を絶対配置で並べ、クリックでその場に広げる（FLIP）。`Img.tsx` が先読みと派生の切り替え |
 | `gallery/reveal.ts` | 視界に入った要素を現す演出（`data-reveal`）。見た目は `styles.css` |
-| `gallery/zoom.ts` | スクロールの速さに応じて、枠の中で写真を拡大する演出 |
 | `photos/index.ts`   | 写真一覧の取得（`/api/manifest`）と、派生画像の URL |
 | `admin/`            | 写真の管理画面（`/admin`）。派生画像の生成と API の呼び出し |
 | `worker/`           | Cloudflare Worker。写真の API と Access の検証 |

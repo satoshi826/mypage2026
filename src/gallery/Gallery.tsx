@@ -2,7 +2,6 @@ import {useEffect, useLayoutEffect, useMemo, useRef, useState} from 'react'
 import {Img} from './Img'
 import {GAP, layout, type Expansion} from './layout'
 import {useReveal} from './reveal'
-import {useZoom} from './zoom'
 import {DEFAULT_MOTION, EASINGS, MOTION_PARAMS, type Motion} from './tuning'
 import {DevPanel} from '../app/DevPanel'
 import {jumpTo, scrollToElement} from '../app/useSmoothScroll'
@@ -31,11 +30,8 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
   const before = useRef<Before | null>(null)
   // 直前に広げていた写真。戻すときの基準
   const focus = useRef<string | null>(null)
-  // 広げる・戻すときのスクロールが終わる時刻。それまではスクロールで拡大しない
-  const quiet = useRef(0)
 
   useReveal(root, [photos, metrics === null])
-  useZoom(root, motion, quiet, [photos, metrics === null])
 
   useEffect(() => {
     const el = root.current
@@ -79,7 +75,6 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
     el.dataset.revealInstant = ''
     requestAnimationFrame(() => delete el.dataset.revealInstant)
     before.current = map
-    quiet.current = performance.now() + motion.scrollSeconds * 1000
     if (next) focus.current = next
     setExpanded(next)
   }
