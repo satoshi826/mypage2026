@@ -70,7 +70,7 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
       map.set(figure.dataset.file!, rect)
       // 配置の変化で画面に入ってくる写真は、ワイプなしで即座に出す。ワイプはスクロールで
       // 見つけるためのもので、動いている最中に現れ始めると不連続に見える
-      if (rect.top < innerHeight * 2 && rect.bottom > -innerHeight) figure.dataset.revealed = ''
+      if (near(rect)) figure.dataset.revealed = ''
     }
     el.dataset.revealInstant = ''
     requestAnimationFrame(() => delete el.dataset.revealInstant)
@@ -97,13 +97,19 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
     }
 
     // 大きさが変わる写真も figure ごと動かす。img とワイプ用の覆いが一緒に動くので、中身だけを
-    // 動かすより単純で、枠と中身がずれない
+    // 動かすより単純で、枠と中身がずれない。
+    // 位置を全部読んでから動かす。animate() のたびにスタイルが無効になるので、読みと交互にすると
+    // 読むたびに全体の再計算が走り、写真の数の 2 乗で重くなる。
+    // 変更前も変更後も画面から遠い写真は動かさない。見えない動きで、動かす本数が写真の数に比例して増えるため
     const still = matchMedia('(prefers-reduced-motion: reduce)').matches
     if (!still) {
+      const moves: [HTMLElement, DOMRect, DOMRect][] = []
       for (const figure of el.querySelectorAll<HTMLElement>('figure[data-file]')) {
         const from = first.get(figure.dataset.file!)
-        if (from) flip(figure, from, figure.getBoundingClientRect(), motion)
+        const to = figure.getBoundingClientRect()
+        if (from && (near(from) || near(to))) moves.push([figure, from, to])
       }
+      for (const [figure, from, to] of moves) flip(figure, from, to, motion)
     }
 
     // 広げた写真が画面に収まらなければ、上辺をナビの下へ慣性で寄せる
@@ -166,6 +172,12 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
     </div>
   )
 }
+
+/**
+ * 広げる・戻すあいだに見えうる範囲にあるか。画面の上下に 1 画面ずつ余裕を持つ。広げたあとの
+ * 寄せるスクロール（最大でほぼ 1 画面）で画面に入ってくる写真も含めるため
+ */
+const near = (rect: DOMRect) => rect.bottom > -innerHeight && rect.top < innerHeight * 2
 
 /** 変更前の位置・大きさから今の位置へ、transform の差分を戻す形で動かす */
 function flip(el: HTMLElement, from: DOMRect, to: DOMRect, motion: Motion) {
