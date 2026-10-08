@@ -152,17 +152,10 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
               data-reveal
               onClick={() => go(wide ? null : photo.file)}
               className={`absolute m-0 overflow-hidden ${wide ? 'cursor-zoom-out' : 'cursor-zoom-in'}`}
-              // 高さも配置の計算値で与える。src を外した img は高さ 0 になり、figure が面積 0 だと
-              // content-visibility が中身を飛ばして img が箱を失い、IntersectionObserver が二度と拾えない。
-              // content-visibility: 画面外の写真は描画を丸ごと飛ばす
-              style={{
-                left: at.x,
-                top: at.y,
-                width: at.w,
-                height: at.h,
-                contentVisibility: 'auto',
-                containIntrinsicSize: `${at.w}px ${at.h}px`
-              }}
+              // 高さも配置の計算値で与える。src を外した img は高さ 0 になり、枠が潰れるため。
+              // content-visibility: auto は使わない。中身を飛ばすかどうかの判定がフレームの更新に
+              // 乗っていて、スクロールが止まったあと画面内の写真が飛ばされたまま残ることがある（Chrome）
+              style={{left: at.x, top: at.y, width: at.w, height: at.h}}
             >
               <Img photo={photo} alt={`${label} ${i + 1}`} index={i} large={wide} />
               {/* ワイプ用の覆い。styles.css の [data-reveal] を参照 */}

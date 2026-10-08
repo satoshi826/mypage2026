@@ -247,8 +247,8 @@ npm run dev:api   # Worker だけを単体で動かすとき
 原本からなら `scripts/encode-photos.sh` のあと `npm run photos:import`。
 
 一覧の画像は視界の 2〜3 画面分手前から読み始め、読み込みが終わってから現れる。離れたら src を
-外してデコード済みの画像を手放し、枠には `content-visibility: auto` を付けて画面外の描画を
-飛ばす（メモリの少ない端末でのカクつき対策。`src/gallery/Img.tsx`、`src/gallery/reveal.ts`）。段組は `src/gallery/layout.ts` が計算する。各写真を順に、いちばん上が
+外してデコード済みの画像を手放す（メモリの少ない端末でのカクつき対策。`src/gallery/Img.tsx`、
+`src/gallery/reveal.ts`）。段組は `src/gallery/layout.ts` が計算する。各写真を順に、いちばん上が
 空いている列へ置く。広げる写真は幅を px で自由に取れ、覆う列の下に置き、覆わなかった列には
 後ろの写真が入るので、幅をどこで止めても自然に詰まる。上にあった写真は動かさない。
 クリックした写真はその場で全幅（縦長は画面の高さに収まる幅）に広がり、周りは押し下げられる。
