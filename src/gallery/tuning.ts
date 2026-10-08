@@ -4,7 +4,7 @@ import type {Param} from '../app/DevPanel'
 // 値が固まったら DEFAULT_MOTION を書き換える。
 // スクロールで見つけた写真が現れるワイプは固定で、styles.css の [data-reveal] が持つ。
 
-/** 広く使われるイージング。CSS 用の cubic-bezier と、Lenis に渡す関数の両方を持つ */
+/** 広く使われるイージング。CSS 用の cubic-bezier と、スクロールに渡す関数の両方を持つ */
 export const EASINGS = {
   easeOutCubic: {css: 'cubic-bezier(0.33, 1, 0.68, 1)', fn: (t: number) => 1 - (1 - t) ** 3},
   easeOutQuart: {css: 'cubic-bezier(0.25, 1, 0.5, 1)', fn: (t: number) => 1 - (1 - t) ** 4},
@@ -41,7 +41,7 @@ export type Motion = {
 export const DEFAULT_MOTION: Motion = {
   expandSeconds: 1,
   scrollSeconds: 1,
-  easing: 'easeOutQuart'
+  easing: 'easeOutQuint'
 }
 
 export const MOTION_PARAMS: Param<Motion>[] = [
