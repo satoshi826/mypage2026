@@ -238,11 +238,14 @@ push は本番の一覧を丸ごと置き換え、ローカルにない写真を
 
 ```
 npm install
-npx wrangler types   # Worker の型（worker-configuration.d.ts）を生成する。build も先に走らせる
 npm run dev       # Vite（:5173）。写真の API（wrangler dev、:8787）も一緒に立ち上がり、
                   # /api と /images はそちらへプロキシされる。ローカルの R2 を使う
 npm run dev:api   # Worker だけを単体で動かすとき
 ```
+
+Worker の型 `worker-configuration.d.ts` は `npx wrangler types` の生成物で、リポジトリに置く。
+`wrangler.jsonc`（バインディングや `compatibility_date`）を変えたら作り直してコミットする。
+build では生成しない。生成は workerd を起動し、Cloudflare のビルド環境ではそこで止まってデプロイが進まなかったため。
 
 ローカルの R2 は空なので、最初に写真を入れる。本番にあるなら `npm run photos:pull`、
 原本からなら `scripts/encode-photos.sh` のあと `npm run photos:import`。

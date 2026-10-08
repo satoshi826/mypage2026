@@ -37,5 +37,3 @@ dist-ssr
 .photos/
 # wrangler dev のローカル状態（R2 の模擬など）
 .wrangler/
-# Worker の型。`wrangler types` が wrangler.jsonc から生成する（build が先に走らせる）
-worker-configuration.d.ts
