@@ -11,7 +11,8 @@ const RANGE = '250% 0px'
  *   自前で 2〜3 画面分手前から読み始める。最初の数枚は即座に読む。
  * - 画面から離れたら src を外す。135 枚ぶんのデコード済み画像（1 枚 1.7MB 前後）を
  *   持ち続けると、メモリの少ない端末ではブラウザが捨てて読み直す往復でカクつく。
- *   枠と寸法は残すのでレイアウトは動かない。広げているあいだは外さない。
+ *   枠と寸法は残すのでレイアウトは動かない。広げた写真も同じで、何枚でも広げられるので
+ *   大きい派生（デコード後 1 枚 10MB 前後）こそ持ち続けられない。
  * - 読んだ画像は表示に入れる前にデコードまで済ませる。描画のフレームでデコードが走ると
  *   そのフレームが遅れ、スクロールがカクつくため。差し替えのあいだは前の画像を見せたままにする。
  */
@@ -45,10 +46,8 @@ export function Img({
     return () => observer.disconnect()
   }, [])
 
-  const active = near || large
-
   useEffect(() => {
-    if (!active) return
+    if (!near) return
     let alive = true
     const loader = new Image()
     loader.src = src
@@ -60,12 +59,12 @@ export function Img({
     return () => {
       alive = false
     }
-  }, [active, src])
+  }, [near, src])
 
   return (
     <img
       ref={ref}
-      src={active && shown ? shown : undefined}
+      src={near && shown ? shown : undefined}
       alt={alt}
       width={photo.w}
       height={photo.h}

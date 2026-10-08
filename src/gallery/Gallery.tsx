@@ -18,18 +18,19 @@ type Before = Map<string, DOMRect>
  * ここは絶対配置で並べるだけ。
  *
  * クリックした写真はその場で広がり（全幅。縦長は画面の高さに収まる幅）、上にあった
- * 写真は動かさず、残りを押し下げる。動きは FLIP。変更前の位置を記録し、レイアウトが
+ * 写真は動かさず、残りを押し下げる。もう一度押すと戻る。何枚でも広げておける。動きは FLIP。変更前の位置を記録し、レイアウトが
  * 変わった直後に差分だけ transform で動かして 0 へ戻す。基準の写真の画面上の位置は
  * スクロールを即座にずらして固定する（docs/design.md の連続性）。
  */
 export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
   const root = useRef<HTMLDivElement>(null)
   const [metrics, setMetrics] = useState<Metrics | null>(null)
-  const [expanded, setExpanded] = useState<string | null>(null)
+  // 広げている写真。広げた順
+  const [expanded, setExpanded] = useState<string[]>([])
   const [motion, setMotion] = useState(DEFAULT_MOTION)
   const before = useRef<Before | null>(null)
-  // 直前に広げていた写真。戻すときの基準
-  const focus = useRef<string | null>(null)
+  // 直前に押した写真。広げる・戻すときの基準
+  const clicked = useRef<string | null>(null)
 
   useReveal(root, [photos, metrics === null])
 
@@ -49,19 +50,17 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
     }
   }, [])
 
-  const expansion = useMemo<Expansion | null>(() => {
-    const photo = expanded && photos.find((p) => p.file === expanded)
-    if (!photo || !metrics) return null
-    return {file: photo.file, width: Math.min(metrics.width, (metrics.maxHeight * photo.w) / photo.h)}
-  }, [expanded, photos, metrics])
+  const placed = useMemo(() => {
+    if (!metrics) return null
+    const expansions: Expansion[] = expanded.flatMap((file) => {
+      const photo = photos.find((p) => p.file === file)
+      return photo ? [{file, width: Math.min(metrics.width, (metrics.maxHeight * photo.w) / photo.h)}] : []
+    })
+    return layout(photos, metrics.width, metrics.cols, expansions)
+  }, [photos, metrics, expanded])
 
-  const placed = useMemo(
-    () => (metrics ? layout(photos, metrics.width, metrics.cols, expansion) : null),
-    [photos, metrics, expansion]
-  )
-
-  /** 変更前の位置を記録してから状態を変える */
-  const go = (next: string | null) => {
+  /** 変更前の位置を記録してから、押した写真を広げる・戻す */
+  const toggle = (file: string) => {
     const el = root.current
     if (!el) return
     const map: Before = new Map()
@@ -75,8 +74,8 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
     el.dataset.revealInstant = ''
     requestAnimationFrame(() => delete el.dataset.revealInstant)
     before.current = map
-    if (next) focus.current = next
-    setExpanded(next)
+    clicked.current = file
+    setExpanded((list) => (list.includes(file) ? list.filter((f) => f !== file) : [...list, file]))
   }
 
   // レイアウトが変わった直後。基準の写真の画面上の位置を固定してから、差分を動かす
@@ -86,9 +85,9 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
     const el = root.current
     if (!first || !el) return
 
-    // 基準は広げた写真、戻すときは縮む写真。document 上の位置が変わったぶんだけスクロールを
-    // 即座にずらし、画面上の位置を変えない。残りの動きは全部 FLIP が受け持つ
-    const file = expanded ?? focus.current
+    // 基準は押した写真。document 上の位置が変わったぶんだけスクロールを即座にずらし、
+    // 画面上の位置を変えない。残りの動きは全部 FLIP が受け持つ
+    const file = clicked.current
     const anchor = file ? el.querySelector<HTMLElement>(`figure[data-file="${CSS.escape(file)}"]`) : null
     const was = anchor && first.get(anchor.dataset.file!)
     if (anchor && was) {
@@ -113,7 +112,7 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
     }
 
     // 広げた写真が画面に収まらなければ、上辺をナビの下へ慣性で寄せる
-    if (expanded && anchor) {
+    if (file && expanded.includes(file) && anchor) {
       const nav = document.querySelector('nav')?.getBoundingClientRect().height ?? 0
       const rect = anchor.getBoundingClientRect()
       if (rect.top < nav + GAP || rect.bottom > innerHeight)
@@ -124,13 +123,6 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
         })
     }
   }, [expanded, photos, motion])
-
-  useEffect(() => {
-    if (!expanded) return
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && go(null)
-    addEventListener('keydown', onKey)
-    return () => removeEventListener('keydown', onKey)
-  })
 
   return (
     <div ref={root} className="relative" style={{height: placed?.height ?? 0}}>
@@ -150,13 +142,13 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
       {placed &&
         photos.map((photo, i) => {
           const at = placed.items.get(photo.file)!
-          const wide = photo.file === expanded
+          const wide = expanded.includes(photo.file)
           return (
             <figure
               key={photo.file}
               data-file={photo.file}
               data-reveal
-              onClick={() => go(wide ? null : photo.file)}
+              onClick={() => toggle(photo.file)}
               className={`absolute m-0 overflow-hidden ${wide ? 'cursor-zoom-out' : 'cursor-zoom-in'}`}
               // 高さも配置の計算値で与える。src を外した img は高さ 0 になり、枠が潰れるため。
               // content-visibility: auto は使わない。中身を飛ばすかどうかの判定がフレームの更新に
