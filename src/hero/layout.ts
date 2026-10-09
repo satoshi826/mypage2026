@@ -41,34 +41,34 @@ export type Direction = 'stacked' | 'side'
 
 /** 写真の下にパネルを置く。縦長の画面ではこちらが有利 */
 export const STACKED_LAYOUT: Layout = {
-  padding: 16,
-  photoGap: 40,
-  cell: 40,
-  fontSize: 11,
-  gapX: 2,
-  gapY: 6,
+  padding: 12,
+  photoGap: 32,
+  cell: 38,
+  fontSize: 10.8,
+  gapX: 4,
+  gapY: 3,
   columns: 7,
-  idleOpacity: 35,
-  markerGrow: 4,
+  idleOpacity: 25,
+  markerGrow: 0,
   markerBorder: 1,
-  markerOpacity: 100,
-  markerDuration: 800
+  markerOpacity: 50,
+  markerDuration: 1000
 }
 
 /** 写真の横にパネルを置く。横長の画面ではこちらが有利 */
 export const SIDE_LAYOUT: Layout = {
-  padding: 32,
-  cell: 28,
-  gapX: 8,
-  gapY: 12,
+  padding: 36,
+  photoGap: 32,
+  cell: 24,
+  fontSize: 11,
+  gapX: 12,
+  gapY: 24,
   columns: 7,
-  idleOpacity: 20,
-  markerGrow: 4,
+  idleOpacity: 25,
+  markerGrow: 11,
   markerBorder: 1,
-  markerOpacity: 100,
-  fontSize: 11.2,
-  markerDuration: 800,
-  photoGap: 40
+  markerOpacity: 50,
+  markerDuration: 1000
 }
 
 export const LAYOUT_PRESETS: Record<Direction, Layout> = {stacked: STACKED_LAYOUT, side: SIDE_LAYOUT}
