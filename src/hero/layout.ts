@@ -28,16 +28,12 @@ export type Layout = {
   fontSize: number
   /** 丸が隣のマスへ移る時間 ms */
   markerDuration: number
-  /** カレンダー上部のプログレスバーの太さ px */
-  progressHeight: number
-  /** プログレスバーの未通過部分のうち、遷移帯ぶんの濃さ %。通過した部分は 100% */
-  morphOpacity: number
-  /** プログレスバーの未通過部分のうち、静止帯ぶんの濃さ %。遷移帯より薄くして段差をつける */
-  dwellOpacity: number
   /** 非選択のマスの不透明度 % */
   idleOpacity: number
-  /** カレンダー下の棒グラフの高さ px。0 で出さない。横並びのときだけ描く */
+  /** カレンダー上の棒グラフの高さ px。0 で出さない。横並びのときだけ描く */
   eqHeight: number
+  /** 棒グラフの上下の線の太さ px */
+  eqLine: number
   /** パネル内の各ブロックの間隔 px */
   blockGap: number
   /** 棒の本数 */
@@ -80,9 +76,7 @@ export const STACKED_LAYOUT: Layout = {
   markerBorder: 1,
   markerOpacity: 100,
   markerDuration: 800,
-  progressHeight: 1,
-  morphOpacity: 15,
-  dwellOpacity: 8,
+  eqLine: 1,
   eqHeight: 0,
   eqBars: 48,
   eqCurve: 1,
@@ -108,9 +102,7 @@ export const SIDE_LAYOUT: Layout = {
   markerOpacity: 100,
   fontSize: 11.2,
   markerDuration: 800,
-  progressHeight: 1,
-  morphOpacity: 30,
-  dwellOpacity: 16,
+  eqLine: 1,
   eqHeight: 96,
   eqBars: 48,
   eqCurve: 2.5,
@@ -125,15 +117,11 @@ export const SIDE_LAYOUT: Layout = {
 
 export const LAYOUT_PRESETS: Record<Direction, Layout> = {stacked: STACKED_LAYOUT, side: SIDE_LAYOUT}
 
-/** 再生操作の行の高さ px。一番大きいアイコン（ControlPanel の size-8）で決まる */
-const TRANSPORT_HEIGHT = 32
-
 /** ナビとフッターの高さの合計 px。並べ方を選ぶときだけ使う概算で、実寸は section の padding が持つ */
 const BARS_HEIGHT = 52 + 52
 
 /** パネルのうちカレンダー以外が占める高さ px。ControlPanel の中身と対応する */
-const chromeHeight = (l: Layout) =>
-  TRANSPORT_HEIGHT + l.blockGap + l.progressHeight + l.blockGap + (l.eqHeight > 0 ? l.eqHeight + l.blockGap : 0)
+const chromeHeight = (l: Layout) => (l.eqHeight > 0 ? l.eqHeight + l.blockGap : 0)
 
 export const panelWidth = (l: Layout) => l.columns * l.cell + (l.columns - 1) * l.gapX
 
@@ -224,28 +212,9 @@ export const LAYOUT_PARAMS: Param<Layout>[] = [
     hint: 'ms。0 で瞬間移動'
   },
 
-  {group: 'プログレスバー', key: 'progressHeight', label: '太さ', min: 1, max: 8, step: 1, hint: 'px'},
-  {
-    group: 'プログレスバー',
-    key: 'morphOpacity',
-    label: '濃さ（遷移帯）',
-    min: 0,
-    max: 100,
-    step: 1,
-    hint: '%。通過ぶんは 100%'
-  },
-  {
-    group: 'プログレスバー',
-    key: 'dwellOpacity',
-    label: '濃さ（静止帯）',
-    min: 0,
-    max: 100,
-    step: 1,
-    hint: '%。遷移帯より薄くする'
-  },
-
   {group: 'スペクトラム', key: 'eqHeight', label: '高さ', min: 0, max: 240, step: 4, hint: 'px。0 で出さない'},
   {group: 'スペクトラム', key: 'eqBars', label: '棒の本数', min: 8, max: 96, step: 1, hint: '本'},
+  {group: 'スペクトラム', key: 'eqLine', label: '上下の線の太さ', min: 1, max: 8, step: 1, hint: 'px'},
   {
     group: 'スペクトラム',
     key: 'eqCurve',
@@ -314,9 +283,7 @@ export const layoutVars = (l: Layout) =>
     '--marker-line': `color-mix(in srgb, var(--color-ink) ${l.markerOpacity}%, transparent)`,
     '--number-size': `${l.fontSize}px`,
     '--marker-duration': `${l.markerDuration}ms`,
-    '--progress-height': `${l.progressHeight}px`,
-    '--morph-opacity': `${l.morphOpacity}%`,
-    '--dwell-opacity': `${l.dwellOpacity}%`,
+    '--eq-line': `${l.eqLine}px`,
     '--idle-opacity': `${l.idleOpacity}%`,
     '--eq-height': `${l.eqHeight}px`,
     '--block-gap': `${l.blockGap}px`,

@@ -17,6 +17,7 @@ import {
   type Timing
 } from './sequence'
 import {ControlPanel} from './ControlPanel'
+import {progressLine, setPlayer} from './playback'
 import {DevPanel} from '../app/DevPanel'
 import {LAYOUT_PARAMS, LAYOUT_PRESETS, chooseDirection, fitStacked, panelWidth, type Layout} from './layout'
 import {SOURCE_H, SOURCE_W} from './table'
@@ -38,7 +39,6 @@ const timingOf = ({cycleSeconds, dwellRatio}: Tuning): Timing => ({cycleSeconds,
 /** @param photos hero 用の派生画像の URL。空では呼ばない */
 export function Hero({photos: PHOTOS}: {photos: string[]}) {
   const sectionRef = useRef<HTMLElement | null>(null)
-  const progressRef = useRef<HTMLDivElement>(null)
   const equalizerRef = useRef<HTMLDivElement>(null)
   // 写真の要約は画素を持っている worker 側でしか作れないので、1枚上がるごとに受け取る
   const analysis = useRef<Analysis>({tones: []})
@@ -55,6 +55,8 @@ export function Hero({photos: PHOTOS}: {photos: string[]}) {
   const lastFrame = useRef<Frame>({from: -1, to: -1, phase: -1})
   const lastTime = useRef(0)
   const visibleRef = useRef(true)
+  // フッターの再生操作を出し入れするための写し。時計は visibleRef を見る
+  const [visible, setVisible] = useState(true)
   const velocity = useRef({x: 0, y: 0})
   const settling = useRef(0)
   const jumped = useRef(false)
@@ -91,13 +93,20 @@ export function Hero({photos: PHOTOS}: {photos: string[]}) {
     post({photos: PHOTOS, ground})
   }, [post, PHOTOS])
 
-  // 画面外では時計を止める。下のセクションを読んでいる間 GPU を回す意味がない
+  // 画面外では時計を止める。下のセクションを読んでいる間 GPU を回す意味がない。
+  // 固定のナビとフッターに隠れているだけの範囲も画面外とみなす。トップの一番下までスクロールすると
+  // hero の下端がちょうど画面の上端に接し、接しているだけでも交差と判定されるため
   useEffect(() => {
     const section = sectionRef.current
     if (!section) return
-    const observer = new IntersectionObserver(([entry]) => {
-      visibleRef.current = entry.isIntersecting
-    })
+    const bar = (selector: string) => document.querySelector(selector)?.getBoundingClientRect().height ?? 0
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        visibleRef.current = entry.isIntersecting
+        setVisible(entry.isIntersecting)
+      },
+      {rootMargin: `-${bar('nav')}px 0px -${bar('footer')}px 0px`}
+    )
     observer.observe(section)
     return () => observer.disconnect()
   }, [])
@@ -222,7 +231,7 @@ export function Hero({photos: PHOTOS}: {photos: string[]}) {
         }
       }
 
-      const bar = progressRef.current
+      const bar = progressLine.current
       if (bar) {
         // 停止中は遷移が終わった地点で止める。バーは次の遷移までの待ち時間なので、
         // 待っていないあいだ中途半端な位置に居座らせない。粒子のほうは着地まで動く
@@ -248,11 +257,30 @@ export function Hero({photos: PHOTOS}: {photos: string[]}) {
 
   // 行き先が変わったフレームは worker 側で位置の飛びを打ち消す。
   // 番号のクリックも前後送りも同じ扱い
-  const go = (next: SequenceState) => {
+  const go = useCallback((next: SequenceState) => {
     if (next === stateRef.current) return
     stateRef.current = next
     jumped.current = true
-  }
+  }, [])
+
+  // 再生操作はフッターに置く（HeroPlayer.tsx）。状態と操作をそこへ出す
+  useEffect(() => {
+    setPlayer({
+      autoplay,
+      shuffle,
+      visible,
+      toggle: () => {
+        // 停止するときは静止帯の頭へ戻す。バーは停止と同時に遷移の終了地点へ
+        // 飛ぶので、内部を途中に残すと再生でバーが飛ぶ
+        if (autoplay) stateRef.current = pause(stateRef.current, timingRef.current)
+        setAutoplay(!autoplay)
+      },
+      toggleShuffle: () => setShuffle(!shuffle),
+      prev: () => go(goBack(stateRef.current, order, timingRef.current)),
+      next: () => go(goNext(stateRef.current, order, timingRef.current))
+    })
+  }, [autoplay, shuffle, visible, order, go])
+  useEffect(() => () => setPlayer(null), [])
 
   // 写真の枠は JS で寸法を決める。canvas を写真ぴったりにすると、
   // 中でレターボックスされず、写真の端＝canvas の端になって配置が読める。
@@ -284,19 +312,8 @@ export function Hero({photos: PHOTOS}: {photos: string[]}) {
         count={PHOTOS.length}
         available={available}
         index={index}
-        autoplay={autoplay}
-        shuffle={shuffle}
         layout={layout}
         width={panel}
-        onToggle={() => {
-          // 停止するときは静止帯の頭へ戻す。バーは停止と同時に遷移の終了地点へ
-          // 飛ぶので、内部を途中に残すと再生でバーが飛ぶ
-          if (autoplay) stateRef.current = pause(stateRef.current, timingRef.current)
-          setAutoplay(!autoplay)
-        }}
-        onShuffle={() => setShuffle(!shuffle)}
-        onPrev={() => go(goBack(stateRef.current, order, timingRef.current))}
-        onNext={() => go(goNext(stateRef.current, order, timingRef.current))}
         onSelect={(target) => go(jumpTo(stateRef.current, target, order, timingRef.current))}
         onHover={(index) => {
           hovered.current = index
@@ -312,7 +329,6 @@ export function Hero({photos: PHOTOS}: {photos: string[]}) {
                   }
           })
         }}
-        progressRef={progressRef}
         equalizerRef={equalizerRef}
       />
       {import.meta.env.DEV && (

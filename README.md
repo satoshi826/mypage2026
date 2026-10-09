@@ -162,7 +162,8 @@ worker/     Cloudflare Worker（写真の API）
 | `hero/useCanvas.tsx`| canvas を worker へ譲渡する配線、resize 監視、rAF フック |
 | `hero/pointer.ts`   | ポインタを写真の枠基準の NDC で追う。マウスも指も同じ経路 |
 | `hero/Hero.tsx`     | 100svh の hero、時計の駆動 |
-| `hero/ControlPanel.tsx` | 自動再生の切り替え、番号、次までのプログレス |
+| `hero/ControlPanel.tsx` | 写真の横に置くスペクトラムと番号のカレンダー |
+| `hero/HeroPlayer.tsx`| フッターに置く再生操作とプログレス（PC は行の中、スマホはフッターの上の線）。状態は `hero/playback.ts` で Hero から受け取る |
 | `hero/tuning.ts`    | 調整値の既定と開発用パネルの定義 |
 | `app/DevPanel.tsx`  | 数値や選択肢を詰める開発用パネル（`import.meta.env.DEV` の中でのみ描画）。hero と Photos が使う |
 | `hero/layout.ts`    | コントロールパネルの寸法と、写真との並べ方の決定 |
