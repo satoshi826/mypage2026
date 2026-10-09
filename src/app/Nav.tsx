@@ -1,5 +1,5 @@
 import {Link, useRoute} from 'wouter'
-import {NAV_ROUTES, NAME} from './routes'
+import {NAV_ROUTES} from './routes'
 
 const LINK = 'pointer-events-auto no-underline tracking-[0.12em] transition-opacity duration-300'
 
@@ -20,7 +20,7 @@ export function Nav() {
   return (
     <nav className="pointer-events-none fixed top-0 right-[env(safe-area-inset-right)] left-[env(safe-area-inset-left)] z-10 box-border flex h-(--spacing-nav) items-baseline justify-between gap-4 border-b border-white/10 bg-black/35 px-8 py-4 backdrop-blur-[14px] max-sm:px-5 max-sm:py-3.5">
       <Link href="/" className={`${LINK} text-sm max-sm:text-xs`}>
-        {NAME}
+        mu
       </Link>
       {/* 狭い画面では名前とリンクが1行に収まらず、ナビが2行に伸びて
           --spacing-nav とずれる。360px で収まるところまで詰める */}
