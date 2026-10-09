@@ -15,7 +15,7 @@ export function Photos() {
   const photos = all?.filter((photo) => photo.category === category) ?? []
 
   return (
-    <div className="mx-auto min-h-[100svh] max-w-5xl px-8 pt-32 pb-24 max-sm:px-4">
+    <div className="mx-auto min-h-[100svh] max-w-7xl px-8 pt-32 pb-24 max-sm:px-4">
       <nav className="mb-16 flex items-baseline gap-6 text-sm tracking-[0.12em]">
         {CATEGORIES.map((c) => (
           <Link
