@@ -8,7 +8,7 @@ const DWELL_OPACITY = 16
 /**
  * フッターの左に置く hero の再生操作と、次の写真までのプログレス。
  * 状態と操作は Hero が playback.ts に出したものを使う。hero がまだ無いあいだは何も描かず、
- * hero が画面外にあるあいだ（時計が止まっている）は隠す。
+ * hero の写真の 6 割が隠れたら（読み進めているあいだは）隠す。
  */
 export function HeroPlayer() {
   const player = usePlayer()

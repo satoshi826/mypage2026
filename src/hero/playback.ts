@@ -6,7 +6,7 @@ import {useSyncExternalStore} from 'react'
 export type Player = {
   autoplay: boolean
   shuffle: boolean
-  /** hero が画面内にあるか。外では時計が止まるので、フッターは操作を隠す */
+  /** hero の写真が 4 割以上見えているか。それより隠れたらフッターは操作を隠す */
   visible: boolean
   toggle: () => void
   toggleShuffle: () => void

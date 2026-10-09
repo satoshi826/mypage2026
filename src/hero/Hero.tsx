@@ -38,13 +38,14 @@ const timingOf = ({cycleSeconds, dwellRatio}: Tuning): Timing => ({cycleSeconds,
 /** @param photos hero 用の派生画像の URL。空では呼ばない */
 export function Hero({photos: PHOTOS}: {photos: string[]}) {
   const sectionRef = useRef<HTMLElement | null>(null)
+  const frameRef = useRef<HTMLDivElement>(null)
   const stateRef = useRef<SequenceState>(initialState())
   const timingRef = useRef<Timing>(timingOf(DEFAULT_TUNING))
   const interactionRef = useRef<Interaction>(DEFAULT_INTERACTION)
   const lastFrame = useRef<Frame>({from: -1, to: -1, phase: -1})
   const lastTime = useRef(0)
   const visibleRef = useRef(true)
-  // フッターの再生操作を出し入れするための写し。時計は visibleRef を見る
+  // フッターの再生操作を出すか。写真がある程度見えているあいだだけ出す
   const [visible, setVisible] = useState(true)
   const velocity = useRef({x: 0, y: 0})
   const settling = useRef(0)
@@ -80,22 +81,27 @@ export function Hero({photos: PHOTOS}: {photos: string[]}) {
     post({photos: PHOTOS, ground})
   }, [post, PHOTOS])
 
-  // 画面外では時計を止める。下のセクションを読んでいる間 GPU を回す意味がない。
-  // 固定のナビとフッターに隠れているだけの範囲も画面外とみなす。トップの一番下までスクロールすると
-  // hero の下端がちょうど画面の上端に接し、接しているだけでも交差と判定されるため
+  // 固定のナビとフッターに隠れているだけの範囲は、どちらの判定でも画面外とみなす。トップの一番下まで
+  // スクロールすると hero の下端がちょうど画面の上端に接し、接しているだけでも交差と判定されるため
   useEffect(() => {
     const section = sectionRef.current
-    if (!section) return
+    const frame = frameRef.current
+    if (!section || !frame) return
     const bar = (selector: string) => document.querySelector(selector)?.getBoundingClientRect().height ?? 0
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        visibleRef.current = entry.isIntersecting
-        setVisible(entry.isIntersecting)
-      },
-      {rootMargin: `-${bar('nav')}px 0px -${bar('footer')}px 0px`}
-    )
-    observer.observe(section)
-    return () => observer.disconnect()
+    const rootMargin = `-${bar('nav')}px 0px -${bar('footer')}px 0px`
+    // 画面外では時計を止める。下のセクションを読んでいる間 GPU を回す意味がない
+    const clock = new IntersectionObserver(([entry]) => (visibleRef.current = entry.isIntersecting), {rootMargin})
+    // 再生操作は、写真の 6 割が隠れたところで下げる。読み進めている人の視界に操作を残さない
+    const controls = new IntersectionObserver(([entry]) => setVisible(entry.intersectionRatio >= CONTROLS_SHOWN), {
+      rootMargin,
+      threshold: CONTROLS_SHOWN
+    })
+    clock.observe(section)
+    controls.observe(frame)
+    return () => {
+      clock.disconnect()
+      controls.disconnect()
+    }
   }, [])
 
   const applyTuning = useCallback(
@@ -245,7 +251,11 @@ export function Hero({photos: PHOTOS}: {photos: string[]}) {
     >
       {/* touch-none で写真の上の指をブラウザに渡さない。指がスクロールに移ると
           pointercancel で干渉が切れてしまうため */}
-      <div className="relative flex shrink-0 touch-none" style={{width: photo.width, height: photo.height}}>
+      <div
+        ref={frameRef}
+        className="relative flex shrink-0 touch-none"
+        style={{width: photo.width, height: photo.height}}
+      >
         {canvas}
       </div>
       <ControlPanel
@@ -292,6 +302,9 @@ export function Hero({photos: PHOTOS}: {photos: string[]}) {
     </section>
   )
 }
+
+/** フッターの再生操作を出しておく、写真の見えている割合の下限 */
+const CONTROLS_SHOWN = 0.4
 
 /** 使える領域から、パネルに取られるぶんを引いて、3:2 を保った最大の枠を出す */
 function fitPhoto({width, height}: {width: number; height: number}, takenX: number) {
