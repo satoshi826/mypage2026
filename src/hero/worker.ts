@@ -1,5 +1,5 @@
 import {Core, Vao, Program, Renderer} from 'glaku'
-import {blockOrigin, buildTable, chooseGrid, layoutFor, loadPixels, toneOf, type AtlasLayout, type Grid} from './table'
+import {blockOrigin, buildTable, chooseGrid, layoutFor, loadPixels, type AtlasLayout, type Grid} from './table'
 import type {Frame} from './sequence'
 import {DEFAULT_INTERACTION, DEFAULT_TUNING, type Interaction, type Tuning} from './tuning'
 export default {}
@@ -28,7 +28,7 @@ async function fillAtlas(
   photos: string[],
   grid: Grid,
   layout: AtlasLayout,
-  onLoaded: (layer: number, tone: Uint8Array) => void
+  onLoaded: (layer: number) => void
 ) {
   const {gl} = core
 
@@ -45,8 +45,7 @@ async function fillAtlas(
     gl.bindTexture(gl.TEXTURE_2D, texture)
     gl.texSubImage2D(gl.TEXTURE_2D, 0, x, y, grid.width, grid.height, gl.RGBA, gl.UNSIGNED_BYTE, table)
     gl.bindTexture(gl.TEXTURE_2D, null)
-    // スペクトラム用の要約。画素を触れるのはここだけなので、上げるついでに取る
-    onLoaded(layer, toneOf(table))
+    onLoaded(layer)
   }
 
   await upload(0)
@@ -64,11 +63,8 @@ async function fillAtlas(
   )
 }
 
-/** worker からメインスレッドへ返すもの。写真が1枚上がるごとに届く。要約は画素を持っている側でしか作れない */
-export type Loaded = {layer: number; tone: Uint8Array}
-
-/** メインスレッドが Loaded を集めたもの。届いていないレイヤは undefined */
-export type Analysis = {tones: Uint8Array[]}
+/** worker からメインスレッドへ返すもの。写真が1枚上がるごとに、その番号が届く */
+export type Loaded = {layer: number}
 
 /** `#rrggbb` を WebGL のクリア色に変換する。ページ背景と canvas の余白を揃えるため */
 function parseColor(hex: string): [number, number, number, number] {
@@ -136,10 +132,6 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number, photos: string
         );
       }
 
-      const vec3 GROUND = vec3(${groundColor
-        .slice(0, 3)
-        .map((v) => v.toFixed(5))
-        .join(', ')});
 
       // p = 1 で等速、p = 3 で easeInOutCubic と一致する
       float easeInOut(float t, float p) {
@@ -196,11 +188,7 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number, photos: string
     uniformTypes: {
       ...morphUniforms,
       u_fit: 'vec2',
-      u_pointSize: 'float',
-      u_bandCenter: 'float',
-      u_bandWidth: 'float',
-      u_bandCurve: 'float',
-      u_bandGamma: 'float'
+      u_pointSize: 'float'
     },
     texture: {t_table: table, t_state: state[0].renderTexture[0]},
     primitive: 'POINTS',
@@ -217,16 +205,7 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number, photos: string
         // 干渉によるズレ。更新パスが書いた値をそのまま足す
         vec2 offset = texelFetch(t_state, ivec2(k % ${grid.width}, k / ${grid.width}), 0).xy;
 
-        // スペクトラムにホバーしているあいだ、該当する明るさの粒子とそれ以外で
-        // 明るさと点の大きさを変える。幅 0 が「ホバーしていない」。
-        // 帯はガンマで暗部を持ち上げ、そこから離れるほど地の色へ薄れる。
-        // どこまで見えるかは裾の広さと形で決める
-        bool hovering = u_bandWidth > 0.0;
-        float focus = hovering
-          ? exp(-pow(abs(lum - u_bandCenter) / u_bandWidth, u_bandCurve))
-          : 0.0;
-
-        v_color = hovering ? mix(GROUND, vec3(pow(lum, 1.0 / u_bandGamma)), focus) : vec3(lum);
+        v_color = vec3(lum);
 
         gl_Position = vec4((pos + offset) * u_fit, 0.0, 1.0);
         gl_PointSize = u_pointSize;
@@ -363,9 +342,9 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number, photos: string
   let frame: Frame = {from: 0, to: 0, phase: 0}
   // 上がった写真。両端が揃っていないフレームは描かない（空の区画を読むと全粒子が隅に集まる）
   const loaded = new Set<number>()
-  fillAtlas(core, table, photos, grid, layout, (layer, tone) => {
+  fillAtlas(core, table, photos, grid, layout, (layer) => {
     loaded.add(layer)
-    postMessage({layer, tone} satisfies Loaded, {transfer: [tone.buffer]})
+    postMessage({layer} satisfies Loaded)
     // 待っていた写真が届いたら、次の指示を待たずに描く
     if (layer === frame.from || layer === frame.to) draw()
   }).catch((e) => console.error('hero: 写真の読み込みが止まった', e))
@@ -407,10 +386,6 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number, photos: string
     })
   }
 
-  /** 残す輝度の帯。幅 0 でホバーなし */
-  const setBand = ({center, width, curve, gamma}: BandCommand) =>
-    program.setUniform({u_bandCenter: center, u_bandWidth: width, u_bandCurve: curve, u_bandGamma: gamma})
-
   const draw = () => {
     // 枠の寸法が決まる前（0×0）と、両端の写真が揃う前は描かない
     if (!sized || !loaded.has(frame.from) || !loaded.has(frame.to)) return
@@ -448,7 +423,6 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number, photos: string
 
   applyTuning(DEFAULT_TUNING)
   applyInteraction(DEFAULT_INTERACTION)
-  setBand({center: 0, width: 0, curve: 2, gamma: 1})
   update.setUniform({u_prevFrom: 0, u_prevTo: 0, u_prevPhase: 0, u_catchUp: 0})
   resize({width: core.canvasWidth, height: core.canvasHeight})
 
@@ -458,7 +432,6 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number, photos: string
     step,
     tune: applyTuning,
     interact: applyInteraction,
-    setBand,
     setPointer({x, y, vx, vy}: PointerCommand) {
       update.setUniform({u_pointer: [x / fit[0], y / fit[1]], u_pointerVelocity: [vx / fit[0], vy / fit[1]]})
     },
@@ -476,13 +449,6 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number, photos: string
     }
   }
 }
-
-/** 残す輝度の帯。幅 0 なら全部描く */
-/**
- * ホバーで強調する輝度の帯。幅 0 なら何もしない。
- * gamma は帯の暗部の持ち上げ。帯から離れた粒子は裾に沿って地の色へ薄れる。
- */
-export type BandCommand = {center: number; width: number; curve: number; gamma: number}
 
 /** ポインタの位置と速度。どちらも写真の半幅を 1 とした NDC（速度は 1秒あたり） */
 export type PointerCommand = {x: number; y: number; vx: number; vy: number}
@@ -503,7 +469,6 @@ export type Command = {
   tuning?: Tuning
   interaction?: Interaction
   pointer?: PointerCommand
-  band?: BandCommand
 }
 
 type Scene = ReturnType<typeof createScene>
@@ -517,7 +482,6 @@ const apply = (command: Command) => {
   if (command.tuning) scene.tune(command.tuning)
   if (command.interaction) scene.interact(command.interaction)
   if (command.resize) scene.resize(command.resize)
-  if (command.band) scene.setBand(command.band)
   if (command.pointer) scene.setPointer(command.pointer)
   if (command.render) scene.setFrame(command.render, command.catchUp)
   // 打ち消しは更新パスの中で効くので、干渉が止まっていても1回は回す

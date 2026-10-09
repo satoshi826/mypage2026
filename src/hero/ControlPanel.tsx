@@ -1,10 +1,10 @@
-import {useLayoutEffect, useRef, type RefObject} from 'react'
+import {useLayoutEffect, useRef} from 'react'
 import {layoutVars, type Layout} from './layout'
 
 const label = (index: number) => String(index + 1).padStart(2, '0')
 
 /**
- * 写真に添える操作面。輝度の分布（スペクトラム）と、カレンダー状に並べた番号。
+ * 写真に添える操作面。カレンダー状に並べた番号。
  * 再生操作と次までのプログレスはフッターにある（HeroPlayer.tsx）。
  * 選択中の1枚は丸で囲み、その丸が数字から数字へ移動する。
  *
@@ -17,9 +17,7 @@ export function ControlPanel({
   index,
   layout,
   width,
-  onSelect,
-  onHover,
-  equalizerRef
+  onSelect
 }: {
   /** 写真の枚数。カレンダーの番号はこの数だけ並ぶ */
   count: number
@@ -30,10 +28,6 @@ export function ControlPanel({
   /** パネルの幅 px。カレンダーはこの幅を列数で等分する */
   width: number
   onSelect: (index: number) => void
-  /** スペクトラムの棒にホバーしたときの添字。外れたら null */
-  onHover: (index: number | null) => void
-  /** カレンダー上の棒グラフ。Hero が毎フレーム各棒の scaleY を書き込む */
-  equalizerRef: RefObject<HTMLDivElement>
 }) {
   const listRef = useRef<HTMLOListElement>(null)
   const markerRef = useRef<HTMLDivElement>(null)
@@ -57,28 +51,7 @@ export function ControlPanel({
   }, [index, layout.markerGrow])
 
   return (
-    <div className="flex shrink-0 flex-col [gap:var(--block-gap)]" style={{...layoutVars(layout), width}}>
-      {layout.eqHeight > 0 && (
-        <div
-          ref={equalizerRef}
-          aria-hidden
-          onPointerMove={(event) => {
-            // 棒は pointer-events-none なので offsetX は必ずこの枠が基準になる
-            const position = event.nativeEvent.offsetX / event.currentTarget.clientWidth
-            onHover(Math.min(layout.eqBars - 1, Math.max(0, Math.floor(position * layout.eqBars))))
-          }}
-          onPointerLeave={() => onHover(null)}
-          className="flex w-full items-end gap-px border-t-ink/15 border-b-ink/50 [border-block-width:var(--eq-line)] [height:min(var(--eq-height),14vh)]"
-        >
-          {Array.from({length: layout.eqBars}, (_, i) => (
-            <div
-              key={i}
-              className="pointer-events-none h-full flex-1 origin-bottom bg-ink"
-              style={{transform: 'scaleY(0)', opacity: 0}}
-            />
-          ))}
-        </div>
-      )}
+    <div className="shrink-0" style={{...layoutVars(layout), width}}>
       <div className="relative">
         <div
           ref={markerRef}

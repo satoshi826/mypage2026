@@ -30,8 +30,7 @@ import {
   type Tuning
 } from './tuning'
 import {usePointer} from './pointer'
-import {bandOf, barHeights} from './equalizer'
-import type {Analysis, Command, Loaded} from './worker'
+import type {Command, Loaded} from './worker'
 import Worker from './worker?worker'
 
 const timingOf = ({cycleSeconds, dwellRatio}: Tuning): Timing => ({cycleSeconds, dwellRatio})
@@ -39,18 +38,8 @@ const timingOf = ({cycleSeconds, dwellRatio}: Tuning): Timing => ({cycleSeconds,
 /** @param photos hero 用の派生画像の URL。空では呼ばない */
 export function Hero({photos: PHOTOS}: {photos: string[]}) {
   const sectionRef = useRef<HTMLElement | null>(null)
-  const equalizerRef = useRef<HTMLDivElement>(null)
-  // 写真の要約は画素を持っている worker 側でしか作れないので、1枚上がるごとに受け取る
-  const analysis = useRef<Analysis>({tones: []})
-  const heights = useRef(new Float32Array(128))
-  const speeds = useRef(new Float32Array(128))
-  // 棒グラフを描き直す必要があるか。静止帯では phase が動かず結果も変わらない
-  const eqPending = useRef(true)
-  // スペクトラムでホバーしている棒。粒子と棒の両方で、そこから離れたものを暗くする
-  const hovered = useRef<number | null>(null)
   const stateRef = useRef<SequenceState>(initialState())
   const timingRef = useRef<Timing>(timingOf(DEFAULT_TUNING))
-  const tuningRef = useRef<Tuning>(DEFAULT_TUNING)
   const interactionRef = useRef<Interaction>(DEFAULT_INTERACTION)
   const lastFrame = useRef<Frame>({from: -1, to: -1, phase: -1})
   const lastTime = useRef(0)
@@ -79,9 +68,7 @@ export function Hero({photos: PHOTOS}: {photos: string[]}) {
   // あとはトグルに委ねる（押せば動かせる）
   const [autoplay, setAutoplay] = useState(!reduced)
 
-  const {canvas, post, ref} = useCanvas<Loaded>(Worker, ({layer, tone}) => {
-    analysis.current.tones[layer] = tone
-    eqPending.current = true
+  const {canvas, post, ref} = useCanvas<Loaded>(Worker, ({layer}) => {
     setAvailable((prev) => [...prev, layer].sort((a, b) => a - b))
   })
   useCanvasResize(post, ref)
@@ -114,16 +101,10 @@ export function Hero({photos: PHOTOS}: {photos: string[]}) {
   const applyTuning = useCallback(
     (tuning: Tuning) => {
       timingRef.current = timingOf(tuning)
-      tuningRef.current = tuning
       post({tuning})
     },
     [post]
   )
-
-  // 棒グラフのつまみを動かしたときは、静止帯でも描き直す
-  useEffect(() => {
-    eqPending.current = true
-  }, [layout.eqAxis, layout.eqBars, layout.eqCurve, layout.eqMotion])
 
   const applyInteraction = useCallback(
     (interaction: Interaction) => {
@@ -201,36 +182,8 @@ export function Hero({photos: PHOTOS}: {photos: string[]}) {
       }
 
       if (command.render || command.pointer || command.catchUp) post(command)
-      // 進み具合も帯の境目も、バーの一番外側に CSS 変数として書く。
+      // 進み具合も帯の境目も、プログレスの一番外側に CSS 変数として書く。
       // 中の3枚（遷移帯・静止帯・通過ぶん）はそれを継承して描き分ける
-      // 棒グラフ。静止帯では phase が止まっていて結果も変わらないので計算ごと飛ばす
-      const equalizer = equalizerRef.current
-      if (equalizer && (command.render || eqPending.current)) {
-        eqPending.current = false
-        const bars = Math.min(layout.eqBars, equalizer.children.length)
-        // ホバー中の棒からの距離で、その棒を明るくする。他は落とさない
-        const lift = layout.hoverLift / 100
-        const near = (i: number) =>
-          hovered.current === null
-            ? 0
-            : lift * Math.exp(-((Math.abs(i - hovered.current) / layout.hoverSpread) ** layout.hoverCurve))
-        barHeights(
-          analysis.current,
-          {from, to, phase},
-          tuningRef.current,
-          {bars, curve: layout.eqCurve, axis: layout.eqAxis},
-          heights.current,
-          speeds.current
-        )
-        // 高さは分布、濃さは速度。次元が違うので別のチャンネルに出す
-        for (let i = 0; i < bars; i++) {
-          const bar = equalizer.children[i] as HTMLElement
-          bar.style.transform = `scaleY(${heights.current[i]})`
-          const lit = REST_OPACITY + (1 - REST_OPACITY) * Math.min(1, speeds.current[i] * layout.eqMotion)
-          bar.style.opacity = String(lit + (1 - lit) * near(i))
-        }
-      }
-
       const bar = progressLine.current
       if (bar) {
         // 停止中は遷移が終わった地点で止める。バーは次の遷移までの待ち時間なので、
@@ -239,20 +192,7 @@ export function Hero({photos: PHOTOS}: {photos: string[]}) {
         bar.style.setProperty('--progress', String(progress))
         bar.style.setProperty('--morph', `${morphRatio(timing) * 100}%`)
       }
-    }, [
-      autoplay,
-      layout.eqAxis,
-      layout.eqBars,
-      layout.eqCurve,
-      layout.eqMotion,
-      layout.hoverCurve,
-      layout.hoverLift,
-      layout.hoverSpread,
-      order,
-      post,
-      reduced,
-      takePointer
-    ])
+    }, [autoplay, order, post, reduced, takePointer])
   )
 
   // 行き先が変わったフレームは worker 側で位置の飛びを打ち消す。
@@ -315,21 +255,6 @@ export function Hero({photos: PHOTOS}: {photos: string[]}) {
         layout={layout}
         width={panel}
         onSelect={(target) => go(jumpTo(stateRef.current, target, order, timingRef.current))}
-        onHover={(index) => {
-          hovered.current = index
-          eqPending.current = true
-          post({
-            band:
-              index === null
-                ? {center: 0, width: 0, curve: layout.hoverCurve, gamma: 1}
-                : {
-                    ...bandOf(index, {bars: layout.eqBars, axis: layout.eqAxis}, layout.hoverSpread),
-                    curve: layout.hoverCurve,
-                    gamma: layout.hoverGamma
-                  }
-          })
-        }}
-        equalizerRef={equalizerRef}
       />
       {import.meta.env.DEV && (
         <div className="pointer-events-none fixed top-16 left-4 z-10 flex flex-col gap-2">
@@ -367,9 +292,6 @@ export function Hero({photos: PHOTOS}: {photos: string[]}) {
     </section>
   )
 }
-
-/** 棒グラフの、飛んでいないときの濃さ */
-const REST_OPACITY = 0.35
 
 /** 使える領域から、パネルに取られるぶんを引いて、3:2 を保った最大の枠を出す */
 function fitPhoto({width, height}: {width: number; height: number}, takenX: number) {

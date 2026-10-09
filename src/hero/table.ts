@@ -142,27 +142,3 @@ export const blockOrigin = (layer: number, {cols}: AtlasLayout, grid: Grid) => (
   x: (layer % cols) * grid.width,
   y: Math.floor(layer / cols) * grid.height
 })
-
-/**
- * 輝度の分位点の数。棒グラフの縦の刻みがそのまま 1/TONE_STEPS になるので、
- * 棒の本数よりずっと細かく取る。256 だと棒あたりの標本が中央値2〜5個しかなく、
- * 1個の増減で高さが2〜5割跳ねていた。粒子は81万個あるので、上限はここではなく
- * 毎フレームの計算時間（1粒子あたり約55ns）のほうで決まる。
- */
-export const TONE_STEPS = 8192
-
-/**
- * 輝度の分位点。i 番目は「下から i/(TONE_STEPS-1) の位置にある粒子の輝度」。
- *
- * テーブルは輝度順に並んでいるので等間隔に抜くだけで出る。ヒストグラムではなく
- * 分位点にするのは、遷移中の分布が2枚のヒストグラムの混合ではなく、ランクどうしを
- * 結んだ補間になるため。分位点なら要素ごとに混ぜるだけで中間の分布が厳密に出る。
- */
-export function toneOf(table: Uint8Array): Uint8Array {
-  const count = table.length / 4
-  const tone = new Uint8Array(TONE_STEPS)
-  for (let i = 0; i < TONE_STEPS; i++) {
-    tone[i] = table[Math.round((i * (count - 1)) / (TONE_STEPS - 1)) * 4 + 3]
-  }
-  return tone
-}

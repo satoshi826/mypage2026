@@ -30,28 +30,6 @@ export type Layout = {
   markerDuration: number
   /** 非選択のマスの不透明度 % */
   idleOpacity: number
-  /** カレンダー上の棒グラフの高さ px。0 で出さない。横並びのときだけ描く */
-  eqHeight: number
-  /** 棒グラフの上下の線の太さ px */
-  eqLine: number
-  /** パネル内の各ブロックの間隔 px */
-  blockGap: number
-  /** 棒の本数 */
-  eqBars: number
-  /** 棒の高さのカーブ。1 で素のまま、上げるほど低い棒が持ち上がる */
-  eqCurve: number
-  /** 飛行中の棒をどれだけ明るくするか。0 で濃さが一定 */
-  eqMotion: number
-  /** 棒にホバーしたとき、そこをどこまで明るくするか %。0 で強調なし */
-  hoverLift: number
-  /** 強調が広がる幅。棒いくつ分か */
-  hoverSpread: number
-  /** 強調の裾の形。2 でガウス、下げるほど尖って裾が長く、上げるほど角ばる */
-  hoverCurve: number
-  /** ホバー中、帯の粒子の暗部をどれだけ持ち上げるか。1 でそのまま */
-  hoverGamma: number
-  /** 棒グラフの横軸。1 で sRGB のまま、下げるほど暗部が広がる */
-  eqAxis: number
   /** 画面の外周の余白 px。狭い画面ではここを削るとマスを大きくできる */
   padding: number
   /** 写真とパネルのあいだ px */
@@ -63,7 +41,6 @@ export type Direction = 'stacked' | 'side'
 
 /** 写真の下にパネルを置く。縦長の画面ではこちらが有利 */
 export const STACKED_LAYOUT: Layout = {
-  blockGap: 28,
   padding: 16,
   photoGap: 40,
   cell: 40,
@@ -75,22 +52,11 @@ export const STACKED_LAYOUT: Layout = {
   markerGrow: 4,
   markerBorder: 1,
   markerOpacity: 100,
-  markerDuration: 800,
-  eqLine: 1,
-  eqHeight: 0,
-  eqBars: 48,
-  eqCurve: 1,
-  eqAxis: 1,
-  eqMotion: 1,
-  hoverSpread: 2,
-  hoverCurve: 2,
-  hoverLift: 100,
-  hoverGamma: 2
+  markerDuration: 800
 }
 
 /** 写真の横にパネルを置く。横長の画面ではこちらが有利 */
 export const SIDE_LAYOUT: Layout = {
-  blockGap: 20,
   padding: 32,
   cell: 28,
   gapX: 8,
@@ -102,16 +68,6 @@ export const SIDE_LAYOUT: Layout = {
   markerOpacity: 100,
   fontSize: 11.2,
   markerDuration: 800,
-  eqLine: 1,
-  eqHeight: 96,
-  eqBars: 48,
-  eqCurve: 2.5,
-  eqAxis: 0.8,
-  eqMotion: 2.5,
-  hoverSpread: 4,
-  hoverCurve: 2,
-  hoverLift: 80,
-  hoverGamma: 1,
   photoGap: 40
 }
 
@@ -120,16 +76,13 @@ export const LAYOUT_PRESETS: Record<Direction, Layout> = {stacked: STACKED_LAYOU
 /** ナビとフッターの高さの合計 px。並べ方を選ぶときだけ使う概算で、実寸は section の padding が持つ */
 const BARS_HEIGHT = 52 + 52
 
-/** パネルのうちカレンダー以外が占める高さ px。ControlPanel の中身と対応する */
-const chromeHeight = (l: Layout) => (l.eqHeight > 0 ? l.eqHeight + l.blockGap : 0)
-
 export const panelWidth = (l: Layout) => l.columns * l.cell + (l.columns - 1) * l.gapX
 
 /**
  * 縦並びの寸法。カレンダーは写真と同じ幅に広げるので、マスの一辺は写真の幅で決まる。
  * つまり必要な高さは写真の幅の一次式になり、収まる最大の幅を解ける。
  *
- *   必要な高さ = 幅/ASPECT + 間隔 + カレンダー以外 + 行数×(幅 - 列間)/列数 + 行間
+ *   必要な高さ = 幅/ASPECT + 間隔 + 行数×(幅 - 列間)/列数 + 行間
  *
  * ただしマスは cell を上限にする。タブレットの縦持ちでは「写真の幅 ÷ 7」が
  * 100px を超え、数字の並びとして成立しなくなるため。上限に達したあとは
@@ -138,7 +91,7 @@ export const panelWidth = (l: Layout) => l.columns * l.cell + (l.columns - 1) * 
 export function fitStacked(content: {width: number; height: number}, l: Layout, count: number) {
   const rows = Math.ceil(count / l.columns)
   // 写真の幅に比例しない縦
-  const fixed = l.photoGap + chromeHeight(l) + (rows - 1) * l.gapY
+  const fixed = l.photoGap + (rows - 1) * l.gapY
   // マスが上限に達している場合に写真へ残る高さ
   const room = content.height - fixed - rows * l.cell
   const solved =
@@ -165,7 +118,6 @@ export function chooseDirection(width: number, height: number, count: number): D
 }
 
 export const LAYOUT_PARAMS: Param<Layout>[] = [
-  {group: '配置', key: 'blockGap', label: 'ブロックの間隔', min: 0, max: 80, step: 2, hint: 'px。各ブロックのあいだ'},
   {group: '配置', key: 'padding', label: '画面の外周の余白', min: 8, max: 64, step: 4, hint: 'px'},
   {group: '配置', key: 'photoGap', label: '写真とパネルの間隔', min: 0, max: 80, step: 4, hint: 'px'},
 
@@ -210,66 +162,6 @@ export const LAYOUT_PARAMS: Param<Layout>[] = [
     max: 1200,
     step: 50,
     hint: 'ms。0 で瞬間移動'
-  },
-
-  {group: 'スペクトラム', key: 'eqHeight', label: '高さ', min: 0, max: 240, step: 4, hint: 'px。0 で出さない'},
-  {group: 'スペクトラム', key: 'eqBars', label: '棒の本数', min: 8, max: 96, step: 1, hint: '本'},
-  {group: 'スペクトラム', key: 'eqLine', label: '上下の線の太さ', min: 1, max: 8, step: 1, hint: 'px'},
-  {
-    group: 'スペクトラム',
-    key: 'eqCurve',
-    label: '棒のカーブ',
-    min: 0.3,
-    max: 3,
-    step: 0.05,
-    hint: '1 で素のまま。上げるほど低い棒が持ち上がる'
-  },
-  {
-    group: 'スペクトラム',
-    key: 'eqAxis',
-    label: '横軸の引き伸ばし',
-    min: 0.3,
-    max: 2,
-    step: 0.05,
-    hint: '1 で sRGB のまま。下げると暗部が広がる'
-  },
-  {
-    group: 'スペクトラム',
-    key: 'eqMotion',
-    label: '飛行中の明るさ',
-    min: 0,
-    max: 4,
-    step: 0.1,
-    hint: '0 で一定。上げると速い棒ほど明るくなる'
-  },
-
-  {group: 'ホバー', key: 'hoverSpread', label: '広がり', min: 0.5, max: 12, step: 0.5, hint: '棒いくつ分に広がるか'},
-  {
-    group: 'ホバー',
-    key: 'hoverCurve',
-    label: '裾',
-    min: 0.5,
-    max: 6,
-    step: 0.1,
-    hint: '2 でガウス。下げると尖り、上げると角ばる'
-  },
-  {
-    group: 'ホバー',
-    key: 'hoverLift',
-    label: '棒の明るさ',
-    min: 0,
-    max: 100,
-    step: 5,
-    hint: '%。棒をどこまで持ち上げるか'
-  },
-  {
-    group: 'ホバー',
-    key: 'hoverGamma',
-    label: '粒の持ち上げ（対象）',
-    min: 1,
-    max: 4,
-    step: 0.1,
-    hint: '暗部。1 でそのまま'
   }
 ]
 
@@ -283,9 +175,5 @@ export const layoutVars = (l: Layout) =>
     '--marker-line': `color-mix(in srgb, var(--color-ink) ${l.markerOpacity}%, transparent)`,
     '--number-size': `${l.fontSize}px`,
     '--marker-duration': `${l.markerDuration}ms`,
-    '--eq-line': `${l.eqLine}px`,
-    '--idle-opacity': `${l.idleOpacity}%`,
-    '--eq-height': `${l.eqHeight}px`,
-    '--block-gap': `${l.blockGap}px`,
-    '--panel-padding': `${l.padding}px`
+    '--idle-opacity': `${l.idleOpacity}%`
   }) as CSSProperties
