@@ -22,14 +22,10 @@ export type Layout = {
   markerGrow: number
   /** 選択中を囲む丸の線の太さ px */
   markerBorder: number
-  /** 丸の線の濃さ % */
-  markerOpacity: number
   /** 数字の大きさ px。選択・非選択で変えない */
   fontSize: number
   /** 丸が隣のマスへ移る時間 ms */
   markerDuration: number
-  /** 非選択のマスの不透明度 % */
-  idleOpacity: number
   /** 画面の外周の余白 px。狭い画面ではここを削るとマスを大きくできる */
   padding: number
   /** 写真とパネルのあいだ px */
@@ -43,15 +39,13 @@ export type Direction = 'stacked' | 'side'
 export const STACKED_LAYOUT: Layout = {
   padding: 12,
   photoGap: 32,
-  cell: 38,
-  fontSize: 10.8,
+  cell: 40,
+  fontSize: 12,
   gapX: 4,
-  gapY: 3,
+  gapY: 6,
   columns: 7,
-  idleOpacity: 25,
   markerGrow: 0,
   markerBorder: 1,
-  markerOpacity: 50,
   markerDuration: 1000
 }
 
@@ -60,18 +54,38 @@ export const SIDE_LAYOUT: Layout = {
   padding: 36,
   photoGap: 32,
   cell: 24,
-  fontSize: 11,
-  gapX: 12,
-  gapY: 24,
+  fontSize: 12,
+  gapX: 16,
+  gapY: 26,
   columns: 7,
-  idleOpacity: 25,
-  markerGrow: 11,
+  markerGrow: 13,
   markerBorder: 1,
-  markerOpacity: 50,
   markerDuration: 1000
 }
 
 export const LAYOUT_PRESETS: Record<Direction, Layout> = {stacked: STACKED_LAYOUT, side: SIDE_LAYOUT}
+
+/** カレンダーの濃さ。寸法と違って並べ方（PC とスマホ）で変えない */
+export type Tone = {
+  /** 選択中の数字の濃さ % */
+  activeOpacity: number
+  /** 非選択の数字の濃さ %。読み込み前の番号はこの 3 割 */
+  idleOpacity: number
+  /** 選択中を囲む丸の線の濃さ % */
+  markerOpacity: number
+}
+
+export const TONE: Tone = {
+  activeOpacity: 100,
+  idleOpacity: 40,
+  markerOpacity: 60
+}
+
+export const TONE_PARAMS: Param<Tone>[] = [
+  {key: 'activeOpacity', label: '選択中の濃さ', min: 0, max: 100, step: 5, hint: '%'},
+  {key: 'idleOpacity', label: '非選択の濃さ', min: 0, max: 100, step: 5, hint: '%。読み込み前の番号はこの 3 割'},
+  {key: 'markerOpacity', label: '丸の線の濃さ', min: 0, max: 100, step: 5, hint: '%'}
+]
 
 /** ナビとフッターの高さの合計 px。並べ方を選ぶときだけ使う概算で、実寸は section の padding が持つ */
 const BARS_HEIGHT = 52 + 52
@@ -142,7 +156,6 @@ export const LAYOUT_PARAMS: Param<Layout>[] = [
     step: 1,
     hint: '横幅はこれと一辺・間隔で決まる'
   },
-  {group: 'カレンダー', key: 'idleOpacity', label: '非選択の濃さ', min: 0, max: 100, step: 5, hint: '%'},
   {
     group: 'カレンダー',
     key: 'markerGrow',
@@ -153,7 +166,6 @@ export const LAYOUT_PARAMS: Param<Layout>[] = [
     hint: 'px。マスより何px大きいか'
   },
   {group: 'カレンダー', key: 'markerBorder', label: '丸の線の太さ', min: 1, max: 4, step: 1, hint: 'px'},
-  {group: 'カレンダー', key: 'markerOpacity', label: '丸の線の濃さ', min: 0, max: 100, step: 5, hint: '%'},
   {
     group: 'カレンダー',
     key: 'markerDuration',
@@ -166,14 +178,15 @@ export const LAYOUT_PARAMS: Param<Layout>[] = [
 ]
 
 /** CSS 変数の形にする。ControlPanel のルートに style として渡す */
-export const layoutVars = (l: Layout) =>
+export const layoutVars = (l: Layout, t: Tone) =>
   ({
     '--gap-x': `${l.gapX}px`,
     '--gap-y': `${l.gapY}px`,
     '--cols': l.columns,
     '--marker-border': `${l.markerBorder}px`,
-    '--marker-line': `color-mix(in srgb, var(--color-ink) ${l.markerOpacity}%, transparent)`,
+    '--marker-line': `color-mix(in srgb, var(--color-ink) ${t.markerOpacity}%, transparent)`,
     '--number-size': `${l.fontSize}px`,
     '--marker-duration': `${l.markerDuration}ms`,
-    '--idle-opacity': `${l.idleOpacity}%`
+    '--active-opacity': `${t.activeOpacity}%`,
+    '--idle-opacity': `${t.idleOpacity}%`
   }) as CSSProperties

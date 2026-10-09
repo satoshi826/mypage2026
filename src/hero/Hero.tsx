@@ -19,7 +19,16 @@ import {
 import {ControlPanel} from './ControlPanel'
 import {progressLine, setPlayer} from './playback'
 import {DevPanel} from '../app/DevPanel'
-import {LAYOUT_PARAMS, LAYOUT_PRESETS, chooseDirection, fitStacked, panelWidth, type Layout} from './layout'
+import {
+  LAYOUT_PARAMS,
+  LAYOUT_PRESETS,
+  TONE,
+  TONE_PARAMS,
+  chooseDirection,
+  fitStacked,
+  panelWidth,
+  type Layout
+} from './layout'
 import {SOURCE_H, SOURCE_W} from './table'
 import {
   DEFAULT_INTERACTION,
@@ -61,6 +70,8 @@ export function Hero({photos: PHOTOS}: {photos: string[]}) {
   const direction = chooseDirection(viewport.width, viewport.height, PHOTOS.length)
   // 開発用パネルで触っているあいだだけ上書きする
   const [override, setOverride] = useState<Layout | null>(null)
+  // 濃さは並べ方によらず共通。開発用パネルで触っているあいだだけ上書きする
+  const [tone, setTone] = useState(TONE)
   const preset = LAYOUT_PRESETS[direction]
   const layout = override ?? preset
   const content = useContentRect(sectionRef)
@@ -263,6 +274,7 @@ export function Hero({photos: PHOTOS}: {photos: string[]}) {
         available={available}
         index={index}
         layout={layout}
+        tone={tone}
         width={panel}
         onSelect={(target) => go(jumpTo(stateRef.current, target, order, timingRef.current))}
       />
@@ -296,6 +308,15 @@ export function Hero({photos: PHOTOS}: {photos: string[]}) {
             defaults={preset}
             storageKey={`mypage2026.layout.${direction}`}
             onChange={setOverride}
+          />
+          <DevPanel
+            title="カレンダーの濃さ（共通）"
+            typeName="Tone"
+            constName="TONE"
+            params={TONE_PARAMS}
+            defaults={TONE}
+            storageKey="mypage2026.tone"
+            onChange={setTone}
           />
         </div>
       )}

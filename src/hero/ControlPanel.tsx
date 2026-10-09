@@ -1,5 +1,5 @@
 import {useLayoutEffect, useRef} from 'react'
-import {layoutVars, type Layout} from './layout'
+import {layoutVars, type Layout, type Tone} from './layout'
 
 const label = (index: number) => String(index + 1).padStart(2, '0')
 
@@ -16,6 +16,7 @@ export function ControlPanel({
   available,
   index,
   layout,
+  tone,
   width,
   onSelect
 }: {
@@ -25,6 +26,8 @@ export function ControlPanel({
   available: readonly number[]
   index: number
   layout: Layout
+  /** 濃さ。PC とスマホで共通 */
+  tone: Tone
   /** パネルの幅 px。カレンダーはこの幅を列数で等分する */
   width: number
   onSelect: (index: number) => void
@@ -51,7 +54,7 @@ export function ControlPanel({
   }, [index, layout.markerGrow])
 
   return (
-    <div className="shrink-0" style={{...layoutVars(layout), width}}>
+    <div className="shrink-0" style={{...layoutVars(layout, tone), width}}>
       <div className="relative">
         <div
           ref={markerRef}
@@ -75,7 +78,7 @@ export function ControlPanel({
                 disabled={!loaded.has(i)}
                 className={`flex size-full items-center justify-center tracking-[0.1em] transition-opacity duration-300 text-(length:--number-size) [translate:0.05em_-0.08em] enabled:cursor-pointer enabled:hover:opacity-70 ${
                   i === index
-                    ? 'opacity-100'
+                    ? '[opacity:var(--active-opacity)]'
                     : loaded.has(i)
                       ? '[opacity:var(--idle-opacity)]'
                       : '[opacity:calc(var(--idle-opacity)*0.3)]'
