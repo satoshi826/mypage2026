@@ -2,7 +2,7 @@ import {useEffect} from 'react'
 
 /** 要素のこの割合が見えたら現す */
 const THRESHOLD = 0.15
-/** 画面下端のこの割合は数えない。ぎりぎりで始まると現れきる前に通り過ぎるため */
+/** 画面下端（フッターの上）のこの割合は数えない。ぎりぎりで始まると現れきる前に通り過ぎるため */
 const MARGIN = 0.08
 
 /**
@@ -26,7 +26,7 @@ export function useReveal(root: React.RefObject<HTMLElement | null>, deps: unkno
     if (!el) return
     const pending = new Set(el.querySelectorAll<HTMLElement>('[data-reveal]:not([data-revealed])'))
     const check = () => {
-      const bottom = innerHeight * (1 - MARGIN)
+      const bottom = innerHeight * (1 - MARGIN) - (document.querySelector('footer')?.offsetHeight ?? 0)
       for (const target of pending) {
         // 配置の変化に合わせて即座に出したもの（Gallery の go）
         if (target.hasAttribute('data-revealed')) {

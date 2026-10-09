@@ -18,7 +18,7 @@ function NavLink({path, label}: {path: string; label: string}) {
 
 export function Nav() {
   return (
-    <nav className="pointer-events-none fixed inset-x-0 top-0 z-10 box-border flex min-h-(--spacing-nav) items-baseline justify-between gap-4 border-b border-white/10 bg-black/35 px-8 py-6 backdrop-blur-[14px] max-sm:px-5 max-sm:py-4">
+    <nav className="pointer-events-none fixed top-0 right-[env(safe-area-inset-right)] left-[env(safe-area-inset-left)] z-10 box-border flex h-(--spacing-nav) items-baseline justify-between gap-4 border-b border-white/10 bg-black/35 px-8 py-4 backdrop-blur-[14px] max-sm:px-5 max-sm:py-3.5">
       <Link href="/" className={`${LINK} text-sm max-sm:text-xs`}>
         {NAME}
       </Link>

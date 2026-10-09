@@ -1,12 +1,13 @@
 import type {ReactNode} from 'react'
 import {Page} from '../Page'
+import {INSTAGRAM, X} from '../social'
 
 // 仮実装。内容は docs/profile.md を元にしている。ステートメントは note のエッセイから
 // 起こした下書きなので、本人の言葉に差し替える。
 
 const LINKS = [
-  ['Instagram', 'https://www.instagram.com/mu.8263104/'],
-  ['X', 'https://x.com/stosto826'],
+  ['Instagram', INSTAGRAM],
+  ['X', X],
   ['note', 'https://note.com/mu826'],
   ['1x', 'https://1x.com/satoshi826'],
   ['500px', 'https://500px.com/p/satoshi826']

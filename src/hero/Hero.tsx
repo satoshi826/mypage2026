@@ -271,7 +271,8 @@ export function Hero({photos: PHOTOS}: {photos: string[]}) {
       style={{
         gap: layout.photoGap,
         padding: layout.padding,
-        paddingTop: `calc(var(--spacing-nav) + ${layout.padding}px)`
+        paddingTop: `calc(var(--spacing-nav) + ${layout.padding}px)`,
+        paddingBottom: `calc(var(--spacing-footer) + env(safe-area-inset-bottom) + ${layout.padding}px)`
       }}
     >
       {/* touch-none で写真の上の指をブラウザに渡さない。指がスクロールに移ると

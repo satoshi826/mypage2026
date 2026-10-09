@@ -11,8 +11,10 @@
   --color-ground: #101010;
   --color-ink: #fdfdfd;
 
-  /* 固定ナビの高さ。hero が写真をこのぶん下げて重なりを避ける */
-  --spacing-nav: 4.5rem;
+  /* 固定ナビの高さ。フッターと揃える。hero と各ページの中身がこのぶん下げて重なりを避ける */
+  --spacing-nav: 3.25rem;
+  /* 固定フッターの高さ（iPhone のホームインジケータのぶんは含まない）。hero と Photos が重なりを避ける */
+  --spacing-footer: 3.25rem;
 
   --font-sans: system-ui, sans-serif;
   /* カレンダーの番号に使う書体。1 の字幅が広い lnum 側を lining-nums で選ぶ */
@@ -32,7 +34,8 @@
 /* 画面が狭いときのトークン上書き。utility 側は var を参照しているのでこれだけで効く */
 @media (max-width: 640px) {
   :root {
-    --spacing-nav: 3.5rem;
+    --spacing-nav: 2.75rem;
+    --spacing-footer: 2.75rem;
   }
 }
 
@@ -47,6 +50,12 @@ body {
   background: var(--color-ground);
   color: var(--color-ink);
   font: 400 16px/1.7 var(--font-sans);
+}
+
+/* index.html の viewport-fit=cover で画面の端（iPhone の切り欠きやホームインジケータの下）まで描く。
+   横向きの切り欠きは中身が避ける。固定のナビとフッターは left / right で、フッターは下の余白でも避ける */
+body {
+  padding-inline: env(safe-area-inset-left) env(safe-area-inset-right);
 }
 
 html {

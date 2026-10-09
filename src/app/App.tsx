@@ -1,6 +1,7 @@
 import {useEffect} from 'react'
 import {Route, Switch, useLocation} from 'wouter'
 import {Nav} from './Nav'
+import {Footer} from './Footer'
 import {Page} from './Page'
 import {findRoute} from './routes'
 import {Top} from './pages/Top'
@@ -31,6 +32,7 @@ export function App() {
           </Route>
         </Switch>
       </main>
+      <Footer />
     </>
   )
 }

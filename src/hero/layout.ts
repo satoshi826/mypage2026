@@ -128,8 +128,8 @@ export const LAYOUT_PRESETS: Record<Direction, Layout> = {stacked: STACKED_LAYOU
 /** 再生操作の行の高さ px。一番大きいアイコン（ControlPanel の size-8）で決まる */
 const TRANSPORT_HEIGHT = 32
 
-/** ナビの高さ px。並べ方を選ぶときだけ使う概算で、実寸は section の padding が持つ */
-const NAV_HEIGHT = 72
+/** ナビとフッターの高さの合計 px。並べ方を選ぶときだけ使う概算で、実寸は section の padding が持つ */
+const BARS_HEIGHT = 52 + 52
 
 /** パネルのうちカレンダー以外が占める高さ px。ControlPanel の中身と対応する */
 const chromeHeight = (l: Layout) =>
@@ -169,7 +169,7 @@ export function fitStacked(content: {width: number; height: number}, l: Layout, 
  * 写真は 3:2 固定なので、幅で比べれば面積で比べたことになる。
  */
 export function chooseDirection(width: number, height: number, count: number): Direction {
-  const inner = (l: Layout) => ({width: width - l.padding * 2, height: height - NAV_HEIGHT - l.padding * 2})
+  const inner = (l: Layout) => ({width: width - l.padding * 2, height: height - BARS_HEIGHT - l.padding * 2})
   const stacked = fitStacked(inner(STACKED_LAYOUT), STACKED_LAYOUT, count).width
   const room = inner(SIDE_LAYOUT)
   const side = Math.min(room.width - panelWidth(SIDE_LAYOUT) - SIDE_LAYOUT.photoGap, room.height * ASPECT)

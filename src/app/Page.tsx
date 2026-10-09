@@ -6,7 +6,7 @@ import type {ReactNode} from 'react'
  */
 export function Page({title, children}: {title: string; children: ReactNode}) {
   return (
-    <div className="mx-auto min-h-[100svh] max-w-5xl px-8 pt-32 pb-24">
+    <div className="mx-auto min-h-[100svh] max-w-5xl px-8 pt-[calc(var(--spacing-nav)+3.5rem)] pb-24">
       <h1 className="mb-8 text-[1.75rem] font-normal tracking-[0.05em]">{title}</h1>
       {children}
     </div>

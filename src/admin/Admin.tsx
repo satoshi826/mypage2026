@@ -216,7 +216,7 @@ export function Admin() {
 
 function Shell({children}: {children: React.ReactNode}) {
   return (
-    <div className="mx-auto min-h-[100svh] max-w-5xl px-8 pt-32 pb-24">
+    <div className="mx-auto min-h-[100svh] max-w-5xl px-8 pt-[calc(var(--spacing-nav)+3.5rem)] pb-24">
       <h1 className="mb-6 text-[1.75rem] font-normal tracking-[0.05em]">Admin</h1>
       {children}
     </div>

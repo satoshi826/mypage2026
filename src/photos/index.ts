@@ -12,7 +12,10 @@ import {useEffect, useState} from 'react'
 // | 原本      | originals/<file>.<ext> | 再派生のために置く。公開しない |
 
 export {CATEGORIES, EAGER_THUMBS, isCategory, type Category, type Photo} from './manifest'
-import {parseManifest, type Photo} from './manifest'
+import {isCategory, parseManifest, type Category, type Photo} from './manifest'
+
+/** URL（/photos/:category）のカテゴリ。省略や知らない値は street */
+export const toCategory = (value: string | undefined): Category => (isCategory(value) ? value : 'street')
 
 export const thumbSrc = (photo: Photo) => `/images/thumb/${photo.file}.webp`
 export const gallerySrc = (photo: Photo) => `/images/gallery/${photo.file}.webp`

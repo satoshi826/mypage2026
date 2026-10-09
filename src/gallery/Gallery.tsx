@@ -38,8 +38,12 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
     const el = root.current
     if (!el) return
     const measure = () => {
-      const nav = document.querySelector('nav')?.getBoundingClientRect().height ?? 0
-      setMetrics({width: el.clientWidth, cols: innerWidth < 640 ? 2 : 3, maxHeight: innerHeight - nav - GAP * 2})
+      const {top, bottom} = bars()
+      setMetrics({
+        width: el.clientWidth,
+        cols: innerWidth < 640 ? 2 : 3,
+        maxHeight: innerHeight - top - bottom - GAP * 2
+      })
     }
     const observer = new ResizeObserver(measure)
     observer.observe(el)
@@ -111,13 +115,13 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
       for (const [figure, from, to] of moves) flip(figure, from, to, motion)
     }
 
-    // 広げた写真が画面に収まらなければ、上辺をナビの下へ慣性で寄せる
+    // 広げた写真がナビとフッターのあいだに収まらなければ、上辺をナビの下へ慣性で寄せる
     if (file && expanded.includes(file) && anchor) {
-      const nav = document.querySelector('nav')?.getBoundingClientRect().height ?? 0
+      const {top, bottom} = bars()
       const rect = anchor.getBoundingClientRect()
-      if (rect.top < nav + GAP || rect.bottom > innerHeight)
+      if (rect.top < top + GAP || rect.bottom > innerHeight - bottom)
         scrollToElement(anchor, {
-          offset: -(nav + GAP),
+          offset: -(top + GAP),
           duration: motion.scrollSeconds,
           easing: EASINGS[motion.easing].fn
         })
@@ -164,6 +168,12 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
     </div>
   )
 }
+
+/** 固定のナビ（文書で最初の nav）とフッターが、画面の上下を覆う高さ px */
+const bars = () => ({
+  top: document.querySelector('nav')?.getBoundingClientRect().height ?? 0,
+  bottom: document.querySelector('footer')?.getBoundingClientRect().height ?? 0
+})
 
 /**
  * 広げる・戻すあいだに見えうる範囲にあるか。画面の上下に 1 画面ずつ余裕を持つ。広げたあとの
