@@ -37,7 +37,7 @@ export function HeroPlayer() {
       <div
         ref={progressLine}
         aria-hidden
-        className="absolute inset-x-0 -top-px flex h-px sm:relative sm:inset-auto sm:top-auto sm:w-40"
+        className="absolute inset-x-0 -top-px flex h-px sm:relative sm:inset-auto sm:top-auto sm:w-52"
         style={{'--morph-opacity': `${MORPH_OPACITY}%`, '--dwell-opacity': `${DWELL_OPACITY}%`} as CSSProperties}
       >
         <div className="shrink-0 bg-ink [opacity:var(--morph-opacity)] [width:var(--morph)]" />
