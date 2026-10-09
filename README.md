@@ -173,6 +173,7 @@ worker/     Cloudflare Worker（写真の API）
 | `scripts/encode-photos.sh` | 原本から派生画像を `.photos/` に書き出し、manifest.json を生成する（移行用） |
 | `scripts/sync-photos.mjs` | 写真を `.photos/` → ローカル、本番 ⇄ ローカルで動かす |
 | `scripts/prerender.js` | ビルド後に各ルートを HTML 化する |
+| `scripts/fonts.js` | 本文の書体（Zen Kaku Gothic New）を、プリレンダした全ページに出てくる文字と英数字だけに絞って woff2 にし、各ページの先頭で先読みさせる。元のフォントは `fonts/`（OFL）。開発中は絞らずに `src/dev-fonts.css` で読む |
 
 Worker には `requestAnimationFrame` がないため、駆動はメインスレッドの rAF から。
 タブが非表示になると rAF が止まり、無駄な描画も止まる。

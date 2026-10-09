@@ -7,6 +7,7 @@ import {mkdir, readdir, readFile, writeFile} from 'node:fs/promises'
 import {dirname, join} from 'node:path'
 import {fileURLToPath} from 'node:url'
 import {createServer} from 'vite'
+import {subsetFonts} from './fonts.js'
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)))
 const dist = join(root, 'dist')
@@ -21,15 +22,28 @@ try {
   const template = await readFile(join(dist, 'index.html'), 'utf8')
   const hints = await preloadHints()
 
-  const page = (path, title, description) => {
+  // どのルートにも当たらないパス用は 404.html。Cloudflare の not_found_handling がこれを返す
+  const pages = [
+    ...ROUTES.map(({path, title, description}) => ({
+      file: path === '/' ? join(dist, 'index.html') : join(dist, path.slice(1), 'index.html'),
+      path,
+      title,
+      description
+    })),
+    {file: join(dist, '404.html'), path: '/404', title: `Not found — ${NAME}`, description: 'ページが見つかりません。'}
+  ].map((page) => ({...page, body: render(page.path)}))
+
+  // 書体は全ページの本文が揃ってから、出てくる文字だけに絞る
+  const fonts = await subsetFonts(root, dist, pages.map(({body}) => body))
+
+  const html = ({path, title, description, body}) => {
     const head = [
       `<title>${escapeHtml(title)}</title>`,
       `<meta name="description" content="${escapeHtml(description)}">`,
+      ...fonts,
       ...hints(path)
     ].join('\n    ')
-    return template
-      .replace(/<title>.*?<\/title>/, head)
-      .replace('<div id="root"></div>', `<div id="root">${render(path)}</div>`)
+    return template.replace(/<title>.*?<\/title>/, head).replace('<div id="root"></div>', `<div id="root">${body}</div>`)
   }
 
   const write = async (file, html) => {
@@ -38,13 +52,7 @@ try {
     console.log('prerendered', file.replace(root + '/', ''))
   }
 
-  for (const {path, title, description} of ROUTES) {
-    const file = path === '/' ? join(dist, 'index.html') : join(dist, path.slice(1), 'index.html')
-    await write(file, page(path, title, description))
-  }
-
-  // どのルートにも当たらないパス用。Cloudflare の not_found_handling がこれを返す
-  await write(join(dist, '404.html'), page('/404', `Not found — ${NAME}`, 'ページが見つかりません。'))
+  for (const page of pages) await write(page.file, html(page))
 } finally {
   await vite.close()
 }

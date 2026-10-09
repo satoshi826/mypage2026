@@ -1,0 +1,17 @@
+/* 開発中だけ読む本文の書体（main.tsx）。本番はビルドが文字を絞ったものを差し込む（scripts/fonts.js）。
+   太さは scripts/fonts.js の SOURCES と揃える */
+@font-face {
+  font-family: 'Zen Kaku Gothic New';
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+  src: url('../fonts/ZenKakuGothicNew-Light.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'Zen Kaku Gothic New';
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  src: url('../fonts/ZenKakuGothicNew-Regular.ttf') format('truetype');
+}
