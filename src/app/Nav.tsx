@@ -9,7 +9,7 @@ function NavLink({path, label}: {path: string; label: string}) {
     <Link
       href={path}
       aria-current={isActive ? 'page' : undefined}
-      className={`${LINK} opacity-55 hover:opacity-100 focus-visible:opacity-100 aria-[current=page]:opacity-100`}
+      className={`${LINK} font-light opacity-55 hover:opacity-100 focus-visible:opacity-100 aria-[current=page]:opacity-100`}
     >
       {label}
     </Link>
@@ -19,7 +19,7 @@ function NavLink({path, label}: {path: string; label: string}) {
 export function Nav() {
   return (
     <nav className="pointer-events-none fixed top-0 right-[env(safe-area-inset-right)] left-[env(safe-area-inset-left)] z-10 box-border flex h-(--spacing-nav) items-baseline justify-between gap-4 border-b border-white/10 bg-black/35 px-8 py-4 backdrop-blur-[14px] max-sm:px-5 max-sm:py-3.5">
-      <Link href="/" className={`${LINK} text-sm max-sm:text-xs`}>
+      <Link href="/" className={`${LINK} font-number text-sm max-sm:text-xs`}>
         mu
       </Link>
       {/* 狭い画面では名前とリンクが1行に収まらず、ナビが2行に伸びて

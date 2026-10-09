@@ -65,15 +65,15 @@ export function ControlPanel({
           {Array.from({length: count}, (_, i) => (
             <li key={i} className="aspect-square list-none">
               {/* translate は数字の見た目の中心をマスの中心に合わせるためのもの。
-                  縦は F1.8 の ascent 0.94em / descent 0.26em に対して数字の高さが
-                  0.84em しかないぶん（(0.94-0.26)/2 - 0.84/2 = -0.08em）、横は
-                  字間 0.1em が最後の数字のうしろにも入るぶん（0.05em）を戻す */}
+                  縦は Zen Kaku Gothic New の ascent 1.16em / descent 0.29em に対して数字が
+                  ベースラインから 0.70em の高さしかないぶん（(1.16-0.29)/2 - 0.70/2 = 0.08em 下に寄る）、
+                  横は字間 0.1em が最後の数字のうしろにも入るぶん（0.05em）を戻す */}
               <button
                 type="button"
                 onClick={() => onSelect(i)}
                 aria-current={i === index}
                 disabled={!loaded.has(i)}
-                className={`flex size-full items-center justify-center font-number tracking-[0.1em] lining-nums transition-opacity duration-300 text-(length:--number-size) [translate:0.05em_0.08em] enabled:cursor-pointer enabled:hover:opacity-70 ${
+                className={`flex size-full items-center justify-center tracking-[0.1em] transition-opacity duration-300 text-(length:--number-size) [translate:0.05em_-0.08em] enabled:cursor-pointer enabled:hover:opacity-70 ${
                   i === index
                     ? 'opacity-100'
                     : loaded.has(i)

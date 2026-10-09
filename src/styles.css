@@ -16,13 +16,13 @@
   /* 固定フッターの高さ（iPhone のホームインジケータのぶんは含まない）。hero と Photos が重なりを避ける */
   --spacing-footer: 3.25rem;
 
-  --font-sans: system-ui, sans-serif;
-  /* カレンダーの番号に使う書体。1 の字幅が広い lnum 側を lining-nums で選ぶ */
+  /* サイトの書体。名前（ナビの mu）以外はすべてこれ。読み込みは index.html */
+  --font-sans: 'Zen Kaku Gothic New', system-ui, sans-serif;
+  /* ナビの名前（mu）に使う書体 */
   --font-number: 'F1.8', var(--font-sans);
 }
 
-/* 絞り値を模した数字が特徴の書体（Sora Sagano, 2021）。
-   カレンダーの番号を写真のメタデータのように見せるために使う */
+/* 絞り値を模した数字が特徴の書体（Sora Sagano, 2021）。ナビの名前（mu）に使う */
 @font-face {
   font-family: 'F1.8';
   src: url('./assets/F1.8-Regular.otf') format('opentype');

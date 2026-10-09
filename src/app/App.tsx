@@ -18,7 +18,8 @@ export function App() {
   return (
     <>
       <Nav />
-      <main>
+      {/* 中身の文字は 300。小見出しだけ 400 に戻す（Page の Heading、About の欄見出し） */}
+      <main className="font-light">
         <Switch>
           <Route path="/" component={Top} />
           <Route path="/photos" component={Photos} />
