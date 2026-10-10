@@ -12,8 +12,7 @@ Satoshi Hata（写真家 / エンジニア）のポートフォリオサイト�
 
 ## 現在の状態
 
-実装済みのものと技術的な詳細は [README.md](README.md) を参照。トップの粒子 hero、
-Photos の試作、About / Contact の仮実装がある。ページごとの状態と未決は site.md。
+実装済みのものと技術的な詳細は [README.md](README.md) を参照。ページごとの状態と未決は site.md。
 
 ## スタック
 
