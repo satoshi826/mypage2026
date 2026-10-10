@@ -1,6 +1,8 @@
-import {Link, useParams} from 'wouter'
+import {useRef} from 'react'
+import {useParams} from 'wouter'
 import {CATEGORIES, toCategory, usePhotos, type Category} from '../../photos'
 import {Gallery} from '../../gallery/Gallery'
+import {Tabs, Underline} from '../Tabs'
 
 const LABEL: Record<Category, string> = {street: 'Street', abstract: 'Abstract', color: 'Color'}
 
@@ -22,20 +24,20 @@ export function Photos() {
   )
 }
 
-/** カテゴリの切り替え。フッターの左に置く */
+/**
+ * カテゴリの切り替え。フッターの左に置く。見た目と下線の動きはナビのページのリンクと同じ（Tabs.tsx）
+ */
 export function PhotoCategories({current}: {current: Category}) {
+  const ref = useRef<HTMLElement>(null)
+  const items = CATEGORIES.map((c) => ({
+    href: c === 'street' ? '/photos' : `/photos/${c}`,
+    label: LABEL[c],
+    current: c === current
+  }))
   return (
-    <nav aria-label="カテゴリ" className="flex gap-6 text-xs tracking-[0.12em] max-sm:gap-3 max-sm:text-[0.625rem]">
-      {CATEGORIES.map((c) => (
-        <Link
-          key={c}
-          href={c === 'street' ? '/photos' : `/photos/${c}`}
-          aria-current={c === current ? 'page' : undefined}
-          className="no-underline opacity-55 transition-opacity duration-300 hover:opacity-100 focus-visible:opacity-100 aria-[current=page]:opacity-100"
-        >
-          {LABEL[c]}
-        </Link>
-      ))}
+    <nav ref={ref} aria-label="カテゴリ" className="relative h-full">
+      <Tabs items={items} />
+      <Underline within={ref} current={current} />
     </nav>
   )
 }
