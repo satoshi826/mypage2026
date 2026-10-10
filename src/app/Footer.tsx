@@ -39,7 +39,7 @@ export function Footer({location}: {location: string}) {
           data-scroll-progress
           data-page-footer
           aria-hidden
-          className="absolute inset-x-0 -top-px h-[0.5px] bg-ink/35"
+          className="absolute inset-x-0 -top-px h-[0.5px] bg-ink/45"
         />
       )}
       <div className="flex items-center gap-5">

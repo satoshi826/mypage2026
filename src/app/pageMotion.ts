@@ -258,6 +258,18 @@ export function usePageTransition(motion: PageMotion) {
     if (footer) {
       const {exit} = footerFrames(m)
       for (const el of footerTargets()) animations.push(el.animate(exit, timing(m.footerExitSeconds)))
+    } else if (page) {
+      // フッターが残るとき（カテゴリの切り替え）、スクロールの線は差し替えで先頭へ戻ると 0 へ跳ぶ。
+      // 中身が消えるあいだに今の長さから 0 へ縮めておき、先頭へ戻った値と差し替えの瞬間に一致させる。
+      // スクリプトのアニメーションは CSS のスクロール連動より上に重なるので、そのあいだは連動を上書きできる
+      const line = document.querySelector<HTMLElement>('[data-scroll-progress]')
+      if (line)
+        animations.push(
+          line.animate([{scale: getComputedStyle(line).scale}, {scale: '0 1'}], {
+            ...timing(m.exitSeconds),
+            easing: 'cubic-bezier(0.65, 0, 0.35, 1)'
+          })
+        )
     }
     leaving.current = animations
     Promise.all(animations.map((a) => a.finished))
