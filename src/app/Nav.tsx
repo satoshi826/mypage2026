@@ -1,7 +1,7 @@
 import {Link, useRoute} from 'wouter'
 import {NAV_ROUTES} from './routes'
 
-const LINK = 'pointer-events-auto no-underline tracking-[0.12em] transition-opacity duration-300'
+const LINK = 'no-underline tracking-[0.12em] transition-opacity duration-300'
 
 function NavLink({path, label}: {path: string; label: string}) {
   const [isActive] = useRoute(path)
@@ -18,7 +18,7 @@ function NavLink({path, label}: {path: string; label: string}) {
 
 export function Nav() {
   return (
-    <nav className="pointer-events-none fixed top-0 right-[env(safe-area-inset-right)] left-[env(safe-area-inset-left)] z-10 box-border flex h-(--spacing-nav) items-baseline justify-between gap-4 border-b border-white/10 bg-black/35 px-8 py-4 backdrop-blur-[14px] max-sm:px-5 max-sm:py-3.5">
+    <nav className="fixed top-0 right-[env(safe-area-inset-right)] left-[env(safe-area-inset-left)] z-10 box-border flex h-(--spacing-nav) items-baseline justify-between gap-4 border-b border-white/10 bg-black/35 px-8 py-4 backdrop-blur-[14px] max-sm:px-5 max-sm:py-3.5">
       <Link href="/" className={`${LINK} font-number text-sm max-sm:text-xs`}>
         mu
       </Link>

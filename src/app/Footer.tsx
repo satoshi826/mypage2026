@@ -11,6 +11,8 @@ const LINK = 'flex opacity-55 transition-opacity duration-300 hover:opacity-100 
  * （トップは hero の再生操作、Photos はカテゴリ）。
  * 左の中身は URL で選ぶ。ページから差し込む形にすると、プリレンダの HTML に入らないため。
  *
+ * バー全体でクリックを受け止める。下を流れる写真に、バー越しに触れられないようにするため。
+ *
  * 高さは --spacing-footer。iPhone のホームインジケータに重ならないよう、そのぶん下に余白を足す。
  * 写真の配置（Gallery / hero）は、この要素の実寸か --spacing-footer を引いて重なりを避ける。
  */
@@ -18,12 +20,12 @@ export function Footer() {
   const [isTop] = useRoute('/')
   const [isPhotos, params] = useRoute('/photos/:category?')
   return (
-    <footer className="pointer-events-none fixed right-[env(safe-area-inset-right)] bottom-0 left-[env(safe-area-inset-left)] z-10 box-border flex h-[calc(var(--spacing-footer)+env(safe-area-inset-bottom))] items-center justify-between gap-4 border-t border-white/10 bg-black/35 px-8 pb-[env(safe-area-inset-bottom)] backdrop-blur-[14px] max-sm:px-5">
-      <div className="pointer-events-auto">
+    <footer className="fixed right-[env(safe-area-inset-right)] bottom-0 left-[env(safe-area-inset-left)] z-10 box-border flex h-[calc(var(--spacing-footer)+env(safe-area-inset-bottom))] items-center justify-between gap-4 border-t border-white/10 bg-black/35 px-8 pb-[env(safe-area-inset-bottom)] backdrop-blur-[14px] max-sm:px-5">
+      <div className="flex items-center self-stretch">
         {isTop && <HeroPlayer />}
         {isPhotos && <PhotoCategories current={toCategory(params?.category)} />}
       </div>
-      <div className="pointer-events-auto flex items-center gap-5">
+      <div className="flex items-center gap-5">
         <a href={INSTAGRAM} target="_blank" rel="noreferrer" aria-label="Instagram" className={LINK}>
           <svg
             viewBox="0 0 24 24"
