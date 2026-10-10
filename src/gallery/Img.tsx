@@ -20,13 +20,19 @@ export function Img({
   photo,
   alt,
   index,
-  large = false
+  large = false,
+  zoom = false
 }: {
   photo: Photo
   alt: string
   index: number
   /** 大きい派生を読む（広げているあいだ） */
   large?: boolean
+  /**
+   * 親の figure（group）にマウスを載せたあいだ、枠の中で少しズームする。倍率・秒数・イージングは
+   * Gallery が CSS 変数で渡す。hover の無い端末（タッチだけ）と、動きを減らす設定では動かない
+   */
+  zoom?: boolean
 }) {
   const ref = useRef<HTMLImageElement>(null)
   const [near, setNear] = useState(index < EAGER_THUMBS)
@@ -68,7 +74,7 @@ export function Img({
       alt={alt}
       width={photo.w}
       height={photo.h}
-      className="block h-auto w-full"
+      className={`block h-auto w-full ${zoom ? 'transition-[scale] duration-(--hover-seconds) ease-(--hover-ease) motion-safe:group-hover:scale-(--hover-zoom)' : ''}`}
     />
   )
 }

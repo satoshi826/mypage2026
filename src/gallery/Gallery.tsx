@@ -1,4 +1,4 @@
-import {useEffect, useLayoutEffect, useMemo, useRef, useState} from 'react'
+import {useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties} from 'react'
 import {Img} from './Img'
 import {GAP, layout, type Expansion} from './layout'
 import {useReveal} from './reveal'
@@ -21,6 +21,8 @@ type Before = Map<string, DOMRect>
  * 写真は動かさず、残りを押し下げる。もう一度押すと戻る。何枚でも広げておける。動きは FLIP。変更前の位置を記録し、レイアウトが
  * 変わった直後に差分だけ transform で動かして 0 へ戻す。基準の写真の画面上の位置は
  * スクロールを即座にずらして固定する（docs/design.md の連続性）。
+ *
+ * マウスを載せた写真は、枠を動かさずに中の画像だけ少しズームする（Img の zoom）。広げている写真は除く。
  */
 export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
   const root = useRef<HTMLDivElement>(null)
@@ -129,7 +131,18 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
   }, [expanded, photos, motion])
 
   return (
-    <div ref={root} className="relative" style={{height: placed?.height ?? 0}}>
+    <div
+      ref={root}
+      className="relative"
+      style={
+        {
+          height: placed?.height ?? 0,
+          '--hover-zoom': motion.hoverZoom,
+          '--hover-seconds': `${motion.hoverSeconds}s`,
+          '--hover-ease': EASINGS[motion.easing].css
+        } as CSSProperties
+      }
+    >
       {import.meta.env.DEV && (
         <div className="pointer-events-none fixed top-16 left-4 z-10">
           <DevPanel
@@ -153,13 +166,13 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
               data-file={photo.file}
               data-reveal
               onClick={() => toggle(photo.file)}
-              className={`absolute m-0 overflow-hidden ${wide ? 'cursor-zoom-out' : 'cursor-zoom-in'}`}
+              className={`group absolute m-0 overflow-hidden ${wide ? 'cursor-zoom-out' : 'cursor-zoom-in'}`}
               // 高さも配置の計算値で与える。src を外した img は高さ 0 になり、枠が潰れるため。
               // content-visibility: auto は使わない。中身を飛ばすかどうかの判定がフレームの更新に
               // 乗っていて、スクロールが止まったあと画面内の写真が飛ばされたまま残ることがある（Chrome）
               style={{left: at.x, top: at.y, width: at.w, height: at.h}}
             >
-              <Img photo={photo} alt={`${label} ${i + 1}`} index={i} large={wide} />
+              <Img photo={photo} alt={`${label} ${i + 1}`} index={i} large={wide} zoom={!wide} />
               {/* ワイプ用の覆い。styles.css の [data-reveal] を参照 */}
               <div data-reveal-cover aria-hidden />
             </figure>

@@ -1,6 +1,6 @@
 import type {Param} from '../app/DevPanel'
 
-// Photos で写真を広げる・戻すときの動きの調整値。Gallery（既定値）と開発用パネルの両方がここを使う。
+// Photos で写真を広げる・戻すときと、マウスを載せたときの動きの調整値。Gallery（既定値）と開発用パネルの両方がここを使う。
 // 値が固まったら DEFAULT_MOTION を書き換える。
 // スクロールで見つけた写真が現れるワイプは固定で、styles.css の [data-reveal] が持つ。
 
@@ -34,14 +34,20 @@ export type Motion = {
   expandSeconds: number
   /** 広げた写真が画面に収まらないとき、上辺をナビの下へ寄せるスクロールの秒数 */
   scrollSeconds: number
-  /** 動きとスクロールに共通のイージング */
+  /** 動きとスクロールに共通のイージング。ホバーのズームにも使う */
   easing: Easing
+  /** マウスを載せたとき、枠の中で写真を何倍にするか。枠は動かさない */
+  hoverZoom: number
+  /** ホバーのズームの秒数 */
+  hoverSeconds: number
 }
 
 export const DEFAULT_MOTION: Motion = {
   expandSeconds: 1,
   scrollSeconds: 1,
-  easing: 'easeOutQuint'
+  easing: 'easeOutQuint',
+  hoverZoom: 1.08,
+  hoverSeconds: 1.2
 }
 
 export const MOTION_PARAMS: Param<Motion>[] = [
@@ -54,5 +60,7 @@ export const MOTION_PARAMS: Param<Motion>[] = [
     step: 0.05,
     hint: '秒。広げた写真が画面に収まらないときだけ動く'
   },
-  {key: 'easing', label: 'イージング', options: Object.keys(EASINGS), hint: '動きとスクロールに共通'}
+  {key: 'easing', label: 'イージング', options: Object.keys(EASINGS), hint: '動き・スクロール・ホバーに共通'},
+  {key: 'hoverZoom', label: 'ホバーのズーム', min: 1, max: 1.15, step: 0.005, hint: '倍。枠は動かさない'},
+  {key: 'hoverSeconds', label: 'ホバーの秒数', min: 0.1, max: 2, step: 0.05, hint: '秒'}
 ]
