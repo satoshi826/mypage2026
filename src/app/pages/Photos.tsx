@@ -1,4 +1,3 @@
-import {useRef} from 'react'
 import {useParams} from 'wouter'
 import {CATEGORIES, toCategory, usePhotos, type Category} from '../../photos'
 import {Gallery} from '../../gallery/Gallery'
@@ -28,16 +27,15 @@ export function Photos() {
  * カテゴリの切り替え。フッターの左に置く。見た目と下線の動きはナビのページのリンクと同じ（Tabs.tsx）
  */
 export function PhotoCategories({current}: {current: Category}) {
-  const ref = useRef<HTMLElement>(null)
   const items = CATEGORIES.map((c) => ({
     href: c === 'street' ? '/photos' : `/photos/${c}`,
     label: LABEL[c],
     current: c === current
   }))
   return (
-    <nav ref={ref} aria-label="カテゴリ" className="relative h-full">
+    <nav aria-label="カテゴリ" className="relative h-full">
       <Tabs items={items} />
-      <Underline within={ref} current={current} />
+      <Underline current={current} />
     </nav>
   )
 }

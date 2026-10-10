@@ -1,4 +1,4 @@
-import {useLayoutEffect, useRef, type RefObject} from 'react'
+import {useLayoutEffect, useRef} from 'react'
 import {Link} from 'wouter'
 
 /** 文字の下端から下線までの間隔 px */
@@ -40,20 +40,23 @@ export function Tabs({items, className = ''}: {items: Tab[]; className?: string}
 }
 
 /**
- * 入れ物（within）の中で選んでいるリンク（aria-current）の下に引く 1 本の線。選ぶリンクが変わると、
+ * 入れ物（この線の親要素）の中で選んでいるリンク（aria-current）の下に引く 1 本の線。選ぶリンクが変わると、
  * 次のリンクの下へ滑って移る（hero のカレンダーの丸と同じ考え方）。文字の大きさが違うリンクの
  * あいだでも、その字のすぐ下へ縦にも滑る。選んでいるリンクが無いときは消し、次に出すときは
- * 滑らせずにその場に置く。within は position を持つ要素（線の基準になる）
+ * 滑らせずにその場に置く。親要素は position を持つこと（線の基準になる）。
+ *
+ * 入れ物を ref で受け取らずに親要素を使うのは、描画直後の処理が子（この線）から先に走り、
+ * 親の ref がまだ空のため。開発中は処理が 2 回走るので気づきにくい
  */
-export function Underline({within, current}: {within: RefObject<HTMLElement | null>; current: string}) {
+export function Underline({current}: {current: string}) {
   const lineRef = useRef<HTMLDivElement>(null)
   // 線が出ているか
   const shown = useRef(false)
 
   useLayoutEffect(() => {
-    const box = within.current
     const line = lineRef.current
-    if (!box || !line) return
+    const box = line?.parentElement
+    if (!line || !box) return
     const label = box.querySelector<HTMLElement>('[aria-current=page] > span')
     if (!label) {
       line.style.opacity = '0'
@@ -86,7 +89,7 @@ export function Underline({within, current}: {within: RefObject<HTMLElement | nu
     observer.observe(box)
     observer.observe(label)
     return () => observer.disconnect()
-  }, [current, within])
+  }, [current])
 
   return (
     <div
