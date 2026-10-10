@@ -161,6 +161,7 @@ worker/     Cloudflare Worker（写真の API）
 | `app/DevPanel.tsx`  | 数値や選択肢を詰める開発用パネル（`import.meta.env.DEV` の中でのみ描画）。hero と Photos が使う |
 | `hero/layout.ts`    | コントロールパネルの寸法と、写真との並べ方の決定 |
 | `app/routes.ts`     | ルート定義。ナビ・プリレンダ・title/description の唯一の出典 |
+| `app/pageMotion.ts` | ページの移動。URL と表示中の中身を分け、中身とフッターの操作を「消える → 見えないあいだに差し替えて先頭へ戻す → 現れる」で入れ替える。演出は開発用パネル（`app/PageTransition.tsx`）で切り替える |
 | `app/Footer.tsx`    | 固定フッター。右に SNS、左にそのページ固有の操作（URL で選ぶ）。リンク先は `app/social.ts` |
 | `app/pages/`        | 各ページ |
 | `app/useSmoothScroll.ts` | 慣性スクロール。ホイールを横取りして目標へ減衰追従させる。全ページ共通 |

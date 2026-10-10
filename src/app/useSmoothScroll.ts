@@ -1,5 +1,4 @@
 import {useEffect} from 'react'
-import {useLocation} from 'wouter'
 
 /*
  * 慣性スクロール。ホイールの入力を直接使わず、目標位置へ毎フレーム少しずつ寄せる（docs/design.md）。
@@ -107,11 +106,17 @@ export function jumpTo(y: number) {
   write(position)
 }
 
-/** 全ページ共通。ページ遷移時は先頭へ即座に戻す */
-export function useSmoothScroll() {
-  const [location] = useLocation()
+/** 先頭へ即座に戻す。ページの移動で、中身が見えていないあいだに使う（PageTransition.tsx） */
+export function resetScroll() {
+  jumpTo(0)
+}
 
+/** 全ページ共通 */
+export function useSmoothScroll() {
   useEffect(() => {
+    // 戻る・進むでブラウザがスクロール位置を復元すると、消える前の中身ごと跳ぶ。先頭へ戻すのは
+    // ページの移動の側で、中身が見えていないあいだに行う
+    history.scrollRestoration = 'manual'
     still = matchMedia('(prefers-reduced-motion: reduce)').matches
     position = target = scrollY
     addEventListener('scroll', onScroll)
@@ -123,8 +128,4 @@ export function useSmoothScroll() {
       frame = 0
     }
   }, [])
-
-  useEffect(() => {
-    window.scrollTo({top: 0, behavior: 'instant'})
-  }, [location])
 }
