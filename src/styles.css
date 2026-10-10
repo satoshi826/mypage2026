@@ -120,6 +120,26 @@ a {
   transition: none;
 }
 
+/* ナビの下の線に重ねる、ページをどこまでスクロールしたか（Nav.tsx）。スクロールに連動する
+   アニメーションで描くので JS は動かない。慣性スクロールにも、写真を広げてページが伸びたときにも
+   そのまま追従する。対応していないブラウザ（Firefox）では出さず、ただの境界線のまま。
+   スクロールしないページでも出ない */
+[data-scroll-progress] {
+  scale: 0 1;
+  transform-origin: left;
+}
+@supports (animation-timeline: scroll()) {
+  [data-scroll-progress] {
+    animation: scroll-progress linear both;
+    animation-timeline: scroll(root);
+  }
+}
+@keyframes scroll-progress {
+  to {
+    scale: 1 1;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   [data-reveal-cover] {
     display: none;

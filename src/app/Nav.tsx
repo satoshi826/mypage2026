@@ -29,6 +29,8 @@ export function Nav() {
           <NavLink key={path} path={path} label={label!} />
         ))}
       </div>
+      {/* 下の境界線に重ねて、スクロールの進み具合を伸ばす。styles.css の [data-scroll-progress] */}
+      <div data-scroll-progress aria-hidden className="absolute inset-x-0 -bottom-px h-px bg-ink/35" />
     </nav>
   )
 }
