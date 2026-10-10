@@ -4,7 +4,8 @@ import {TabLink, Tabs, Underline} from './Tabs'
 
 /**
  * 固定ナビ。左に名前（mu、トップへのリンク）、右にページのリンク。選んでいるページの下に線を引き、
- * ページを移ると線が滑って移る。トップでは mu の下に来る（Tabs.tsx の Underline）
+ * ページを移ると線が滑って移る（Tabs.tsx の Underline）。トップでは線を出さない。hero が主役で、
+ * どのページにいるかを示す必要が薄いため
  */
 export function Nav() {
   const [location] = useLocation()
@@ -20,7 +21,7 @@ export function Nav() {
       <TabLink
         href="/"
         label="mu"
-        current={location === '/'}
+        current={false}
         // pt は F1.8 の字面がリンクより高く見えるぶん、名前だけ少し下げるため
         className="pt-1 font-number text-sm tracking-[0.12em] max-sm:text-xs"
       />
@@ -28,8 +29,6 @@ export function Nav() {
           --spacing-nav とずれる。360px で収まるところまで詰める */}
       <Tabs items={items} className="font-light" />
       <Underline current={location} />
-      {/* 下の境界線に重ねて、スクロールの進み具合を伸ばす。styles.css の [data-scroll-progress] */}
-      <div data-scroll-progress aria-hidden className="absolute inset-x-0 -bottom-px h-px bg-ink/35" />
     </nav>
   )
 }

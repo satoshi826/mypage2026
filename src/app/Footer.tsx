@@ -8,7 +8,8 @@ const LINK = 'flex opacity-55 transition-opacity duration-300 hover:opacity-100 
 
 /**
  * 固定フッター。ナビと対になり、右に SNS、左にそのページ固有の操作を置く
- * （トップは hero の再生操作、Photos はカテゴリ）。
+ * （トップは hero の再生操作、Photos はカテゴリ）。上の線は、そのページの進み具合を示す
+ * （トップのスマホは hero の次の写真まで、Photos は一覧のどこまで見たか）。
  * 左の中身は URL で選ぶ。ページから差し込む形にすると、プリレンダの HTML に入らないため。
  *
  * バー全体でクリックを受け止める。下を流れる写真に、バー越しに触れられないようにするため。
@@ -25,6 +26,8 @@ export function Footer() {
         {isTop && <HeroPlayer />}
         {isPhotos && <PhotoCategories current={toCategory(params?.category)} />}
       </div>
+      {/* 上の境界線に重ねて、一覧をどこまでスクロールしたかを伸ばす。styles.css の [data-scroll-progress] */}
+      {isPhotos && <div data-scroll-progress aria-hidden className="absolute inset-x-0 -top-px h-px bg-ink/35" />}
       <div className="flex items-center gap-5">
         <a href={INSTAGRAM} target="_blank" rel="noreferrer" aria-label="Instagram" className={LINK}>
           <svg
