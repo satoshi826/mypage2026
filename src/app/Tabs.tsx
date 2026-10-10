@@ -42,8 +42,10 @@ export function Tabs({items, className = ''}: {items: Tab[]; className?: string}
 /**
  * 入れ物（この線の親要素）の中で選んでいるリンク（aria-current）の下に引く 1 本の線。選ぶリンクが変わると、
  * 次のリンクの下へ滑って移る（hero のカレンダーの丸と同じ考え方）。文字の大きさが違うリンクの
- * あいだでも、その字のすぐ下へ縦にも滑る。選んでいるリンクが無いときは消し、次に出すときは
- * 滑らせずにその場に置く。親要素は position を持つこと（線の基準になる）。
+ * あいだでも、その字のすぐ下へ縦にも滑る。親要素は position を持つこと（線の基準になる）。
+ *
+ * 選んでいるリンクが無くなる・現れるとき（ナビのトップと他のページのあいだ）は、その場で中央の点へ縮んで
+ * 消え、中央の点から左右へ伸びて線になる。ページを直接開いたときは出入りさせずにその場に置く。
  *
  * 入れ物を ref で受け取らずに親要素を使うのは、描画直後の処理が子（この線）から先に走り、
  * 親の ref がまだ空のため。開発中は処理が 2 回走るので気づきにくい
@@ -52,38 +54,44 @@ export function Underline({current}: {current: string}) {
   const lineRef = useRef<HTMLDivElement>(null)
   // 線が出ているか
   const shown = useRef(false)
+  // 描いてから最初の 1 回か
+  const mounted = useRef(false)
 
   useLayoutEffect(() => {
     const line = lineRef.current
     const box = line?.parentElement
     if (!line || !box) return
+    const first = !mounted.current
+    mounted.current = true
     const label = box.querySelector<HTMLElement>('[aria-current=page] > span')
     if (!label) {
-      line.style.opacity = '0'
+      // 消えるときは位置と長さを残したまま、横の倍率だけを 0 へ。縮みきると点になって見えなくなる
+      if (shown.current) line.style.transform = line.style.transform.replace(/scaleX\([^)]*\)/, 'scaleX(0)')
       shown.current = false
       return
     }
-    const move = () => {
-      // 横は枠（少しはみ出させる）、縦は文字のすぐ下。どちらも入れ物の内側の左上から測る
+    // 画面の画素にそろえる。1px の線が画素の境目にかかると 2 画素ににじんで太く見えるため
+    const snap = (v: number) => Math.round(v * devicePixelRatio) / devicePixelRatio
+    /** 文字の下に置く。横は枠（少しはみ出させる）、縦は文字のすぐ下。入れ物の内側の左上から測る */
+    const put = (scale: number) => {
       const origin = box.getBoundingClientRect()
       const link = label.parentElement!.getBoundingClientRect()
       const text = label.getBoundingClientRect()
-      // 画面の画素にそろえる。1px の線が画素の境目にかかると 2 画素ににじんで太く見えるため
-      const snap = (v: number) => Math.round(v * devicePixelRatio) / devicePixelRatio
       const x = snap(link.left - origin.left - box.clientLeft - OVERHANG)
       const y = snap(text.bottom - origin.top - box.clientTop + GAP)
       line.style.width = `${snap(link.width + OVERHANG * 2)}px`
-      line.style.transform = `translate(${x}px, ${y}px)`
+      line.style.transform = `translate(${x}px, ${y}px) scaleX(${scale})`
     }
-    if (shown.current) move()
-    else {
+    const move = () => put(1)
+    if (!shown.current) {
       shown.current = true
+      // 最初の表示はその場に置く。それ以外は中央の点に置いてから伸ばす
       line.style.transition = 'none'
-      move()
-      line.style.opacity = ''
+      put(first ? 1 : 0)
       line.getBoundingClientRect()
       line.style.transition = ''
     }
+    move()
     // 画面の幅が変わったときと、書体が読み込まれて文字の幅が変わったときに測り直す
     const observer = new ResizeObserver(move)
     observer.observe(box)

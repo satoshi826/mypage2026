@@ -5,7 +5,8 @@ import {TabLink, Tabs, Underline} from './Tabs'
 /**
  * 固定ナビ。左に名前（mu、トップへのリンク）、右にページのリンク。選んでいるページの下に線を引き、
  * ページを移ると線が滑って移る（Tabs.tsx の Underline）。トップでは線を出さない。hero が主役で、
- * どのページにいるかを示す必要が薄いため
+ * どのページにいるかを示す必要が薄いため。トップと他のページのあいだでは、線がその場で点へ縮んで
+ * 消え、点から伸びて現れる
  */
 export function Nav() {
   const [location] = useLocation()
