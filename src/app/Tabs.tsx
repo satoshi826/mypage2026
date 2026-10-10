@@ -9,7 +9,7 @@ const OVERHANG = 4
 export type Tab = {href: string; label: string; current: boolean}
 
 /**
- * 固定バー（ナビとフッター）のリンク 1 つ。押せる範囲はバーの高さいっぱい。文字の濃さは 80%、
+ * 固定バー（ナビとフッター）のリンク 1 つ。押せる範囲はバーの高さいっぱい。文字の濃さは 90%、
  * ホバーで 100%。選んでいるかどうかは文字では示さず、入れ物の Underline が下線で示す
  */
 export function TabLink({href, label, current, className = ''}: Tab & {className?: string}) {
@@ -17,7 +17,7 @@ export function TabLink({href, label, current, className = ''}: Tab & {className
     <Link
       href={href}
       aria-current={current ? 'page' : undefined}
-      className={`flex items-center justify-center no-underline opacity-80 transition-opacity duration-300 hover:opacity-100 focus-visible:opacity-100 ${className}`}
+      className={`flex items-center justify-center no-underline opacity-90 transition-opacity duration-300 hover:opacity-100 focus-visible:opacity-100 ${className}`}
     >
       {/* バーの中央からわずかに上げる。下線は文字の実寸から測るので一緒に上がる */}
       <span className="-translate-y-0.5">{label}</span>
@@ -95,7 +95,7 @@ export function Underline({current}: {current: string}) {
     <div
       ref={lineRef}
       aria-hidden
-      className="pointer-events-none absolute top-0 left-0 h-px bg-ink/60 transition-transform duration-800 ease-[cubic-bezier(0.22,1,0.36,1)]"
+      className="pointer-events-none absolute top-0 left-0 h-[0.5px] bg-ink/60 transition-transform duration-800 ease-[cubic-bezier(0.22,1,0.36,1)]"
     />
   )
 }

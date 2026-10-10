@@ -27,7 +27,7 @@ export function Footer() {
         {isPhotos && <PhotoCategories current={toCategory(params?.category)} />}
       </div>
       {/* 上の境界線に重ねて、一覧をどこまでスクロールしたかを伸ばす。styles.css の [data-scroll-progress] */}
-      {isPhotos && <div data-scroll-progress aria-hidden className="absolute inset-x-0 -top-px h-px bg-ink/35" />}
+      {isPhotos && <div data-scroll-progress aria-hidden className="absolute inset-x-0 -top-px h-[0.5px] bg-ink/35" />}
       <div className="flex items-center gap-5">
         <a href={INSTAGRAM} target="_blank" rel="noreferrer" aria-label="Instagram" className={LINK}>
           <svg
