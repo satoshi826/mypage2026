@@ -18,7 +18,7 @@ export function Nav() {
   }))
 
   return (
-    <nav className="fixed top-0 right-[env(safe-area-inset-right)] left-[env(safe-area-inset-left)] z-10 box-border flex h-(--spacing-nav) items-stretch justify-between gap-4 border-b border-white/10 bg-black/35 px-8 backdrop-blur-[14px] max-sm:px-5">
+    <nav className="fixed top-0 right-[env(safe-area-inset-right)] left-[env(safe-area-inset-left)] z-10 box-border flex h-(--spacing-nav) items-stretch justify-between gap-4 border-b border-white/10 bg-black/60 px-8 backdrop-blur-[10px] max-sm:px-5">
       <TabLink
         href="/"
         label="mu"

@@ -33,7 +33,7 @@ export function Footer({location}: {location: string}) {
   const [toPhotos, next] = matchRoute(parser, '/photos/:category?', actual)
   const category = toCategory((toPhotos ? next : params)?.category)
   return (
-    <footer className="fixed right-[env(safe-area-inset-right)] bottom-0 left-[env(safe-area-inset-left)] z-10 box-border flex h-[calc(var(--spacing-footer)+env(safe-area-inset-bottom))] items-center justify-between gap-4 border-t border-white/10 bg-black/35 px-8 pb-[env(safe-area-inset-bottom)] backdrop-blur-[14px] max-sm:px-5">
+    <footer className="fixed right-[env(safe-area-inset-right)] bottom-0 left-[env(safe-area-inset-left)] z-10 box-border flex h-[calc(var(--spacing-footer)+env(safe-area-inset-bottom))] items-center justify-between gap-4 border-t border-white/10 bg-black/60 px-8 pb-[env(safe-area-inset-bottom)] backdrop-blur-[10px] max-sm:px-5">
       <div data-page-footer className="flex items-center self-stretch will-change-[opacity]">
         {isTop && <HeroPlayer />}
         {isPhotos && <PhotoCategories current={category} />}
