@@ -165,6 +165,7 @@ worker/     Cloudflare Worker（写真の API）
 | `app/Footer.tsx`    | 固定フッター。右に SNS、左にそのページ固有の操作（URL で選ぶ）。リンク先は `app/social.ts` |
 | `app/pages/`        | 各ページ |
 | `app/useSmoothScroll.ts` | 慣性スクロール。ホイールを横取りして目標へ減衰追従させる。全ページ共通 |
+| `app/Scrollbar.tsx` | 自前のスクロールバー（マウスなどの環境だけ）。ブラウザのものは消し、ナビとフッターのあいだに出す |
 | `gallery/layout.ts` | Photos の段組の計算。写真の順・幅・列数・広げている写真から各写真の位置を決める純粋関数 |
 | `gallery/Gallery.tsx` | Photos の一覧。layout.ts の結果を絶対配置で並べ、クリックでその場に広げる（FLIP）。`Img.tsx` が先読みと派生の切り替え |
 | `gallery/reveal.ts` | 視界に入った要素を現す演出（`data-reveal`）。見た目は `styles.css` |

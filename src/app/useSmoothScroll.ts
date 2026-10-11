@@ -9,7 +9,7 @@ import {useEffect} from 'react'
  *   自分の書き込み（ブラウザの scrollTo は進行中のキー操作などの滑らかな移動を打ち切る）。
  * - 寄せ方は frame-rate independent damping（1 - e^(-λ·dt)）。λ = LERP × 60 で、60fps なら
  *   1 フレームに残り距離の LERP だけ進む。
- * - 動きを減らす設定（prefers-reduced-motion）ではホイールに触らず、scrollToElement も即座に飛ぶ。
+ * - 動きを減らす設定（prefers-reduced-motion）ではホイールに触らず、glideTo も即座に飛ぶ。
  */
 
 /** 60fps 換算で 1 フレームに進む残り距離の割合 */
@@ -87,16 +87,20 @@ function tick(time: number) {
   frame = glide || position !== target ? requestAnimationFrame(tick) : 0
 }
 
-/** 要素の上辺へ寄せる。offset は上辺からのずらし px（負で手前に止める）、duration は秒、easing は 0〜1 → 0〜1 */
-export function scrollToElement(
-  el: HTMLElement,
-  {offset, duration, easing}: {offset: number; duration: number; easing: (t: number) => number}
-) {
-  const to = clamp(el.getBoundingClientRect().top + scrollY + offset)
+type GlideOptions = {duration: number; easing: (t: number) => number}
+
+/** その位置へ寄せる。duration は秒、easing は 0〜1 → 0〜1 */
+export function glideTo(y: number, {duration, easing}: GlideOptions) {
+  const to = clamp(y)
   if (still) return jumpTo(to)
   glide = {from: position, to, duration, easing, elapsed: 0}
   target = to
   run()
+}
+
+/** 要素の上辺へ寄せる。offset は上辺からのずらし px（負で手前に止める） */
+export function scrollToElement(el: HTMLElement, {offset, ...options}: GlideOptions & {offset: number}) {
+  glideTo(el.getBoundingClientRect().top + scrollY + offset, options)
 }
 
 /** 即座にその位置へ。進行中の移動は打ち切る。レイアウトの変化に合わせて視点を固定するために使う */

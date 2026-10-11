@@ -11,6 +11,7 @@ import {About} from './pages/About'
 import {Contact} from './pages/Contact'
 import {Admin} from '../admin/Admin'
 import {useSmoothScroll} from './useSmoothScroll'
+import {Scrollbar} from './Scrollbar'
 import {DEFAULT_PAGE_MOTION, usePageTransition} from './pageMotion'
 import {PageCover, PageMotionPanel} from './PageTransition'
 import {DevDock} from './DevPanel'
@@ -41,6 +42,7 @@ export function App() {
       </main>
       <PageCover />
       <Footer location={displayed} />
+      <Scrollbar />
       {import.meta.env.DEV && <DevDock />}
       {import.meta.env.DEV && <PageMotionPanel onChange={setMotion} />}
     </>

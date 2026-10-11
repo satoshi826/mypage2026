@@ -59,31 +59,22 @@ body {
   padding-inline: env(safe-area-inset-left) env(safe-area-inset-right);
 }
 
+/* スクロールバー。マウスなどの細かいポインタの環境ではブラウザのものを消し、自前のもの（Scrollbar.tsx）を
+   ナビとフッターのあいだに出す。ブラウザのものは領域を取り、画面の端まで届くはずの固定のナビとフッターを
+   その幅だけ削るため。タッチの環境（スマホ）は画面に重なる細いバーが出るだけなので、ブラウザに任せる */
 html {
-  /* スクロールバーの出現でレイアウトが横にずれるのを防ぐ。
-     macOS のようにスクロールバーが領域を取らない環境では何も予約しないので副作用がない */
-  scrollbar-gutter: stable;
   scrollbar-width: thin;
   /* つまみ / 溝。溝は透明にして地の色に溶かす */
   scrollbar-color: color-mix(in srgb, var(--color-ink) 22%, transparent) transparent;
 }
-
-/* scrollbar-width に未対応のブラウザ（Safari 18.2 未満）向け。
-   対応済みの環境で二重に効かないよう @supports で分ける */
-@supports not (scrollbar-width: thin) {
+@custom-variant pointer-fine (@media (hover: hover) and (pointer: fine));
+@media (hover: hover) and (pointer: fine) {
+  html {
+    scrollbar-width: none;
+  }
+  /* scrollbar-width に未対応のブラウザ（Safari 18.2 未満）向け */
   ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-  }
-  ::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  ::-webkit-scrollbar-thumb {
-    background: color-mix(in srgb, var(--color-ink) 22%, transparent);
-    border-radius: 3px;
-  }
-  ::-webkit-scrollbar-thumb:hover {
-    background: color-mix(in srgb, var(--color-ink) 40%, transparent);
+    display: none;
   }
 }
 
