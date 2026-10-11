@@ -98,11 +98,6 @@ export function glideTo(y: number, {duration, easing}: GlideOptions) {
   run()
 }
 
-/** 要素の上辺へ寄せる。offset は上辺からのずらし px（負で手前に止める） */
-export function scrollToElement(el: HTMLElement, {offset, ...options}: GlideOptions & {offset: number}) {
-  glideTo(el.getBoundingClientRect().top + scrollY + offset, options)
-}
-
 /** 即座にその位置へ。進行中の移動は打ち切る。レイアウトの変化に合わせて視点を固定するために使う */
 export function jumpTo(y: number) {
   position = target = clamp(y)

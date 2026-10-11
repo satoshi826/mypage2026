@@ -14,7 +14,7 @@ export type Photo = {
   hero: boolean
 }
 
-/** Photos で最初に待たず読む枚数。一覧（Img.tsx）が即座に読み、Worker が HTML の時点で preload させる */
+/** Photos の最初の数枚。Worker が HTML の時点で preload させ、一覧が描いたときにはキャッシュから出せるようにする */
 export const EAGER_THUMBS = 9
 
 export const isCategory = (value: unknown): value is Category =>

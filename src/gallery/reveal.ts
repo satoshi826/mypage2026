@@ -18,9 +18,14 @@ const MARGIN = 0.08
  * 中に画像があるときは、読み込みが終わるまで待ってから現す。空の枠に演出をかけて
  * あとから画像が突然出るのを避けるため。待っている写真は候補に残したまま、スクロールと
  * 画像の読み込み完了のたびに見直す。1 回きりのリスナーだと、src の付け外しの順序次第で取りこぼす。
- * deps は一覧の中身が変わったときに見直すため。
+ * deps は描かれている要素が変わったときに見直すため。onReveal は現したときに呼ぶ。要素が外れて
+ * 描き直されても現した状態を引き継げるよう、使う側が覚えておくため（Gallery）。
  */
-export function useReveal(root: React.RefObject<HTMLElement | null>, deps: unknown[]) {
+export function useReveal(
+  root: React.RefObject<HTMLElement | null>,
+  deps: unknown[],
+  onReveal: (target: HTMLElement) => void
+) {
   useEffect(() => {
     const el = root.current
     if (!el) return
@@ -28,7 +33,7 @@ export function useReveal(root: React.RefObject<HTMLElement | null>, deps: unkno
     const check = () => {
       const bottom = innerHeight * (1 - MARGIN) - (document.querySelector('footer')?.offsetHeight ?? 0)
       for (const target of pending) {
-        // 配置の変化に合わせて即座に出したもの（Gallery の go）
+        // 配置の変化に合わせて即座に出したもの（Gallery の relayout）
         if (target.hasAttribute('data-revealed')) {
           pending.delete(target)
           continue
@@ -42,6 +47,7 @@ export function useReveal(root: React.RefObject<HTMLElement | null>, deps: unkno
         if (img && !isLoaded(img)) continue
         pending.delete(target)
         target.dataset.revealed = ''
+        onReveal(target)
       }
     }
     check()
