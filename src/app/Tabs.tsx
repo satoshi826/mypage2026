@@ -40,7 +40,7 @@ export function Tabs({items, className = ''}: {items: Tab[]; className?: string}
 }
 
 /**
- * 入れ物（この線の親要素）の中で選んでいるリンク（aria-current）の下に引く 1 本の線。選ぶリンクが変わると、
+ * 入れ物（この線の親要素）の中で選んでいるリンク・ボタン（aria-current）の下に引く 1 本の線。選ぶリンクが変わると、
  * 次のリンクの下へ滑って移る（hero のカレンダーの丸と同じ考え方）。文字の大きさが違うリンクの
  * あいだでも、その字のすぐ下へ縦にも滑る。親要素は position を持つこと（線の基準になる）。
  *
@@ -63,7 +63,8 @@ export function Underline({current}: {current: string}) {
     if (!line || !box) return
     const first = !mounted.current
     mounted.current = true
-    const label = box.querySelector<HTMLElement>('[aria-current=page] > span')
+    // リンクは aria-current="page"、ボタン（Photos の列数のメニュー）は aria-current="true"
+    const label = box.querySelector<HTMLElement>('[aria-current] > span')
     if (!label) {
       // 消えるときは位置と長さを残したまま、横の倍率だけを 0 へ。縮みきると点になって見えなくなる
       if (shown.current) line.style.transform = line.style.transform.replace(/scaleX\([^)]*\)/, 'scaleX(0)')

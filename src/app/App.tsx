@@ -13,6 +13,7 @@ import {Admin} from '../admin/Admin'
 import {useSmoothScroll} from './useSmoothScroll'
 import {DEFAULT_PAGE_MOTION, usePageTransition} from './pageMotion'
 import {PageCover, PageMotionPanel} from './PageTransition'
+import {DevDock} from './DevPanel'
 
 export function App() {
   useDocumentTitle()
@@ -40,6 +41,7 @@ export function App() {
       </main>
       <PageCover />
       <Footer location={displayed} />
+      {import.meta.env.DEV && <DevDock />}
       {import.meta.env.DEV && <PageMotionPanel onChange={setMotion} />}
     </>
   )

@@ -17,7 +17,7 @@ import {
   type Timing
 } from './sequence'
 import {ControlPanel} from './ControlPanel'
-import {progressLine, setPlayer} from './playback'
+import {progressLines, setPlayer} from './playback'
 import {DevPanel} from '../app/DevPanel'
 import {
   LAYOUT_PARAMS,
@@ -201,11 +201,10 @@ export function Hero({photos: PHOTOS}: {photos: string[]}) {
       if (command.render || command.pointer || command.catchUp) post(command)
       // 進み具合も帯の境目も、プログレスの一番外側に CSS 変数として書く。
       // 中の3枚（遷移帯・静止帯・通過ぶん）はそれを継承して描き分ける
-      const bar = progressLine.current
-      if (bar) {
-        // 停止中は遷移が終わった地点で止める。バーは次の遷移までの待ち時間なので、
-        // 待っていないあいだ中途半端な位置に居座らせない。粒子のほうは着地まで動く
-        const progress = autoplay ? cycleProgress(stateRef.current, timing) : morphRatio(timing)
+      // 停止中は遷移が終わった地点で止める。バーは次の遷移までの待ち時間なので、
+      // 待っていないあいだ中途半端な位置に居座らせない。粒子のほうは着地まで動く
+      const progress = autoplay ? cycleProgress(stateRef.current, timing) : morphRatio(timing)
+      for (const bar of progressLines) {
         bar.style.setProperty('--progress', String(progress))
         bar.style.setProperty('--morph', `${morphRatio(timing) * 100}%`)
       }
@@ -279,7 +278,7 @@ export function Hero({photos: PHOTOS}: {photos: string[]}) {
         onSelect={(target) => go(jumpTo(stateRef.current, target, order, timingRef.current))}
       />
       {import.meta.env.DEV && (
-        <div className="pointer-events-none fixed top-16 left-4 z-10 flex flex-col gap-2">
+        <>
           <DevPanel
             title="粒子パラメータ"
             typeName="Tuning"
@@ -318,7 +317,7 @@ export function Hero({photos: PHOTOS}: {photos: string[]}) {
             storageKey="mypage2026.tone"
             onChange={setTone}
           />
-        </div>
+        </>
       )}
     </section>
   )

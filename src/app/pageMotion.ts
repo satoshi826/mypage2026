@@ -12,7 +12,8 @@ import {EASINGS, type Easing} from '../gallery/tuning'
  *
  * 動かすのは 2 組で、演出を別々に選べる。
  * - ページの中身: [data-page]（main）
- * - フッターの操作: [data-page-footer]（フッターの左側、Photos のスクロールの線）
+ * - フッターの操作: [data-page-footer]（フッターの左側、Photos の一覧の操作とスクロールの線）。
+ *   フッターの細い線（[data-page-grow]）は、ぼかさずに点から伸び縮みさせる
  * 差し替えは 1 回なので、両方が消えきるのを待ってから差し替え、それぞれの設定で現れる。
  * Photos のカテゴリの切り替えでは、フッターは残す（カテゴリの下線が滑り、スクロールの線も続く）。
  *
@@ -201,6 +202,13 @@ function pageTargets(m: PageMotion): HTMLElement[] {
 
 const footerTargets = () => [...document.querySelectorAll<HTMLElement>('[data-page-footer]')]
 
+/**
+ * フッターの線（[data-page-grow]、Photos の SNS との仕切り）。ぼかさずに、中央の点から伸びて現れ、点へ縮んで
+ * 消える。細い線はぼかすと形が崩れるため。秒数はフッターの演出に合わせる
+ */
+const growTargets = () => [...document.querySelectorAll<HTMLElement>('[data-page-grow]')]
+const GROW: Frames = {exit: [{scale: '1 1'}, {scale: '1 0'}], enter: [{scale: '1 0'}, {scale: '1 1'}]}
+
 /** 同じページの中の移動か（Photos のカテゴリの切り替え） */
 const samePage = (parser: Parameters<typeof matchRoute>[0], a: string, b: string) =>
   matchRoute(parser, '/photos/:category?', a)[0] && matchRoute(parser, '/photos/:category?', b)[0]
@@ -258,6 +266,7 @@ export function usePageTransition(motion: PageMotion) {
     if (footer) {
       const {exit} = footerFrames(m)
       for (const el of footerTargets()) animations.push(el.animate(exit, timing(m.footerExitSeconds)))
+      for (const el of growTargets()) animations.push(el.animate(GROW.exit, timing(m.footerExitSeconds)))
     } else if (page) {
       // フッターが残るとき（カテゴリの切り替え）、スクロールの線は差し替えで先頭へ戻ると 0 へ跳ぶ。
       // 中身が消えるあいだに今の長さから 0 へ縮めておき、先頭へ戻った値と差し替えの瞬間に一致させる。
@@ -316,6 +325,7 @@ export function usePageTransition(motion: PageMotion) {
     if (enter.footer) {
       const {enter: frames} = footerFrames(m)
       for (const el of footerTargets()) el.animate(frames, timing(m.footerEnterSeconds, m.footerDelay))
+      for (const el of growTargets()) el.animate(GROW.enter, timing(m.footerEnterSeconds, m.footerDelay))
     }
     for (const a of exits) a.cancel()
   }, [swaps])

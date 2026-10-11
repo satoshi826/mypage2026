@@ -36,7 +36,8 @@ export function usePlayer() {
 }
 
 /**
- * フッターにある次の遷移までのプログレス。フッターが ref として渡し、Hero が毎フレーム
- * --progress と --morph を書き込む。進み具合は連続値なので React の state を通さない
+ * フッターにある次の遷移までのプログレス（PC は再生操作の後ろ、スマホはフッターの上の線）。描かれているものを
+ * HeroProgress がここへ入れ、Hero が毎フレーム --progress と --morph を書き込む。進み具合は連続値なので
+ * React の state を通さない
  */
-export const progressLine: {current: HTMLDivElement | null} = {current: null}
+export const progressLines = new Set<HTMLDivElement>()

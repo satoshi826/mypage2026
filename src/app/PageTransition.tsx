@@ -19,16 +19,14 @@ export function PageCover() {
 /** 演出を切り替える開発用パネル。App が import.meta.env.DEV の中でだけ描く */
 export function PageMotionPanel({onChange}: {onChange: (motion: PageMotion) => void}) {
   return (
-    <div className="pointer-events-none fixed right-4 bottom-[calc(var(--spacing-footer)+1rem)] z-20">
-      <DevPanel
-        title="ページの移動"
-        typeName="PageMotion"
-        constName="DEFAULT_PAGE_MOTION"
-        params={PAGE_MOTION_PARAMS}
-        defaults={DEFAULT_PAGE_MOTION}
-        storageKey="mypage2026.pageMotion"
-        onChange={onChange}
-      />
-    </div>
+    <DevPanel
+      title="ページの移動"
+      typeName="PageMotion"
+      constName="DEFAULT_PAGE_MOTION"
+      params={PAGE_MOTION_PARAMS}
+      defaults={DEFAULT_PAGE_MOTION}
+      storageKey="mypage2026.pageMotion"
+      onChange={onChange}
+    />
   )
 }

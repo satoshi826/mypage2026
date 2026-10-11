@@ -2,13 +2,14 @@ import {useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSPropertie
 import {Img} from './Img'
 import {GAP, layout, type Expansion} from './layout'
 import {useReveal} from './reveal'
+import {chosenColumns, rememberColumns, setGalleryControls, type Columns} from './controls'
 import {DEFAULT_MOTION, EASINGS, MOTION_PARAMS, type Motion} from './tuning'
 import {DevPanel} from '../app/DevPanel'
 import {jumpTo, scrollToElement} from '../app/useSmoothScroll'
 import type {Photo} from '../photos'
 
-/** 容器の幅、列数、広げた写真に許す高さ（画面からナビと余白を引いたもの） */
-type Metrics = {width: number; cols: number; maxHeight: number}
+/** 容器の幅、画面の幅で決まる列数（auto のとき使う）、広げた写真に許す高さ（画面からナビと余白を引いたもの） */
+type Metrics = {width: number; autoCols: number; maxHeight: number}
 
 /** FLIP の「変更前」の figure の位置と大きさ */
 type Before = Map<string, DOMRect>
@@ -30,9 +31,13 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
   // 広げている写真。広げた順
   const [expanded, setExpanded] = useState<string[]>([])
   const [motion, setMotion] = useState(DEFAULT_MOTION)
+  // 列数。フッターで選ぶ（controls.ts）
+  const [columns, setColumns] = useState<Columns>(chosenColumns)
   const before = useRef<Before | null>(null)
-  // 直前に押した写真。広げる・戻すときの基準
-  const clicked = useRef<string | null>(null)
+  // 段組を変えたときに画面上の位置を保つ写真。押した写真、またはそのとき画面の中央にあった写真
+  const anchorFile = useRef<string | null>(null)
+  // 広げた写真が画面に収まらなければ寄せるか。押して広げたときだけ
+  const reveal = useRef(false)
 
   useReveal(root, [photos, metrics === null])
 
@@ -43,7 +48,7 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
       const {top, bottom} = bars()
       setMetrics({
         width: el.clientWidth,
-        cols: innerWidth < 640 ? 2 : 3,
+        autoCols: innerWidth < 640 ? 2 : 3,
         maxHeight: innerHeight - top - bottom - GAP * 2
       })
     }
@@ -56,33 +61,69 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
     }
   }, [])
 
+  const cols = columns === 'auto' ? metrics?.autoCols : columns
+
   const placed = useMemo(() => {
-    if (!metrics) return null
+    if (!metrics || !cols) return null
     const expansions: Expansion[] = expanded.flatMap((file) => {
       const photo = photos.find((p) => p.file === file)
       return photo ? [{file, width: Math.min(metrics.width, (metrics.maxHeight * photo.w) / photo.h)}] : []
     })
-    return layout(photos, metrics.width, metrics.cols, expansions)
-  }, [photos, metrics, expanded])
+    return layout(photos, metrics.width, cols, expansions)
+  }, [photos, metrics, cols, expanded])
 
-  /** 変更前の位置を記録してから、押した写真を広げる・戻す */
-  const toggle = (file: string) => {
+  /**
+   * 段組を変える。変更前の位置を記録してから change で状態を変え、直後に FLIP で動かす（下の useLayoutEffect）。
+   * anchor は画面上の位置を保つ写真。null ならそのとき画面の中央にある写真
+   */
+  const relayout = (anchor: string | null, change: () => void) => {
     const el = root.current
     if (!el) return
     const map: Before = new Map()
+    let center: string | null = null
+    let nearest = Infinity
     for (const figure of el.querySelectorAll<HTMLElement>('figure[data-file]')) {
       const rect = figure.getBoundingClientRect()
       map.set(figure.dataset.file!, rect)
       // 配置の変化で画面に入ってくる写真は、ワイプなしで即座に出す。ワイプはスクロールで
       // 見つけるためのもので、動いている最中に現れ始めると不連続に見える
       if (near(rect)) figure.dataset.revealed = ''
+      const distance = Math.hypot(
+        rect.left + rect.width / 2 - innerWidth / 2,
+        rect.top + rect.height / 2 - innerHeight / 2
+      )
+      if (distance < nearest) [nearest, center] = [distance, figure.dataset.file!]
     }
     el.dataset.revealInstant = ''
     requestAnimationFrame(() => delete el.dataset.revealInstant)
     before.current = map
-    clicked.current = file
-    setExpanded((list) => (list.includes(file) ? list.filter((f) => f !== file) : [...list, file]))
+    anchorFile.current = anchor ?? center
+    change()
   }
+
+  /** 押した写真を広げる・戻す */
+  const toggle = (file: string) =>
+    relayout(file, () => {
+      reveal.current = !expanded.includes(file)
+      setExpanded((list) => (list.includes(file) ? list.filter((f) => f !== file) : [...list, file]))
+    })
+
+  // フッターの操作（列数、全部戻す）を出す。外れるときは消す
+  useEffect(() => {
+    setGalleryControls({
+      columns,
+      setColumns: (next) => {
+        if (next === columns) return
+        rememberColumns(next)
+        relayout(null, () => setColumns(next))
+      },
+      collapsible: expanded.length > 0,
+      collapseAll: () => {
+        if (expanded.length > 0) relayout(null, () => setExpanded([]))
+      }
+    })
+  })
+  useEffect(() => () => setGalleryControls(null), [])
 
   // レイアウトが変わった直後。基準の写真の画面上の位置を固定してから、差分を動かす
   useLayoutEffect(() => {
@@ -91,9 +132,9 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
     const el = root.current
     if (!first || !el) return
 
-    // 基準は押した写真。document 上の位置が変わったぶんだけスクロールを即座にずらし、
+    // 基準の写真の document 上の位置が変わったぶんだけスクロールを即座にずらし、
     // 画面上の位置を変えない。残りの動きは全部 FLIP が受け持つ
-    const file = clicked.current
+    const file = anchorFile.current
     const anchor = file ? el.querySelector<HTMLElement>(`figure[data-file="${CSS.escape(file)}"]`) : null
     const was = anchor && first.get(anchor.dataset.file!)
     if (anchor && was) {
@@ -117,8 +158,9 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
       for (const [figure, from, to] of moves) flip(figure, from, to, motion)
     }
 
-    // 広げた写真がナビとフッターのあいだに収まらなければ、上辺をナビの下へ慣性で寄せる
-    if (file && expanded.includes(file) && anchor) {
+    // 押して広げた写真がナビとフッターのあいだに収まらなければ、上辺をナビの下へ慣性で寄せる
+    if (reveal.current && anchor) {
+      reveal.current = false
       const {top, bottom} = bars()
       const rect = anchor.getBoundingClientRect()
       if (rect.top < top + GAP || rect.bottom > innerHeight - bottom)
@@ -128,7 +170,7 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
           easing: EASINGS[motion.easing].fn
         })
     }
-  }, [expanded, photos, motion])
+  }, [expanded, photos, motion, cols])
 
   return (
     <div
@@ -144,17 +186,15 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
       }
     >
       {import.meta.env.DEV && (
-        <div className="pointer-events-none fixed top-16 left-4 z-10">
-          <DevPanel
-            title="Photos の動き"
-            typeName="Motion"
-            constName="DEFAULT_MOTION"
-            params={MOTION_PARAMS}
-            defaults={DEFAULT_MOTION}
-            storageKey="mypage2026.motion"
-            onChange={setMotion}
-          />
-        </div>
+        <DevPanel
+          title="Photos の動き"
+          typeName="Motion"
+          constName="DEFAULT_MOTION"
+          params={MOTION_PARAMS}
+          defaults={DEFAULT_MOTION}
+          storageKey="mypage2026.motion"
+          onChange={setMotion}
+        />
       )}
       {placed &&
         photos.map((photo, i) => {

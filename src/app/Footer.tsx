@@ -1,18 +1,23 @@
 import {matchRoute, useLocation, useRouter} from 'wouter'
 import {PhotoCategories} from './pages/Photos'
 import {toCategory} from '../photos'
-import {HeroPlayer} from '../hero/HeroPlayer'
+import {HeroPlayer, HeroProgress} from '../hero/HeroPlayer'
+import {GalleryTools} from '../gallery/GalleryTools'
 import {INSTAGRAM, X} from './social'
 
-const LINK = 'flex opacity-55 transition-opacity duration-300 hover:opacity-100 focus-visible:opacity-100'
+// 枠の幅は Photos の一覧の操作のアイコンと同じ（GalleryTools.tsx）。並ぶアイコンの間隔をそろえるため
+const LINK =
+  'flex w-10 items-center justify-center opacity-55 transition-opacity duration-300 hover:opacity-100 focus-visible:opacity-100 max-sm:w-8'
 
 /**
  * 固定フッター。ナビと対になり、右に SNS、左にそのページ固有の操作を置く
- * （トップは hero の再生操作、Photos はカテゴリ）。上の線は、そのページの進み具合を示す
+ * （トップは hero の再生操作、Photos はカテゴリ。Photos の一覧の操作は右の SNS の手前に仕切って置く）。上の線は、そのページの進み具合を示す
  * （トップのスマホは hero の次の写真まで、Photos は一覧のどこまで見たか）。
  * 左の中身は場所で選ぶ。ページから差し込む形にすると、プリレンダの HTML に入らないため。
  * 場所は App が渡す表示中の場所で、ページの移動では中身（main）とは別の演出で消えて現れる
- * （[data-page-footer]、pageMotion.ts）。
+ * （[data-page-footer]、pageMotion.ts）。入れ替わる部分は will-change で普段から別の層にしておく。ぼかしで
+ * 現れる演出が終わった瞬間に層が外れて文字を描き直すと、一瞬ぼけて見えるため。filter や transform で層を
+ * 持たせると中の絶対配置（スマホの hero のプログレスの線）の基準がずれるので、opacity で持たせる
  *
  * バー全体でクリックを受け止める。下を流れる写真に、バー越しに触れられないようにするため。
  *
@@ -29,39 +34,56 @@ export function Footer({location}: {location: string}) {
   const category = toCategory((toPhotos ? next : params)?.category)
   return (
     <footer className="fixed right-[env(safe-area-inset-right)] bottom-0 left-[env(safe-area-inset-left)] z-10 box-border flex h-[calc(var(--spacing-footer)+env(safe-area-inset-bottom))] items-center justify-between gap-4 border-t border-white/10 bg-black/35 px-8 pb-[env(safe-area-inset-bottom)] backdrop-blur-[14px] max-sm:px-5">
-      <div data-page-footer className="flex items-center self-stretch">
+      <div data-page-footer className="flex items-center self-stretch will-change-[opacity]">
         {isTop && <HeroPlayer />}
         {isPhotos && <PhotoCategories current={category} />}
       </div>
+      {/* 狭い画面の hero のプログレス。上の境界線に重ねる。左側の入れ物の外に置く（HeroProgress） */}
+      {isTop && (
+        <div data-page-footer className="absolute inset-x-0 -top-px h-[0.5px] will-change-[opacity] sm:hidden">
+          <HeroProgress className="h-full w-full" />
+        </div>
+      )}
       {/* 上の境界線に重ねて、一覧をどこまでスクロールしたかを伸ばす。styles.css の [data-scroll-progress] */}
       {isPhotos && (
         <div
           data-scroll-progress
           data-page-footer
           aria-hidden
-          className="absolute inset-x-0 -top-px h-[0.5px] bg-ink/45"
+          className="absolute inset-x-0 -top-px h-[0.5px] bg-ink/45 will-change-[opacity]"
         />
       )}
-      <div className="flex items-center gap-5">
-        <a href={INSTAGRAM} target="_blank" rel="noreferrer" aria-label="Instagram" className={LINK}>
-          <svg
-            viewBox="0 0 24 24"
-            className="size-[18px]"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={1.5}
-            aria-hidden
-          >
-            <rect x="3" y="3" width="18" height="18" rx="5" />
-            <circle cx="12" cy="12" r="4" />
-            <circle cx="17.5" cy="6.5" r="0.9" fill="currentColor" stroke="none" />
-          </svg>
-        </a>
-        <a href={X} target="_blank" rel="noreferrer" aria-label="X" className={LINK}>
-          <svg viewBox="0 0 24 24" className="size-4" fill="currentColor" aria-hidden>
-            <path d="M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.638 7.584H.474l8.6-9.83L0 1.154h7.594l5.243 6.932ZM17.61 20.644h2.039L6.486 3.24H4.298Z" />
-          </svg>
-        </a>
+      {/* アイコンは枠の中央にあるので、枠の右の余白ぶん右へ寄せ、X の右端をナビの右端（Contact）にそろえる */}
+      <div className="-mr-3 flex items-center gap-6 self-stretch max-sm:-mr-2 max-sm:gap-2.5">
+        {/* Photos の一覧の操作。ページの移動では左側と一緒に消えて現れる */}
+        {isPhotos && (
+          <div data-page-footer className="flex self-stretch will-change-[opacity]">
+            <GalleryTools />
+          </div>
+        )}
+        {/* SNS との仕切り。ぼかさず、中央の点から上下へ伸びて現れ、点へ縮んで消える（[data-page-grow]） */}
+        {isPhotos && <div data-page-grow aria-hidden className="h-5 w-[0.5px] bg-ink/35" />}
+        <div className="flex self-stretch">
+          <a href={INSTAGRAM} target="_blank" rel="noreferrer" aria-label="Instagram" className={LINK}>
+            <svg
+              viewBox="0 0 24 24"
+              className="size-[18px]"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={1.5}
+              aria-hidden
+            >
+              <rect x="3" y="3" width="18" height="18" rx="5" />
+              <circle cx="12" cy="12" r="4" />
+              <circle cx="17.5" cy="6.5" r="0.9" fill="currentColor" stroke="none" />
+            </svg>
+          </a>
+          <a href={X} target="_blank" rel="noreferrer" aria-label="X" className={LINK}>
+            <svg viewBox="0 0 24 24" className="size-4" fill="currentColor" aria-hidden>
+              <path d="M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.638 7.584H.474l8.6-9.83L0 1.154h7.594l5.243 6.932ZM17.61 20.644h2.039L6.486 3.24H4.298Z" />
+            </svg>
+          </a>
+        </div>
       </div>
     </footer>
   )

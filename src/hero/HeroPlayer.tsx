@@ -1,12 +1,12 @@
-import type {CSSProperties, ReactNode} from 'react'
-import {progressLine, usePlayer} from './playback'
+import {useEffect, useRef, type CSSProperties, type ReactNode} from 'react'
+import {progressLines, usePlayer} from './playback'
 
 /** プログレスの未通過部分の濃さ %。遷移帯ぶんと静止帯ぶん。通過した部分は 100% */
 const MORPH_OPACITY = 30
 const DWELL_OPACITY = 16
 
 /**
- * フッターの左に置く hero の再生操作と、次の写真までのプログレス。
+ * フッターの左に置く hero の再生操作と、広い画面での次の写真までのプログレス。
  * 状態と操作は Hero が playback.ts に出したものを使う。hero がまだ無いあいだは何も描かず、
  * hero の写真の 6 割が隠れたら（読み進めているあいだは）隠す。
  */
@@ -29,24 +29,8 @@ export function HeroPlayer() {
       <Transport label="Next" onClick={player.next}>
         <path d="M5 5 14 12 5 19zM15 5h2v14h-2z" />
       </Transport>
-      {/* 次の遷移までのプログレス。前の遷移の開始で 0、次の遷移の開始で 1。通過した部分は
-          白一色にして、まだ通過していない部分を遷移ぶんと静止帯ぶんで塗り分け、どの地点で
-          止まるかが先に見えるようにする。
-          狭い画面ではフッターの上の線に重ね、広い画面では再生操作の後ろに長さを決めて置く。
-          全幅の線だと、広い画面では進みが速すぎて落ち着かないため */}
-      <div
-        ref={progressLine}
-        aria-hidden
-        className="absolute inset-x-0 -top-px flex h-[0.5px] sm:relative sm:inset-auto sm:top-auto sm:h-px sm:w-52"
-        style={{'--morph-opacity': `${MORPH_OPACITY}%`, '--dwell-opacity': `${DWELL_OPACITY}%`} as CSSProperties}
-      >
-        <div className="shrink-0 bg-ink [opacity:var(--morph-opacity)] [width:var(--morph)]" />
-        <div className="flex-1 bg-ink [opacity:var(--dwell-opacity)]" />
-        <div
-          className="absolute inset-0 bg-ink"
-          style={{clipPath: 'inset(0 calc((1 - var(--progress, 0)) * 100%) 0 0)'}}
-        />
-      </div>
+      {/* 広い画面のプログレス。狭い画面ではフッターの上の線を使う（Footer.tsx） */}
+      <HeroProgress className="h-px w-52 max-sm:hidden" />
       {/* モードであるシャッフルは最後に置く */}
       <Transport label="Shuffle" onClick={player.toggleShuffle} pressed={player.shuffle}>
         <g fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -54,6 +38,46 @@ export function HeroPlayer() {
           <path d="M18 3l3 3-3 3M18 15l3 3-3 3" />
         </g>
       </Transport>
+    </div>
+  )
+}
+
+/**
+ * 次の遷移までのプログレス。前の遷移の開始で 0、次の遷移の開始で 1。通過した部分は白一色にして、
+ * まだ通過していない部分を遷移ぶんと静止帯ぶんで塗り分け、どの地点で止まるかが先に見えるようにする。
+ *
+ * 広い画面では再生操作の後ろに長さを決めて置き（全幅だと進みが速すぎて落ち着かないため）、狭い画面では
+ * フッターの上の線に重ねる。狭い画面の線はフッターの直下に置く。再生操作の入れ物の中に置くと、ページの移動で
+ * 入れ物がぼけるあいだ（filter）、絶対配置の基準が入れ物に変わって線が縮むため。
+ * hero の写真の 6 割が隠れたら、再生操作と一緒に隠す
+ */
+export function HeroProgress({className}: {className: string}) {
+  const player = usePlayer()
+  const ref = useRef<HTMLDivElement>(null)
+  // 再生操作が出たときに線が描かれるので、そこで登録する
+  const ready = player !== null
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    progressLines.add(el)
+    return () => {
+      progressLines.delete(el)
+    }
+  }, [ready])
+  if (!player) return null
+  return (
+    <div
+      ref={ref}
+      aria-hidden
+      className={`relative flex transition-opacity duration-700 ${player.visible ? '' : 'opacity-0'} ${className}`}
+      style={{'--morph-opacity': `${MORPH_OPACITY}%`, '--dwell-opacity': `${DWELL_OPACITY}%`} as CSSProperties}
+    >
+      <div className="shrink-0 bg-ink [opacity:var(--morph-opacity)] [width:var(--morph)]" />
+      <div className="flex-1 bg-ink [opacity:var(--dwell-opacity)]" />
+      <div
+        className="absolute inset-0 bg-ink"
+        style={{clipPath: 'inset(0 calc((1 - var(--progress, 0)) * 100%) 0 0)'}}
+      />
     </div>
   )
 }
