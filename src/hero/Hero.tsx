@@ -81,6 +81,8 @@ export function Hero({photos: PHOTOS}: {photos: string[]}) {
   const [autoplay, setAutoplay] = useState(!reduced)
 
   const {canvas, post, ref} = useCanvas<Loaded>(Worker, ({layer}) => {
+    // 計測の印（bench/）。canvas は LCP の対象にならないので、写真が届いた時刻をここで残す
+    performance.mark('hero:photo')
     setAvailable((prev) => [...prev, layer].sort((a, b) => a - b))
   })
   useCanvasResize(post, ref)

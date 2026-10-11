@@ -37,3 +37,5 @@ dist-ssr
 .photos/
 # wrangler dev のローカル状態（R2 の模擬など）
 .wrangler/
+# 計測の結果（bench/）。数字は機械によって変わるので残さない
+bench/results/
