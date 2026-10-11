@@ -238,8 +238,16 @@ npm install
 npm run dev       # Vite（:5173）。写真の API（wrangler dev、:8787）も一緒に立ち上がり、
                   # /api と /images はそちらへプロキシされる。ローカルの R2 を使う
 npm run dev:api   # Worker だけを単体で動かすとき
+npm run dev:lan   # dev を LAN にも出す。手元のスマホから http://<Mac の IP>:5173 で見る
+npm run preview:lan  # 本番ビルドを LAN に出す（:8788）。実機で滑らかさを見るときはこちら
 npm run bench     # 読み込みと操作中の滑らかさを測る（bench/README.md）
 ```
+
+LAN に出すのは自宅など信頼できるネットワークだけにする。開発サーバはソースをそのまま配り、
+VPN など Mac のほかのネットワークにも出る。スマホからは管理画面の書き込みは通らない
+（Worker が宛先の host で localhost からの書き込みだけ通すため）。スマホのページは、iPhone なら
+Mac の Safari の Web インスペクタ、Android なら Chrome の chrome://inspect から計測できる。
+`http://<IP>` は安全な接続とみなされないので、Service Worker などはこの方法では試せない。
 
 Worker の型 `worker-configuration.d.ts` は `npx wrangler types` の生成物で、リポジトリに置く。
 `wrangler.jsonc`（バインディングや `compatibility_date`）を変えたら作り直してコミットする。
