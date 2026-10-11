@@ -1,15 +1,18 @@
 import {useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties} from 'react'
 import {Img} from './Img'
-import {GAP, layout, type Expansion} from './layout'
+import {gapFor, layout, type Expansion} from './layout'
 import {useReveal} from './reveal'
 import {chosenColumns, rememberColumns, setGalleryControls, type Columns} from './controls'
-import {DEFAULT_MOTION, EASINGS, MOTION_PARAMS, type Motion} from './tuning'
+import {DEFAULT_MOTION, DEFAULT_SPACING, EASINGS, MOTION_PARAMS, SPACING_PARAMS, type Motion} from './tuning'
 import {DevPanel} from '../app/DevPanel'
 import {jumpTo, scrollToElement} from '../app/useSmoothScroll'
 import type {Photo} from '../photos'
 
 /** 容器の幅、画面の幅で決まる列数（auto のとき使う）、広げた写真に許す高さ（画面からナビと余白を引いたもの） */
 type Metrics = {width: number; autoCols: number; maxHeight: number}
+
+/** 広げた写真とナビ・フッターのあいだ px */
+const MARGIN = 16
 
 /** FLIP の「変更前」の figure の位置と大きさ */
 type Before = Map<string, DOMRect>
@@ -31,6 +34,7 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
   // 広げている写真。広げた順
   const [expanded, setExpanded] = useState<string[]>([])
   const [motion, setMotion] = useState(DEFAULT_MOTION)
+  const [spacing, setSpacing] = useState(DEFAULT_SPACING)
   // 列数。フッターで選ぶ（controls.ts）
   const [columns, setColumns] = useState<Columns>(chosenColumns)
   const before = useRef<Before | null>(null)
@@ -49,7 +53,7 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
       setMetrics({
         width: el.clientWidth,
         autoCols: innerWidth < 640 ? 2 : 3,
-        maxHeight: innerHeight - top - bottom - GAP * 2
+        maxHeight: innerHeight - top - bottom - MARGIN * 2
       })
     }
     const observer = new ResizeObserver(measure)
@@ -69,8 +73,8 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
       const photo = photos.find((p) => p.file === file)
       return photo ? [{file, width: Math.min(metrics.width, (metrics.maxHeight * photo.w) / photo.h)}] : []
     })
-    return layout(photos, metrics.width, cols, expansions)
-  }, [photos, metrics, cols, expanded])
+    return layout(photos, metrics.width, cols, gapFor(metrics.width, cols, spacing), expansions)
+  }, [photos, metrics, cols, spacing, expanded])
 
   /**
    * 段組を変える。変更前の位置を記録してから change で状態を変え、直後に FLIP で動かす（下の useLayoutEffect）。
@@ -163,9 +167,9 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
       reveal.current = false
       const {top, bottom} = bars()
       const rect = anchor.getBoundingClientRect()
-      if (rect.top < top + GAP || rect.bottom > innerHeight - bottom)
+      if (rect.top < top + MARGIN || rect.bottom > innerHeight - bottom)
         scrollToElement(anchor, {
-          offset: -(top + GAP),
+          offset: -(top + MARGIN),
           duration: motion.scrollSeconds,
           easing: EASINGS[motion.easing].fn
         })
@@ -194,6 +198,17 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
           defaults={DEFAULT_MOTION}
           storageKey="mypage2026.motion"
           onChange={setMotion}
+        />
+      )}
+      {import.meta.env.DEV && (
+        <DevPanel
+          title="Photos の隙間"
+          typeName="Spacing"
+          constName="DEFAULT_SPACING"
+          params={SPACING_PARAMS}
+          defaults={DEFAULT_SPACING}
+          storageKey="mypage2026.spacing"
+          onChange={setSpacing}
         />
       )}
       {placed &&

@@ -1,7 +1,5 @@
 import type {Photo} from '../photos'
-
-/** 写真のあいだ px */
-export const GAP = 16
+import type {Spacing} from './tuning'
 
 export type Placed = {x: number; y: number; w: number; h: number}
 export type Layout = {items: Map<string, Placed>; height: number}
@@ -10,6 +8,15 @@ export type Layout = {items: Map<string, Placed>; height: number}
 export type Expansion = {file: string; width: number}
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(Math.max(v, lo), hi)
+
+/**
+ * 写真のあいだ px。写真 1 枚の幅に比例させ、列が増えて写真が小さくなるほど狭くする。固定にすると、
+ * 列の多いときに隙間が写真に対して太く見えるため。
+ * 写真の幅は隙間で決まるので、gap = ratio × (width − gap × (cols − 1)) / cols を gap について解いてから範囲に収める
+ */
+export function gapFor(width: number, cols: number, {gapRatio, gapMin, gapMax}: Spacing) {
+  return clamp((gapRatio * width) / (cols + gapRatio * (cols - 1)), gapMin, gapMax)
+}
 
 /**
  * 段組を計算する。各写真を順に、いちばん上が空いている列（同じなら左）へ置く。
@@ -23,9 +30,15 @@ const clamp = (v: number, lo: number, hi: number) => Math.min(Math.max(v, lo), h
  * 広げる写真より上にあった写真（y が小さいもの）は先に置いて動かさず、同じ高さと下の写真は
  * あとに回す（docs/design.md の連続性: 影響は下へだけ伝える）。
  */
-export function layout(photos: Photo[], width: number, cols: number, expansions: Expansion[] = []): Layout {
-  const colW = (width - GAP * (cols - 1)) / cols
-  const colX = (c: number) => c * (colW + GAP)
+export function layout(
+  photos: Photo[],
+  width: number,
+  cols: number,
+  gap: number,
+  expansions: Expansion[] = []
+): Layout {
+  const colW = (width - gap * (cols - 1)) / cols
+  const colX = (c: number) => c * (colW + gap)
 
   /** 置く順と、広げている写真の位置（x と幅）から段組を作る */
   const arrange = (order: Photo[], spans: Map<string, {x: number; w: number}>): Layout => {
@@ -46,9 +59,9 @@ export function layout(photos: Photo[], width: number, cols: number, expansions:
       const y = Math.max(...covered.map((c) => tops[c]))
       const h = (w * photo.h) / photo.w
       items.set(photo.file, {x, y, w, h})
-      for (const c of covered) tops[c] = y + h + GAP
+      for (const c of covered) tops[c] = y + h + gap
     }
-    return {items, height: Math.max(0, ...tops) - GAP}
+    return {items, height: Math.max(0, ...tops) - gap}
   }
 
   let order = photos

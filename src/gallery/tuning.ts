@@ -1,7 +1,7 @@
 import type {Param} from '../app/DevPanel'
 
-// Photos で写真を広げる・戻すときと、マウスを載せたときの動きの調整値。Gallery（既定値）と開発用パネルの両方がここを使う。
-// 値が固まったら DEFAULT_MOTION を書き換える。
+// Photos で写真を広げる・戻すときと、マウスを載せたときの動き、写真のあいだの調整値。Gallery（既定値）と
+// 開発用パネルの両方がここを使う。値が固まったら DEFAULT_MOTION / DEFAULT_SPACING を書き換える。
 // スクロールで見つけた写真が現れるワイプは固定で、styles.css の [data-reveal] が持つ。
 
 /** 広く使われるイージング。CSS 用の cubic-bezier と、スクロールに渡す関数の両方を持つ */
@@ -43,8 +43,8 @@ export type Motion = {
 }
 
 export const DEFAULT_MOTION: Motion = {
-  expandSeconds: 1.2,
-  scrollSeconds: 1.2,
+  expandSeconds: 1,
+  scrollSeconds: 1,
   easing: 'easeOutQuint',
   hoverZoom: 1.1,
   hoverSeconds: 1.4
@@ -63,4 +63,33 @@ export const MOTION_PARAMS: Param<Motion>[] = [
   {key: 'easing', label: 'イージング', options: Object.keys(EASINGS), hint: '動き・スクロール・ホバーに共通'},
   {key: 'hoverZoom', label: 'ホバーのズーム', min: 1, max: 1.15, step: 0.005, hint: '倍。枠は動かさない'},
   {key: 'hoverSeconds', label: 'ホバーの秒数', min: 0.1, max: 2, step: 0.05, hint: '秒'}
+]
+
+/** 写真のあいだ。写真 1 枚の幅に比例させ、範囲に収める（layout.ts の gapFor） */
+export type Spacing = {
+  /** 写真 1 枚の幅に対する割合 */
+  gapRatio: number
+  /** 最小 px */
+  gapMin: number
+  /** 最大 px */
+  gapMax: number
+}
+
+export const DEFAULT_SPACING: Spacing = {
+  gapRatio: 0.04,
+  gapMin: 1,
+  gapMax: 16
+}
+
+export const SPACING_PARAMS: Param<Spacing>[] = [
+  {
+    key: 'gapRatio',
+    label: '写真の幅に対する割合',
+    min: 0,
+    max: 0.12,
+    step: 0.005,
+    hint: '列が増えて写真が小さくなるほど狭くなる'
+  },
+  {key: 'gapMin', label: '最小', min: 0, max: 16, step: 1, hint: 'px'},
+  {key: 'gapMax', label: '最大', min: 0, max: 40, step: 1, hint: 'px'}
 ]
