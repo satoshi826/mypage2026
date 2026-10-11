@@ -25,10 +25,17 @@ export function Top() {
 
   return (
     <>
-      {isClient && heroPhotos.length > 0 && (
-        <Suspense fallback={null}>
-          <Hero photos={heroPhotos} />
-        </Suspense>
+      {/* hero の場所は、プリレンダの HTML から先に 1 画面ぶん空けておく。hero は JS が動いてから
+          差し込まれるので、空けておかないと下の紹介文が画面の外へ押し出される（レイアウトのずれ）。
+          写真の一覧を読み終えて hero に使う写真が無かったときだけ詰める */}
+      {(photos === null || heroPhotos.length > 0) && (
+        <div className="h-[100svh]">
+          {isClient && heroPhotos.length > 0 && (
+            <Suspense fallback={null}>
+              <Hero photos={heroPhotos} />
+            </Suspense>
+          )}
+        </div>
       )}
       <Page title={NAME}>
         <Text>street / architecture を撮っています。Web エンジニアでもあります。</Text>
