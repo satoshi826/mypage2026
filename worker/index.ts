@@ -16,7 +16,15 @@
 // 取り始めさせる。どの写真かは一覧（R2）で決まるので、ビルド時には出せない。
 
 import {authorize} from './access'
-import {EAGER_THUMBS, imageUrl, isCategory, parseManifest, VARIANTS, type Photo} from '../src/photos/manifest'
+import {
+  EAGER_THUMBS,
+  imageUrl,
+  isCategory,
+  LIST_HEADROOM,
+  parseManifest,
+  VARIANTS,
+  type Photo
+} from '../src/photos/manifest'
 
 const KINDS: readonly string[] = [...VARIANTS.map((v) => v.kind), 'hero', 'originals']
 const isKind = (value: string) => KINDS.includes(value)
@@ -80,7 +88,8 @@ function hintsOf(parts: string[], photos: Photo[]): string[] {
   // （狭い画面 2 列、ほかは 3 列。src/gallery/Gallery.tsx）の写真 1 枚ぶん
   const category = parts[1] ?? 'street'
   if (parts.length > 2 || !isCategory(category)) return []
-  const list = VARIANTS.filter((v) => v.use === 'list')
+  // 一覧の JS（pickSource）と同じく、一覧用の段に拡大用の最大を足した候補（PC の高精細な画面の縦長が使う）
+  const list = [...VARIANTS.filter((v) => v.use === 'list'), VARIANTS[VARIANTS.length - 1]]
   return photos
     .filter((photo) => photo.category === category)
     .slice(0, EAGER_THUMBS)
@@ -97,10 +106,11 @@ function hintsOf(parts: string[], photos: Photo[]): string[] {
 }
 
 /**
- * Photos の一覧で、列数が Auto のときの写真 1 枚の表示幅。容器の左右の余白と写真のあいだ（既定の隙間で、
- * 狭い画面の 2 列は約 7px、ほかの 3 列は 16px × 2）を引いて列数で割る。一覧の JS が選ぶ段と揃えるため
+ * Photos の一覧で、列数が Auto のときの写真 1 枚の表示幅に、段を選ぶときの余裕（LIST_HEADROOM）を掛けたもの。
+ * 幅は容器の左右の余白と写真のあいだ（既定の隙間で、狭い画面の 2 列は約 7px、ほかの 3 列は 16px × 2）を
+ * 引いて列数で割る。一覧の JS が選ぶ段と揃えるため
  */
-const SIZES = '(max-width: 639px) calc((100vw - 39px) / 2), calc((min(100vw, 1280px) - 96px) / 3)'
+const SIZES = `(max-width: 639px) calc((100vw - 39px) / 2 * ${LIST_HEADROOM}), calc((min(100vw, 1280px) - 96px) / 3 * ${LIST_HEADROOM})`
 
 async function pageWithHints(request: Request, env: Env, parts: string[]) {
   const [page, photos] = await Promise.all([env.ASSETS.fetch(request), photosOf(env)])

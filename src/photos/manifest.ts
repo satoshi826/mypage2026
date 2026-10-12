@@ -20,6 +20,13 @@ export const VARIANTS = [
 ] as const
 export type Variant = (typeof VARIANTS)[number]
 
+/**
+ * 一覧用の段を選ぶときの余裕。表示幅 × 画面の密度のこの倍以上の段を選ぶ。等倍で出すと画質 60 の圧縮の
+ * 荒れがそのまま見え、マウスを載せたときのズーム（1.1 倍）で等倍を超えて引き伸ばされるため。縮めて出せば
+ * 荒れは目立たない。拡大用は画質 80 でズームもしないので、余裕を持たせない
+ */
+export const LIST_HEADROOM = 1.5
+
 export type Photo = {
   file: string
   /** 一番大きい派生（large-2000）の寸法。ほかの段は同じ比率で小さい */

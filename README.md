@@ -208,10 +208,11 @@ JWT を検証する（`worker/access.ts`）。`ACCESS_TEAM_DOMAIN` と `ACCESS_A
 localhost からの書き込みだけ通す（wrangler dev 用）。
 
 派生の段（長辺と画質）は `src/photos/manifest.ts` の `VARIANTS` が唯一の定義で、表示・Worker・管理画面・
-スクリプトがここを読む。一覧も拡大も、写真ごとに「表示幅 × 画面の密度」以上で一番小さい段を選ぶ
-（`src/photos/index.ts` の `pickSource`）。スマホの 6 列なら 200、PC の高精細な画面の 2 列なら 1200 と、
-画質を落とさずに転送量とデコード後のメモリを減らす。一覧で一覧用の最大でも足りないとき（PC の 2 列の縦長）は
-拡大用の 2000 を使う。Photos の HTML は、先頭数枚を `imagesrcset` で先読みさせる（`worker/index.ts`）。
+スクリプトがここを読む。写真ごとに、一覧は「表示幅 × 画面の密度 × 1.5」、拡大は「表示幅 × 画面の密度」以上で
+一番小さい段を選ぶ（`src/photos/index.ts` の `pickSource`）。一覧の 1.5 倍は余裕で、等倍で出すと画質 60 の
+圧縮の荒れが見え、マウスを載せたときのズームで引き伸ばされるため（`LIST_HEADROOM`）。スマホの 6 列なら 400、
+PC の密度 1 倍の 3 列なら 800 と、表示に見合う段だけを読んで転送量とデコード後のメモリを減らす。一覧で一覧用の
+最大でも足りないとき（PC の高精細な画面の縦長）は拡大用の 2000 を使う。Photos の HTML は、先頭数枚を `imagesrcset` で先読みさせる（`worker/index.ts`）。
 
 画像の URL には版の印 `?v=<v>` を付ける。`v` はその写真の派生を全部つないだ中身のハッシュで、書き出し直して
 中身が変わったときだけ変わる（`scripts/encode-photos.mjs` と `src/admin/derive.ts` が同じ決め方で付ける）。
