@@ -55,6 +55,9 @@ npm run bench:compare -- 前.json 後.json         # 指定した 2 回分を比
 
 ## 限界
 
+- **Service Worker。** 本番のビルドは Service Worker を登録する。warm の場面は、1 回目の訪問で入った
+  Service Worker と先読みを通った 2 回目を測る。Service Worker が出した分は転送量にほぼ数えない。
+
 - **同じ機械どうしで比べる。** 数字は機械によって変わる。比較は別の機械の結果どうしだと注意を出す。
 - **ヘッドレスは GPU を使わずに描く。** ぼかし（backdrop-filter）のような GPU の負荷は実機と出方が違う。
   実機に近い数字が欲しいときは `--headed`。

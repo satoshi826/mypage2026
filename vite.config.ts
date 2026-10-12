@@ -53,7 +53,16 @@ export default defineConfig({
   },
   build: {
     // チャンクの対応表。prerender が hero のチャンクを先読みのヒントにするために読む
-    manifest: true
+    manifest: true,
+    rolldownOptions: {
+      // Service Worker（src/sw/worker.ts）は登録する URL が固定なので、ハッシュを付けずに /sw.js に置く
+      input: {index: 'index.html', sw: 'src/sw/worker.ts'},
+      output: {entryFileNames: (chunk) => (chunk.name === 'sw' ? 'sw.js' : 'assets/[name]-[hash].js')}
+    }
+  },
+  define: {
+    // Service Worker の置き場の名前に付ける、ビルドごとの印。前のビルドの JS・CSS を消すため
+    __BUILD__: JSON.stringify(Date.now().toString(36))
   },
   server: {
     // 写真の API と画像は Worker（wrangler dev）が持つ。dev ではそちらへ流す

@@ -83,7 +83,7 @@ export function Admin() {
       const id = toId(file.name)
       setBusy(`${n + 1}/${files.length} ${file.name}`)
       try {
-        const {variants, hero, w, h} = await derive(file)
+        const {variants, hero, w, h, v} = await derive(file)
         const ext = file.name.split('.').pop()?.toLowerCase() ?? 'jpg'
         await putImage(`originals/${id}.${ext}`, file)
         for (const [kind, blob] of variants) await putImage(`${kind}/${id}.webp`, blob)
@@ -91,9 +91,9 @@ export function Admin() {
         const existing = photos.find((p) => p.file === id)
         if (existing) {
           say(`${id}: 画像を差し替えた`)
-          Object.assign(existing, {w, h})
+          Object.assign(existing, {w, h, v})
         } else {
-          added.push({file: id, w, h, category: 'street', hero: false})
+          added.push({file: id, w, h, category: 'street', hero: false, v})
           say(`${id}: 追加（${w}×${h}）`)
         }
       } catch (e) {

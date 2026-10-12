@@ -28,7 +28,15 @@ export type Photo = {
   category: Category
   /** トップの hero に使うか */
   hero: boolean
+  /**
+   * 派生画像の版。その写真の派生を全部つないだ中身のハッシュ（先頭 10 桁）で、書き出し直して中身が
+   * 変わったときだけ変わる。画像の URL に付け、URL が同じなら中身も同じ、としてずっと手元に持てるようにする
+   */
+  v: string
 }
+
+/** 派生画像の URL。kind は VARIANTS の kind か hero */
+export const imageUrl = (kind: string, photo: Photo) => `/images/${kind}/${photo.file}.webp?v=${photo.v}`
 
 /** Photos の最初の数枚。Worker が HTML の時点で preload させ、一覧が描いたときにはキャッシュから出せるようにする */
 export const EAGER_THUMBS = 9
@@ -37,6 +45,7 @@ export const isCategory = (value: unknown): value is Category =>
   typeof value === 'string' && (CATEGORIES as readonly string[]).includes(value)
 
 const FILE = /^[A-Za-z0-9_-]+$/
+const VERSION = /^[0-9a-f]{10}$/
 
 /** 一覧を検証する。通れば写真の配列、通らなければ理由 */
 export function parseManifest(body: unknown): {photos: Photo[]} | {error: string} {
@@ -46,15 +55,16 @@ export function parseManifest(body: unknown): {photos: Photo[]} | {error: string
   for (const [i, entry] of body.entries()) {
     const at = `entry ${i}`
     if (typeof entry !== 'object' || entry === null) return {error: `${at}: not an object`}
-    const {file, w, h, category, hero} = entry as Record<string, unknown>
+    const {file, w, h, category, hero, v} = entry as Record<string, unknown>
     if (typeof file !== 'string' || !FILE.test(file)) return {error: `${at}: invalid file`}
     if (seen.has(file)) return {error: `${at}: duplicate file ${file}`}
     if (!Number.isInteger(w) || !Number.isInteger(h) || (w as number) <= 0 || (h as number) <= 0)
       return {error: `${at}: invalid size`}
     if (!isCategory(category)) return {error: `${at}: invalid category`}
     if (typeof hero !== 'boolean') return {error: `${at}: hero must be boolean`}
+    if (typeof v !== 'string' || !VERSION.test(v)) return {error: `${at}: invalid v`}
     seen.add(file)
-    photos.push({file, w: w as number, h: h as number, category, hero})
+    photos.push({file, w: w as number, h: h as number, category, hero, v})
   }
   return {photos}
 }

@@ -20,6 +20,7 @@
 // 必要なツール: imagemagick, cwebp
 
 import {execFile} from 'node:child_process'
+import {createHash} from 'node:crypto'
 import {existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync} from 'node:fs'
 import {cpus, tmpdir} from 'node:os'
 import {dirname, extname, join} from 'node:path'
@@ -132,8 +133,13 @@ async function encode(entry) {
     ])
     await run('cwebp', ['-quiet', '-q', String(HERO_QUALITY), gray, '-o', join(PHOTOS, 'hero', `${entry.file}.webp`)])
   }
-  console.log(`${entry.file}  ${w}x${h}  ${category}  hero=${hero}${entry.isNew ? '  （新規）' : ''}`)
-  return {file: entry.file, w, h, category, hero}
+  // 版は段の並び（VARIANTS の順）と hero をつないだ中身のハッシュ（src/admin/derive.ts と同じ決め方）
+  const hash = createHash('sha256')
+  for (const variant of variants) hash.update(readFileSync(join(PHOTOS, variant.kind, `${entry.file}.webp`)))
+  if (hero) hash.update(readFileSync(join(PHOTOS, 'hero', `${entry.file}.webp`)))
+  const v = hash.digest('hex').slice(0, 10)
+  console.log(`${entry.file}  ${w}x${h}  ${category}  hero=${hero}  v=${v}${entry.isNew ? '  （新規）' : ''}`)
+  return {file: entry.file, w, h, category, hero, v}
 }
 
 // PARALLEL 枚ずつ同時に書き出す。一覧の順番は保つ

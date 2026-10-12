@@ -16,7 +16,7 @@
 // 取り始めさせる。どの写真かは一覧（R2）で決まるので、ビルド時には出せない。
 
 import {authorize} from './access'
-import {EAGER_THUMBS, isCategory, parseManifest, VARIANTS, type Photo} from '../src/photos/manifest'
+import {EAGER_THUMBS, imageUrl, isCategory, parseManifest, VARIANTS, type Photo} from '../src/photos/manifest'
 
 const KINDS: readonly string[] = [...VARIANTS.map((v) => v.kind), 'hero', 'originals']
 const isKind = (value: string) => KINDS.includes(value)
@@ -47,8 +47,9 @@ export default {
       // HEAD は etag の確認用（scripts/sync-photos.mjs）。本文はランタイムが落とす
       if (request.method === 'GET' || request.method === 'HEAD') {
         // 原本はフルサイズの作品そのものなので、公開しない
-        if (parts[1] === 'originals') return (await authorize(request, env)) ?? getImage(key, env)
-        return getImage(key, env)
+        if (parts[1] === 'originals') return (await authorize(request, env)) ?? getImage(key, env, false)
+        // 版の印（?v=）付きの URL は中身が変わらないので、ずっと持たせる
+        return getImage(key, env, url.searchParams.has('v'))
       }
       if (request.method === 'PUT') return (await authorize(request, env)) ?? putImage(key, request, env)
       if (request.method === 'DELETE') return (await authorize(request, env)) ?? deleteImage(key, env)
@@ -72,7 +73,7 @@ function hintsOf(parts: string[], photos: Photo[]): string[] {
   // preload では「使われない」扱いになる。HTTP キャッシュを温める prefetch にする
   if (parts.length === 0) {
     const first = photos.find((photo) => photo.hero)
-    return first ? [`</images/hero/${first.file}.webp>; rel=prefetch`] : []
+    return first ? [`<${imageUrl('hero', first)}>; rel=prefetch`] : []
   }
   // Photos: 既定は street。カテゴリの先頭数枚（/photos/:category）。どの段を読むかは表示幅と画面の
   // 密度で決まるので、一覧用の段を候補に並べてブラウザに選ばせる。幅は列数が Auto のとき
@@ -87,11 +88,11 @@ function hintsOf(parts: string[], photos: Photo[]): string[] {
       const srcset = list
         .map((v) => {
           const width = Math.round(photo.w * Math.min(1, v.long / Math.max(photo.w, photo.h)))
-          return `/images/${v.kind}/${photo.file}.webp ${width}w`
+          return `${imageUrl(v.kind, photo)} ${width}w`
         })
         .join(', ')
       // URL は imagesrcset を知らないブラウザ向けの代わり
-      return `</images/list-800/${photo.file}.webp>; rel=preload; as=image; imagesrcset="${srcset}"; imagesizes="${SIZES}"`
+      return `<${imageUrl('list-800', photo)}>; rel=preload; as=image; imagesrcset="${srcset}"; imagesizes="${SIZES}"`
     })
 }
 
@@ -137,14 +138,14 @@ async function putManifest(request: Request, env: Env) {
   return json({count: result.photos.length})
 }
 
-async function getImage(key: string, env: Env) {
+async function getImage(key: string, env: Env, immutable: boolean) {
   const object = await env.PHOTOS.get(key)
   if (!object) return error(404, 'not found')
   return new Response(object.body, {
     headers: {
       'content-type': object.httpMetadata?.contentType ?? 'application/octet-stream',
-      // 差し替えは同じ名前に上書きしうるので、1日で再確認させる
-      'cache-control': 'public, max-age=86400',
+      // 版の印が無い URL は、差し替えで同じ名前に上書きしうるので 1 日で再確認させる
+      'cache-control': immutable ? 'public, max-age=31536000, immutable' : 'public, max-age=86400',
       etag: object.httpEtag
     }
   })

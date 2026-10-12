@@ -14,6 +14,8 @@ export type Derived = {
   /** 一番大きい派生の寸法（manifest の w / h） */
   w: number
   h: number
+  /** 派生の版（manifest の v） */
+  v: string
 }
 
 export async function derive(file: File): Promise<Derived> {
@@ -49,10 +51,21 @@ export async function derive(file: File): Promise<Derived> {
     grayscale(heroCanvas)
     const hero = await toWebp(heroCanvas, HERO_QUALITY)
 
-    return {variants, hero, w, h}
+    // 版は段の並び（VARIANTS の順）と hero をつないだ中身のハッシュ（scripts/encode-photos.mjs と同じ決め方）
+    const ordered = VARIANTS.map((variant) => variants.find(([kind]) => kind === variant.kind)![1])
+    return {variants, hero, w, h, v: await versionOf([...ordered, hero])}
   } finally {
     source.close()
   }
+}
+
+/** 中身の SHA-256 の先頭 10 桁 */
+async function versionOf(blobs: Blob[]) {
+  const digest = await crypto.subtle.digest('SHA-256', await new Blob(blobs).arrayBuffer())
+  return [...new Uint8Array(digest)]
+    .map((byte) => byte.toString(16).padStart(2, '0'))
+    .join('')
+    .slice(0, 10)
 }
 
 /** 一度に大きく縮めると荒れるので、半分ずつ段階的に縮める */

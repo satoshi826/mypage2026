@@ -197,7 +197,7 @@ Worker には `requestAnimationFrame` がないため、駆動はメインスレ
 
 | キー | 内容 |
 |---|---|
-| `manifest.json` | 一覧。`file / w / h / category / hero` の配列。形は `worker/manifest.ts` が検証する |
+| `manifest.json` | 一覧。`file / w / h / category / hero / v` の配列。形は `src/photos/manifest.ts` が検証する。`v` は派生画像の版（下記） |
 | `list-<長辺>/<file>.webp` | 一覧用。長辺 200 / 400 / 800 / 1200px、画質 60 |
 | `large-<長辺>/<file>.webp` | 拡大用。長辺 1200 / 2000px、画質 80、カラー、トリミングなし。一覧で広げたときに読む |
 | `hero/<file>.webp` | hero 用。1152x768、中央トリミング、グレースケール。`hero: true` のものだけ使う |
@@ -212,6 +212,22 @@ localhost からの書き込みだけ通す（wrangler dev 用）。
 （`src/photos/index.ts` の `pickSource`）。スマホの 6 列なら 200、PC の高精細な画面の 2 列なら 1200 と、
 画質を落とさずに転送量とデコード後のメモリを減らす。一覧で一覧用の最大でも足りないとき（PC の 2 列の縦長）は
 拡大用の 2000 を使う。Photos の HTML は、先頭数枚を `imagesrcset` で先読みさせる（`worker/index.ts`）。
+
+画像の URL には版の印 `?v=<v>` を付ける。`v` はその写真の派生を全部つないだ中身のハッシュで、書き出し直して
+中身が変わったときだけ変わる（`scripts/encode-photos.mjs` と `src/admin/derive.ts` が同じ決め方で付ける）。
+印付きの URL は中身が変わらないので、Worker は 1 年持ってよい（`immutable`）と返す。
+
+**Service Worker（`src/sw/`）。** 本番だけで登録する。ローディングを感じさせないためのもの。
+- 印付きの画像と、名前にハッシュが付く JS・CSS・フォントは、手元にあれば手元から出す。HTML と一覧は通信で
+  最新を取り、取れないときだけ手元のものを出す。2 回目以降の訪問は、ほぼ通信を待たずに表示される。
+- 表示に要る読み込みが落ち着いたら、その端末で列数をどれにしても一覧に要る段を、今のカテゴリから順に
+  全カテゴリぶん先読みする（`src/gallery/prefetch.ts`）。データセーバーがオンのときと回線が遅いときは
+  先読みしない。今の一覧に無い版（差し替えや削除で古くなったもの）は消す。
+- 最初の訪問ではページを途中から引き受けない（読み込みの途中に割り込むと遅れるため）。次の訪問から通す。
+- ビルドごとに `sw.js` が変わり、新しい Service Worker がすぐ入れ替わって、前のビルドの JS・CSS を消す。
+- 止めたいときは、`register()` の代わりに既存の登録を `unregister()` するビルドを出す（`sw.js` を消すだけでは
+  入っている Service Worker は残る）。`http://<LAN の IP>` は安全な接続とみなされないので、`dev:lan` や
+  `preview:lan` では動かない（localhost では動く）。
 
 **管理画面 `/admin`。** 複数アップロード、カテゴリと hero の切り替え、並び替え、削除。
 派生画像（各段と hero）はブラウザで作る（`src/admin/derive.ts`。段階的な縮小、

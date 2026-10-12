@@ -13,7 +13,7 @@ import {useEffect, useState} from 'react'
 // 段の定義は manifest.ts の VARIANTS。
 
 export {CATEGORIES, EAGER_THUMBS, isCategory, type Category, type Photo} from './manifest'
-import {isCategory, parseManifest, VARIANTS, type Category, type Photo, type Variant} from './manifest'
+import {imageUrl, isCategory, parseManifest, VARIANTS, type Category, type Photo, type Variant} from './manifest'
 
 /** URL（/photos/:category）のカテゴリ。省略や知らない値は street */
 export const toCategory = (value: string | undefined): Category => (isCategory(value) ? value : 'street')
@@ -22,7 +22,7 @@ export const toCategory = (value: string | undefined): Category => (isCategory(v
 export type Source = {src: string; width: number; use: Variant['use']}
 
 const sourceOf = (photo: Photo, variant: Variant): Source => ({
-  src: `/images/${variant.kind}/${photo.file}.webp`,
+  src: imageUrl(variant.kind, photo),
   width: Math.round(photo.w * Math.min(1, variant.long / Math.max(photo.w, photo.h))),
   use: variant.use
 })
@@ -39,7 +39,7 @@ export function pickSource(photo: Photo, need: number, large: boolean): Source {
   return sources.find((source) => source.width >= need) ?? sources[sources.length - 1]
 }
 
-export const heroSrc = (photo: Photo) => `/images/hero/${photo.file}.webp`
+export const heroSrc = (photo: Photo) => imageUrl('hero', photo)
 
 function parse(body: unknown): Photo[] {
   const result = parseManifest(body)
