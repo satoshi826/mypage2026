@@ -79,6 +79,9 @@ export function Admin() {
 
   const upload = async (files: FileList) => {
     const added: Photo[] = []
+    // 差し替えた写真の新しい寸法と版。一覧に入れて「保存」すると版の印（v）が変わり、手元に古い画像を
+    // 持っている人にも新しい画像が届く。入れないと、版が同じまま古い画像が出続ける
+    const replaced = new Map<string, Pick<Photo, 'w' | 'h' | 'v'>>()
     for (const [n, file] of Array.from(files).entries()) {
       const id = toId(file.name)
       setBusy(`${n + 1}/${files.length} ${file.name}`)
@@ -88,10 +91,9 @@ export function Admin() {
         await putImage(`originals/${id}.${ext}`, file)
         for (const [kind, blob] of variants) await putImage(`${kind}/${id}.webp`, blob)
         await putImage(`hero/${id}.webp`, hero)
-        const existing = photos.find((p) => p.file === id)
-        if (existing) {
-          say(`${id}: 画像を差し替えた`)
-          Object.assign(existing, {w, h, v})
+        if (photos.some((p) => p.file === id)) {
+          replaced.set(id, {w, h, v})
+          say(`${id}: 画像を差し替えた（保存すると反映される）`)
         } else {
           added.push({file: id, w, h, category: 'street', hero: false, v})
           say(`${id}: 追加（${w}×${h}）`)
@@ -101,7 +103,7 @@ export function Admin() {
       }
     }
     setBusy(null)
-    if (added.length) update([...photos, ...added])
+    if (added.length || replaced.size) update([...photos.map((p) => ({...p, ...replaced.get(p.file)})), ...added])
     if (input.current) input.current.value = ''
   }
 
