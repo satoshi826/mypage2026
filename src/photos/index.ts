@@ -16,6 +16,7 @@ export {CATEGORIES, EAGER_THUMBS, isCategory, type Category, type Photo} from '.
 import {
   imageUrl,
   isCategory,
+  HOVER,
   LIST_HEADROOM,
   parseManifest,
   VARIANTS,
@@ -38,13 +39,13 @@ const sourceOf = (photo: Photo, variant: Variant): Source => ({
 
 /**
  * 表示に使う派生画像を選ぶ。need は要る幅（表示幅 × 画面の密度、画素）。その段の中で need 以上の
- * 一番小さいものを選び、足りなければ一番大きいもの。一覧用は need に余裕（LIST_HEADROOM）を掛ける。
+ * 一番小さいものを選び、足りなければ一番大きいもの。一覧用は、マウスのある端末では need に余裕（LIST_HEADROOM）を掛ける。
  * large は広げたとき。一覧で一覧用の最大でも足りないときは、拡大用の最大を使う
  */
 export function pickSource(photo: Photo, need: number, large: boolean): Source {
   const ladder = VARIANTS.filter((v) => v.use === (large ? 'large' : 'list'))
   if (!large) ladder.push(VARIANTS[VARIANTS.length - 1])
-  const target = large ? need : need * LIST_HEADROOM
+  const target = large || !matchMedia(HOVER).matches ? need : need * LIST_HEADROOM
   const sources = ladder.map((variant) => sourceOf(photo, variant))
   return sources.find((source) => source.width >= target) ?? sources[sources.length - 1]
 }
