@@ -1,7 +1,7 @@
 import {useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode} from 'react'
 import {createPortal} from 'react-dom'
 import {Underline} from '../app/Tabs'
-import {COLUMNS, maxColumns, useGalleryControls} from './controls'
+import {COUNTS, maxColumns, useGalleryControls} from './controls'
 
 const subscribe = () => () => {}
 
@@ -73,7 +73,7 @@ export function GalleryTools() {
           >
             {/* 選択肢は同じ幅の枠。中身から幅が決まる入れ物なので、1fr ずつの等分では幅が決まらない */}
             <div className="relative flex h-10 px-2 text-xs font-light tracking-[0.12em] max-sm:text-[0.625rem]">
-              {COLUMNS.filter((columns) => columns === 'auto' || columns <= maxColumns(innerWidth)).map((columns) => (
+              {COUNTS.filter((columns) => columns <= maxColumns(innerWidth)).map((columns) => (
                 <button
                   key={columns}
                   type="button"
@@ -82,7 +82,7 @@ export function GalleryTools() {
                   onClick={() => controls?.setColumns(columns)}
                   className="flex w-10 shrink-0 cursor-pointer items-center justify-center opacity-90 transition-opacity duration-300 hover:opacity-100 max-sm:w-9"
                 >
-                  <span className="-translate-y-0.5">{columns === 'auto' ? 'Auto' : columns}</span>
+                  <span className="-translate-y-0.5">{columns}</span>
                 </button>
               ))}
               <Underline current={String(controls?.columns)} />

@@ -213,13 +213,14 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
 
   // フッターの操作（列数）を出す。外れるときは消す
   useEffect(() => {
+    if (!cols) return
     setGalleryControls({
-      // 上限に収めて表示しているときは、収めた列数を選んでいることにする（メニューの下線）
-      columns: columns !== 'auto' && metrics && columns > metrics.maxCols ? (metrics.maxCols as Columns) : columns,
+      columns: cols,
       setColumns: (next) => {
-        if (next === columns) return
         rememberColumns(next)
-        relayout(null, () => setColumns(next))
+        // 今の列数と同じなら、固定するだけで段組は変わらない
+        if (next === cols) setColumns(next)
+        else relayout(null, () => setColumns(next))
       }
     })
   })
