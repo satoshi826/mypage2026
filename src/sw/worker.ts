@@ -18,8 +18,11 @@ declare const __BUILD__: string
 const IMAGES = 'images'
 const ASSETS = `assets-${__BUILD__}`
 const PAGES = `pages-${__BUILD__}`
-/** 先読みで同時に取る数。表示に要る読み込みの邪魔をしない程度 */
-const PARALLEL = 3
+/**
+ * 先読みで同時に取る数。かかる時間は往復の待ち時間 × 枚数 ÷ 本数で決まり、帯域は余る（往復 310ms の回線で
+ * 3 本だと 30 枚に 4.5 秒、10 本だと 1.9 秒）。HTTP/2 で 1 本の接続に重ねて流せるので、本数を増やして待ちを重ねる
+ */
+const PARALLEL = 8
 
 type Message = {type: 'images'; keep: string[]; fetch: string[]}
 
