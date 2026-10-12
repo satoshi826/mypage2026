@@ -30,7 +30,7 @@ export function Tabs({items, className = ''}: {items: Tab[]; className?: string}
   return (
     // 列を 1fr ずつにすると、どの枠も一番長い名前の幅にそろう
     <div
-      className={`inline-grid h-full auto-cols-fr grid-flow-col gap-6 text-xs tracking-[0.12em] max-sm:gap-3 max-sm:text-[0.625rem] ${className}`}
+      className={`inline-grid h-full auto-cols-fr grid-flow-col gap-6 text-sm tracking-[0.12em] max-sm:gap-3 max-sm:text-xs ${className}`}
     >
       {items.map((item) => (
         <TabLink key={item.href} {...item} />
