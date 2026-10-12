@@ -8,7 +8,8 @@ type Connection = {saveData?: boolean; effectiveType?: string}
 /**
  * Service Worker（worker.ts）を登録し、表示に要る読み込みが落ち着いてから画像の先読みを頼む。本番だけで呼ぶ（main.tsx）。
  * 先読みするのは、この端末で列数をどれにしても一覧に要る派生で、今のカテゴリから順に全カテゴリ。
- * データセーバーがオンのときと、回線が遅いときは先読みしない（古い版の掃除だけ頼む）
+ * データセーバーがオンのときと、回線がごく遅い（slow-2g）と見積もられたときは先読みしない（古い版の掃除だけ頼む）。
+ * 3g などで止めないのは、回線の見積もりが揺れる Wi-Fi でも 3g と出ることがあり、先読みがほとんど動かなくなるため
  */
 export function registerServiceWorker() {
   if (!('serviceWorker' in navigator)) return
@@ -31,7 +32,7 @@ async function start() {
 
 function saving() {
   const connection = (navigator as Navigator & {connection?: Connection}).connection
-  return !!connection?.saveData || ['slow-2g', '2g', '3g'].includes(connection?.effectiveType ?? '')
+  return !!connection?.saveData || connection?.effectiveType === 'slow-2g'
 }
 
 /** これだけのあいだ新しい読み込みが始まらなければ、表示に要る読み込みは落ち着いたとみなす */
