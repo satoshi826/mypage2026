@@ -1,4 +1,4 @@
-import type {CSSProperties} from 'react'
+import type {CSSProperties} from 'preact'
 import type {Param} from '../app/DevPanel'
 import {ASPECT} from './table'
 

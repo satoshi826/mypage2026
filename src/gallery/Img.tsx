@@ -1,4 +1,4 @@
-import {useEffect, useState} from 'react'
+import {useEffect, useState} from 'preact/hooks'
 import {pickSource, type Photo, type Source} from '../photos'
 
 /** 差し替えを 1 フレームにこの枚数ずつに分ける */

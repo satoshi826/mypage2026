@@ -1,5 +1,5 @@
-import {useLayoutEffect, useRef} from 'react'
-import {Link} from 'wouter'
+import {useLayoutEffect, useRef} from 'preact/hooks'
+import {Link} from 'wouter-preact'
 
 /** 文字の下端から下線までの間隔 px */
 const GAP = 6
@@ -46,9 +46,6 @@ export function Tabs({items, className = ''}: {items: Tab[]; className?: string}
  *
  * 選んでいるリンクが無くなる・現れるとき（ナビのトップと他のページのあいだ）は、その場で中央の点へ縮んで
  * 消え、中央の点から左右へ伸びて線になる。ページを直接開いたときは出入りさせずにその場に置く。
- *
- * 入れ物を ref で受け取らずに親要素を使うのは、描画直後の処理が子（この線）から先に走り、
- * 親の ref がまだ空のため。開発中は処理が 2 回走るので気づきにくい
  */
 export function Underline({current}: {current: string}) {
   const lineRef = useRef<HTMLDivElement>(null)

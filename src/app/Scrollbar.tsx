@@ -1,4 +1,4 @@
-import {useEffect, useRef} from 'react'
+import {useEffect, useRef} from 'preact/hooks'
 import {glideTo, jumpTo} from './useSmoothScroll'
 
 /** つまみの最短の長さ px。ページが長くても掴めるように */

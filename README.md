@@ -114,7 +114,7 @@ phase は**線形**で、イージングは頂点シェーダが粒子ごとに�
 見えるため）。画面外では `IntersectionObserver` で時計を止める。
 `prefers-reduced-motion` のときは初期 OFF で、動かすときも中点で切り替えるだけにする。
 
-React の state に載せるのは現在の index と読み込み済みの番号だけ。`phase` のような
+state に載せるのは現在の index と読み込み済みの番号だけ。`phase` のような
 連続値を state に入れると毎フレーム再レンダリングが走るので、ref 経由で直接 style を書く。
 
 ## 干渉（マウス・指）

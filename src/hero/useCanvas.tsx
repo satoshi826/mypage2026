@@ -1,11 +1,11 @@
 import {resizeObserver} from 'glaku'
-import {useCallback, useEffect, useLayoutEffect, useMemo, useRef} from 'react'
+import {useCallback, useEffect, useLayoutEffect, useMemo, useRef} from 'preact/hooks'
 
 type Message = Record<string, unknown>
 
 /**
  * canvas を作って OffscreenCanvas として worker に譲渡する。
- * 以降の描画は worker 側で完結し、React は再レンダリングに関与しない。
+ * 以降の描画は worker 側で完結し、Preact は描き直しに関与しない。
  *
  * 譲渡は枠の寸法が決まってから行う。0×0 のまま譲渡して最初のフレームが送られると、
  * あとで寸法が付いても画面側の canvas に描画が反映されない（Chrome で確認）。

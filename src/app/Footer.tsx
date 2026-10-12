@@ -1,4 +1,4 @@
-import {matchRoute, useLocation, useRouter} from 'wouter'
+import {matchRoute, useLocation, useRouter} from 'wouter-preact'
 import {PhotoCategories} from './pages/Photos'
 import {toCategory} from '../photos'
 import {HeroPlayer, HeroProgress} from '../hero/HeroPlayer'
@@ -70,7 +70,7 @@ export function Footer({location}: {location: string}) {
               className="size-[18px]"
               fill="none"
               stroke="currentColor"
-              strokeWidth={1.5}
+              stroke-width={1.5}
               aria-hidden
             >
               <rect x="3" y="3" width="18" height="18" rx="5" />

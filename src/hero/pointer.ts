@@ -1,4 +1,4 @@
-import {useCallback, useEffect, useRef} from 'react'
+import {useCallback, useEffect, useRef} from 'preact/hooks'
 
 /** 要素の上のポインタ。位置は要素の中心を原点とする NDC で、端が ±1 */
 export type PointerSample = {

@@ -1,4 +1,4 @@
-import {useLayoutEffect, useRef} from 'react'
+import {useLayoutEffect, useRef} from 'preact/hooks'
 import {layoutVars, type Layout, type Tone} from './layout'
 
 /**
@@ -52,7 +52,7 @@ export function ControlPanel({
   }, [index, layout.markerGrow])
 
   return (
-    <div className="shrink-0" style={{...layoutVars(layout, tone), width}}>
+    <div className="shrink-0" style={{...layoutVars(layout, tone), width: `${width}px`}}>
       <div className="relative">
         <div
           ref={markerRef}

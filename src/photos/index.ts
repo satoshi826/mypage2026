@@ -1,4 +1,4 @@
-import {useEffect, useState} from 'react'
+import {useEffect, useState} from 'preact/hooks'
 
 // サイトに載せる写真の一覧。正本は R2 の manifest.json で、Worker の /api/manifest から
 // 実行時に読む（写真の追加・入れ替えで再ビルドしない）。画像も /images/ 経由で R2 から。

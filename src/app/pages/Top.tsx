@@ -1,25 +1,26 @@
-import {lazy, Suspense, useSyncExternalStore} from 'react'
-import {Link} from 'wouter'
+import {useEffect, useState} from 'preact/hooks'
+import {Link} from 'wouter-preact'
 import {NAME} from '../routes'
 import {heroSrc, usePhotos} from '../../photos'
 import {Page, Text} from '../Page'
 
-// Hero は Worker と OffscreenCanvas を使うのでサーバーでは動かせない。
-// クライアントでマウントされてから初めて import することで、プリレンダ時に
-// worker のモジュールグラフに触れずに済む。
-const Hero = lazy(() => import('../../hero/Hero').then(({Hero}) => ({default: Hero})))
+type HeroComponent = typeof import('../../hero/Hero').Hero
+let loaded: HeroComponent | null = null
 
-const subscribe = () => () => {}
-/** サーバーでは false、クライアントでは true。hydration を壊さずに切り替わる */
-const useIsClient = () =>
-  useSyncExternalStore(
-    subscribe,
-    () => true,
-    () => false
-  )
+/**
+ * Hero は Worker と OffscreenCanvas を使うのでサーバーでは動かせない。描いたあと（ブラウザで）初めて import
+ * することで、プリレンダ時に worker のモジュールグラフに触れずに済む。読み込むまで null。2 回目からはすぐ返す
+ */
+function useHero() {
+  const [Hero, setHero] = useState(() => loaded)
+  useEffect(() => {
+    if (!Hero) void import('../../hero/Hero').then((module) => setHero(() => (loaded = module.Hero)))
+  }, [Hero])
+  return Hero
+}
 
 export function Top() {
-  const isClient = useIsClient()
+  const Hero = useHero()
   const photos = usePhotos()
   const heroPhotos = photos?.filter((photo) => photo.hero).map(heroSrc) ?? []
 
@@ -30,11 +31,9 @@ export function Top() {
           写真の一覧を読み終えて hero に使う写真が無かったときだけ詰める */}
       {(photos === null || heroPhotos.length > 0) && (
         <div className="h-[100svh]">
-          {isClient && heroPhotos.length > 0 && (
-            <Suspense fallback={null}>
-              <Hero photos={heroPhotos} />
-            </Suspense>
-          )}
+          {/* Hero は読み込んだ 1 つの部品で、描くたびに作り直すものではない */}
+          {/* oxlint-disable-next-line react/static-components */}
+          {Hero && heroPhotos.length > 0 && <Hero photos={heroPhotos} />}
         </div>
       )}
       <Page title={NAME}>

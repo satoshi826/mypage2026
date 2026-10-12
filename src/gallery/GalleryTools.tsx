@@ -1,8 +1,9 @@
-import {useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type CSSProperties} from 'react'
-import {createPortal} from 'react-dom'
+import {useEffect, useLayoutEffect, useRef, useState} from 'preact/hooks'
+import {createPortal, type CSSProperties} from 'preact'
 import {COUNTS, MAX_COLUMNS, useGalleryControls, type Count} from './controls'
 import {DEFAULT_SLIDER, SLIDER_PARAMS, type SliderLook} from './tuning'
 import {DevPanel} from '../app/DevPanel'
+import {useExternal} from '../app/useExternal'
 
 const subscribe = () => () => {}
 
@@ -22,11 +23,7 @@ export function GalleryTools() {
   // 開く入れ物はフッターの外（body の直下）に描く。フッターはぼかし（backdrop-filter）を持つので、
   // その中に置くと入れ物のぼかしがフッターの中しか見えず、後ろの写真をぼかせないため。
   // プリレンダでは描かず、ブラウザでだけ出す
-  const body = useSyncExternalStore(
-    subscribe,
-    () => document.body,
-    () => null
-  )
+  const body = useExternal(subscribe, () => document.body, null)
   // 開く位置。ボタンの上に、右端をそろえて左へ開く（フッターの右端寄りに置くので）
   const [at, setAt] = useState({right: 0, bottom: 0})
   useLayoutEffect(() => {
@@ -74,7 +71,7 @@ export function GalleryTools() {
         max={MAX_COLUMNS.wide}
         look={look}
         className="max-sm:hidden"
-        style={{marginRight: look.dividerGap - 24 - THUMB / 2}}
+        style={{marginRight: `${look.dividerGap - 24 - THUMB / 2}px`}}
       />
       {/* 狭い画面で開くボタン。バーの高さいっぱいを押せる細い線のアイコンで、濃さはタブと同じ 90%、ホバーで 100%。
           枠の幅は SNS のアイコンと同じ（Footer.tsx） */}
@@ -92,9 +89,9 @@ export function GalleryTools() {
           className="size-[18px]"
           fill="none"
           stroke="currentColor"
-          strokeWidth={1.25}
-          strokeLinecap="round"
-          strokeLinejoin="round"
+          stroke-width={1.25}
+          stroke-linecap="round"
+          stroke-linejoin="round"
         >
           <rect x="4" y="5" width="16" height="14" rx="1" />
           <path d="M9.33 5v14M14.67 5v14" />
@@ -105,7 +102,7 @@ export function GalleryTools() {
           <div
             ref={menu}
             aria-hidden={!open}
-            style={at}
+            style={{right: `${at.right}px`, bottom: `${at.bottom}px`}}
             className={`fixed z-20 border border-white/10 bg-black/70 px-3 backdrop-blur-[20px] transition-[opacity,translate] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] sm:hidden ${open ? '' : 'pointer-events-none translate-y-1 opacity-0'}`}
           >
             <ColumnSlider max={MAX_COLUMNS.narrow} look={look} focusable={open} className="h-12" />
@@ -145,7 +142,7 @@ function ColumnSlider({
   return (
     <div
       className={`group flex items-center opacity-90 transition-opacity duration-300 select-none hover:opacity-100 ${className}`}
-      style={{...style, gap: look.numberGap - THUMB / 2}}
+      style={{...style, gap: `${look.numberGap - THUMB / 2}px`}}
     >
       {/* 計器の数字のように、2〜6 を縦に積んだ帯を 1 文字ぶんの窓から覗かせ、今の値の位置まで滑らせる。
           増えると下から上がってきて、減ると上から下りてくる。間の数字は素早く通り過ぎる。
@@ -166,7 +163,7 @@ function ColumnSlider({
           </span>
         )}
       </span>
-      <div className="relative h-full" style={{'--thumb': `${THUMB}px`, width: look.length + THUMB} as CSSProperties}>
+      <div className="relative h-full" style={{'--thumb': `${THUMB}px`, width: `${look.length + THUMB}px`}}>
         {look.track === 'on' && (
           <div aria-hidden className="absolute inset-x-[calc(var(--thumb)/2)] top-1/2 h-[0.5px] bg-ink/35" />
         )}
@@ -178,8 +175,8 @@ function ColumnSlider({
             className={`absolute top-1/2 -translate-1/2 transition-colors duration-300 ${look.tick === 'dot' ? 'rounded-full bg-ink/70 group-hover:bg-ink/90' : 'bg-ink/45 group-hover:bg-ink/75'}`}
             style={
               look.tick === 'dot'
-                ? {left: position(count), width: look.tickDot, height: look.tickDot}
-                : {left: position(count), width: 0.5, height: look.tickHeight}
+                ? {left: position(count), width: `${look.tickDot}px`, height: `${look.tickDot}px`}
+                : {left: position(count), width: '0.5px', height: `${look.tickHeight}px`}
             }
           />
         ))}
@@ -187,7 +184,7 @@ function ColumnSlider({
           <div
             aria-hidden
             className="absolute top-1/2 -translate-1/2 rounded-full bg-ink transition-[left,scale] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-140 group-has-[input:focus-visible]:scale-150"
-            style={{left: position(value), width: look.thumbSize, height: look.thumbSize}}
+            style={{left: position(value), width: `${look.thumbSize}px`, height: `${look.thumbSize}px`}}
           />
         )}
         <input
@@ -200,7 +197,7 @@ function ColumnSlider({
           disabled={!controls}
           tabIndex={focusable ? 0 : -1}
           aria-label="列数"
-          onChange={(event) => controls?.setColumns(Number(event.target.value) as Count)}
+          onInput={(event) => controls?.setColumns(Number(event.currentTarget.value) as Count)}
           className="absolute inset-0 m-0 h-full w-full cursor-pointer appearance-none bg-transparent opacity-0"
         />
       </div>

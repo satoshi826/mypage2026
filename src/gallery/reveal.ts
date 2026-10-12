@@ -1,4 +1,5 @@
-import {useEffect} from 'react'
+import type {RefObject} from 'preact'
+import {useEffect} from 'preact/hooks'
 
 /** 要素のこの割合が見えたら現す */
 const THRESHOLD = 0.15
@@ -22,7 +23,7 @@ const MARGIN = 0.08
  * 描き直されても現した状態を引き継げるよう、使う側が覚えておくため（Gallery）。
  */
 export function useReveal(
-  root: React.RefObject<HTMLElement | null>,
+  root: RefObject<HTMLElement | null>,
   deps: unknown[],
   onReveal: (target: HTMLElement) => void
 ) {

@@ -1,5 +1,5 @@
-import {renderToString} from 'react-dom/server'
-import {Router} from 'wouter'
+import {renderToString} from 'preact-render-to-string'
+import {Router} from 'wouter-preact'
 import {App} from './app/App'
 
 /** プリレンダ用。指定パスでアプリを描画して HTML 文字列を返す */

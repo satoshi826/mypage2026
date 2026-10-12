@@ -1,4 +1,4 @@
-import {useSyncExternalStore} from 'react'
+import {useExternal} from '../app/useExternal'
 
 // Photos の一覧の操作をフッターに置くための受け渡し（列数の切り替え）。
 // 状態と操作は Gallery が持ち、マウント中だけここへ出す。フッターはここを読んで描く。
@@ -32,6 +32,10 @@ export type GalleryControls = {
 
 let current: GalleryControls | null = null
 const listeners = new Set<() => void>()
+const subscribe = (listener: () => void) => {
+  listeners.add(listener)
+  return () => void listeners.delete(listener)
+}
 
 /** Gallery が描くたびに呼ぶ。外れるときは null */
 export function setGalleryControls(controls: GalleryControls | null) {
@@ -41,14 +45,7 @@ export function setGalleryControls(controls: GalleryControls | null) {
 
 /** フッターが読む。一覧がないときとプリレンダでは null */
 export function useGalleryControls() {
-  return useSyncExternalStore(
-    (listener) => {
-      listeners.add(listener)
-      return () => listeners.delete(listener)
-    },
-    () => current,
-    () => null
-  )
+  return useExternal(subscribe, () => current, null)
 }
 
 /**

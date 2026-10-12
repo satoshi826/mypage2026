@@ -1,5 +1,5 @@
-import {useEffect, useLayoutEffect, useRef, useState} from 'react'
-import {matchRoute, useLocation, useRouter} from 'wouter'
+import {useEffect, useLayoutEffect, useRef, useState} from 'preact/hooks'
+import {matchRoute, useLocation, useRouter} from 'wouter-preact'
 import type {Param} from './DevPanel'
 import {jumpTo} from './useSmoothScroll'
 import {EASINGS, type Easing} from '../gallery/tuning'

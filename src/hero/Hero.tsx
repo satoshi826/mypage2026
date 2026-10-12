@@ -1,4 +1,4 @@
-import {useCallback, useEffect, useMemo, useRef, useState} from 'react'
+import {useCallback, useEffect, useMemo, useRef, useState} from 'preact/hooks'
 import {useCanvas, useCanvasResize, useAnimationFrame} from './useCanvas'
 import {
   advance,
@@ -255,8 +255,8 @@ export function Hero({photos: PHOTOS}: {photos: string[]}) {
       ref={sectionRef}
       className={`flex h-[100svh] items-center justify-center ${direction === 'side' ? 'flex-row' : 'flex-col'}`}
       style={{
-        gap: layout.photoGap,
-        padding: layout.padding,
+        gap: `${layout.photoGap}px`,
+        padding: `${layout.padding}px`,
         paddingTop: `calc(var(--spacing-nav) + ${layout.padding}px)`,
         paddingBottom: `calc(var(--spacing-footer) + env(safe-area-inset-bottom) + ${layout.padding}px)`
       }}
@@ -266,7 +266,7 @@ export function Hero({photos: PHOTOS}: {photos: string[]}) {
       <div
         ref={frameRef}
         className="relative flex shrink-0 touch-none"
-        style={{width: photo.width, height: photo.height}}
+        style={{width: `${photo.width}px`, height: `${photo.height}px`}}
       >
         {canvas}
       </div>

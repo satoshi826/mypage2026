@@ -26,16 +26,15 @@
   },
   "dependencies": {
     "glaku": "^0.5.2",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "wouter": "^3.11.0"
+    "preact": "^11.0.1",
+    "preact-render-to-string": "^6.8.0",
+    "wouter-preact": "^3.13.0"
   },
   "devDependencies": {
+    "@babel/core": "^7.29.7",
+    "@preact/preset-vite": "^2.10.6",
     "@tailwindcss/vite": "^4.3.3",
     "@types/node": "^26.6.4",
-    "@types/react": "^18.3.10",
-    "@types/react-dom": "^18.3.0",
-    "@vitejs/plugin-react": "^6.1.1",
     "oxfmt": "^0.66.0",
     "oxlint": "^1.81.0",
     "puppeteer-core": "^25.13.0",

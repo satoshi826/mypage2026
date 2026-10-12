@@ -1,5 +1,5 @@
-import {useEffect, useState} from 'react'
-import {Route, Switch, useLocation} from 'wouter'
+import {useEffect, useState} from 'preact/hooks'
+import {Route, Switch, useLocation} from 'wouter-preact'
 import {Nav} from './Nav'
 import {Footer} from './Footer'
 import {Page} from './Page'

@@ -1,4 +1,4 @@
-import {useParams} from 'wouter'
+import {useParams} from 'wouter-preact'
 import {CATEGORIES, toCategory, usePhotos, type Category} from '../../photos'
 import {Gallery} from '../../gallery/Gallery'
 import {Tabs, Underline} from '../Tabs'

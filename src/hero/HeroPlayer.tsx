@@ -1,4 +1,5 @@
-import {useEffect, useRef, type ReactNode} from 'react'
+import {useEffect, useRef} from 'preact/hooks'
+import {type ComponentChildren} from 'preact'
 import {progressLines, usePlayer} from './playback'
 
 /**
@@ -29,7 +30,7 @@ export function HeroPlayer() {
       <HeroProgress className="h-px w-52 max-sm:hidden" />
       {/* モードであるシャッフルは最後に置く */}
       <Transport label="Shuffle" onClick={player.toggleShuffle} pressed={player.shuffle}>
-        <g fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
           <path d="M3 6h4l10 12h4M3 18h4l10-12h4" />
           <path d="M18 3l3 3-3 3M18 15l3 3-3 3" />
         </g>
@@ -90,7 +91,7 @@ function Transport({
   onClick: () => void
   pressed?: boolean
   size?: string
-  children: ReactNode
+  children: ComponentChildren
 }) {
   return (
     <button

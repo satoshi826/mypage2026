@@ -1,4 +1,4 @@
-import {useEffect} from 'react'
+import {useEffect} from 'preact/hooks'
 
 /*
  * 慣性スクロール。ホイールの入力を直接使わず、目標位置へ毎フレーム少しずつ寄せる（docs/design.md）。

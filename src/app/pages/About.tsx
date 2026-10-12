@@ -1,4 +1,4 @@
-import type {ReactNode} from 'react'
+import type {ComponentChildren} from 'preact'
 import {Page} from '../Page'
 import {INSTAGRAM, X} from '../social'
 
@@ -83,7 +83,7 @@ export function About() {
   )
 }
 
-function Section({label, children}: {label: string; children: ReactNode}) {
+function Section({label, children}: {label: string; children: ComponentChildren}) {
   return (
     <section className="mb-16 grid grid-cols-[10rem_1fr] gap-x-8 border-t border-white/10 pt-6 max-sm:grid-cols-1 max-sm:gap-y-4">
       <h2 className="m-0 text-xs font-normal tracking-[0.1em] opacity-55">{label}</h2>
@@ -92,7 +92,7 @@ function Section({label, children}: {label: string; children: ReactNode}) {
   )
 }
 
-function Row({label, children}: {label: string; children: ReactNode}) {
+function Row({label, children}: {label: string; children: ComponentChildren}) {
   return (
     <>
       <dt className="text-sm opacity-55">{label}</dt>

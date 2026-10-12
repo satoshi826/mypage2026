@@ -16,7 +16,7 @@ Satoshi Hata（写真家 / エンジニア）のポートフォリオサイト�
 
 ## スタック
 
-Vite + React 18 + TypeScript + [glaku](https://github.com/satoshi826/glaku)（WebGL）。
+Vite + Preact 11 + TypeScript + [glaku](https://github.com/satoshi826/glaku)（WebGL）。
 スタイルは Tailwind v4（`@theme` にトークンを置き CSS 変数として共有）。
 
 - **glaku の使い方は [docs/glaku.md](docs/glaku.md) にまとめてある。** シェーダの

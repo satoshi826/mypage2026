@@ -1,5 +1,5 @@
 // 写真の一覧（manifest.json）の形と検証。サイト（src/photos/index.ts）と Worker（worker/）の
-// 両方が使う。React も DOM も使わない純粋なモジュールにしておく。
+// 両方が使う。Preact も DOM も使わない純粋なモジュールにしておく。
 
 export const CATEGORIES = ['street', 'abstract', 'color'] as const
 export type Category = (typeof CATEGORIES)[number]

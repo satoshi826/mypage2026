@@ -1,5 +1,6 @@
-import {useEffect, useRef, useState, useSyncExternalStore, type PointerEvent} from 'react'
-import {createPortal} from 'react-dom'
+import {useEffect, useRef, useState} from 'preact/hooks'
+import {createPortal, type TargetedPointerEvent} from 'preact'
+import {useExternal} from './useExternal'
 
 export type Param<T> = {
   key: keyof T & string
@@ -48,11 +49,7 @@ export function DevPanel<T extends Record<string, number | string>>({
   const [values, setValues] = useState<T>(() => load(storageKey, defaults))
   const [open, setOpen] = useState(() => load(`${storageKey}.open`, false))
   // ドックはこのパネルより後に描かれることがある。描き終わった時点で読み直されるので、そこで見つかる
-  const dock = useSyncExternalStore(
-    noop,
-    () => document.getElementById(DOCK),
-    () => null
-  )
+  const dock = useExternal(noop, () => document.getElementById(DOCK), null)
   useEffect(() => save(`${storageKey}.open`, open), [open, storageKey])
   // グループは畳んだ状態から始める。触るものだけ開いて使う
   const [closed, setClosed] = useState<Record<string, boolean>>(() =>
@@ -102,7 +99,7 @@ export function DevPanel<T extends Record<string, number | string>>({
                     {'options' in param ? (
                       <select
                         value={values[param.key]}
-                        onChange={(e) => setValues({...values, [param.key]: e.target.value})}
+                        onChange={(e) => setValues({...values, [param.key]: e.currentTarget.value})}
                         className="w-full border border-white/25 bg-black/75 p-0.5 text-inherit"
                       >
                         {param.options.map((option) => (
@@ -118,7 +115,7 @@ export function DevPanel<T extends Record<string, number | string>>({
                         max={param.max}
                         step={param.step}
                         value={values[param.key]}
-                        onChange={(e) => setValues({...values, [param.key]: Number(e.target.value)})}
+                        onInput={(e) => setValues({...values, [param.key]: Number(e.currentTarget.value)})}
                         className="w-full"
                       />
                     )}
@@ -155,12 +152,12 @@ export function DevDock() {
   const drag = useRef<{dx: number; dy: number} | null>(null)
   useEffect(() => save('mypage2026.devDock', dock), [dock])
 
-  const onDown = (event: PointerEvent<HTMLDivElement>) => {
+  const onDown = (event: TargetedPointerEvent<HTMLDivElement>) => {
     if ((event.target as HTMLElement).closest('button')) return
     event.currentTarget.setPointerCapture(event.pointerId)
     drag.current = {dx: event.clientX - dock.x, dy: event.clientY - dock.y}
   }
-  const onMove = (event: PointerEvent<HTMLDivElement>) => {
+  const onMove = (event: TargetedPointerEvent<HTMLDivElement>) => {
     if (!drag.current) return
     // 横はドック全体、縦は見出しが画面に収まる範囲で動かす
     const width = event.currentTarget.parentElement!.offsetWidth
@@ -174,18 +171,14 @@ export function DevDock() {
 
   // 保存した位置が今の画面の外なら、中へ収めて描く。広いウィンドウで端へ寄せたあと狭めると、
   // 画面の外に出たまま見えなくなるため。ウィンドウの大きさが変わったら描き直す
-  const viewport = useSyncExternalStore(
-    subscribeResize,
-    () => `${innerWidth}x${innerHeight}`,
-    () => '0x0'
-  )
+  const viewport = useExternal(subscribeResize, () => `${innerWidth}x${innerHeight}`, '0x0')
   const [width, height] = viewport.split('x').map(Number)
   const left = Math.min(dock.x, Math.max(0, width - 256))
   const top = Math.min(dock.y, Math.max(0, height - 32))
 
   return (
     <div
-      style={{left, top}}
+      style={{left: `${left}px`, top: `${top}px`}}
       className="fixed z-50 flex w-64 flex-col border border-white/25 bg-black/80 font-mono text-[11px] leading-tight text-ink"
     >
       <div

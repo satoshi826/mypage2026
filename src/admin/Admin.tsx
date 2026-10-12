@@ -1,4 +1,5 @@
-import {useEffect, useRef, useState} from 'react'
+import {useEffect, useRef, useState} from 'preact/hooks'
+import type {ComponentChildren} from 'preact'
 import {CATEGORIES, isCategory, pickSource, type Photo} from '../photos'
 import {VARIANTS} from '../photos/manifest'
 import {deleteImage, fetchManifest, putImage, saveManifest} from './api'
@@ -146,7 +147,7 @@ export function Admin() {
           accept="image/jpeg,image/png"
           multiple
           disabled={busy !== null}
-          onChange={(e) => e.target.files?.length && upload(e.target.files)}
+          onChange={(e) => e.currentTarget.files?.length && upload(e.currentTarget.files)}
           className="text-sm"
         />
         <span className="text-sm opacity-55">
@@ -180,7 +181,7 @@ export function Admin() {
               </span>
               <select
                 value={photo.category}
-                onChange={(e) => isCategory(e.target.value) && patch(i, {category: e.target.value})}
+                onChange={(e) => isCategory(e.currentTarget.value) && patch(i, {category: e.currentTarget.value})}
                 className="border border-white/25 bg-transparent px-1 py-0.5 text-inherit"
               >
                 {CATEGORIES.map((c) => (
@@ -190,7 +191,7 @@ export function Admin() {
                 ))}
               </select>
               <label className="flex items-center gap-1">
-                <input type="checkbox" checked={photo.hero} onChange={(e) => patch(i, {hero: e.target.checked})} />
+                <input type="checkbox" checked={photo.hero} onChange={(e) => patch(i, {hero: e.currentTarget.checked})} />
                 hero
               </label>
             </div>
@@ -218,7 +219,7 @@ export function Admin() {
   )
 }
 
-function Shell({children}: {children: React.ReactNode}) {
+function Shell({children}: {children: ComponentChildren}) {
   return (
     <div className="mx-auto min-h-[100svh] max-w-5xl px-8 pt-[calc(var(--spacing-nav)+3.5rem)] pb-24">
       <h1 className="mb-6 text-[1.75rem] font-normal tracking-[0.05em]">Admin</h1>

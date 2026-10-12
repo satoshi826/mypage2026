@@ -1,19 +1,12 @@
-import {
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-  useSyncExternalStore,
-  type CSSProperties,
-  type PointerEvent
-} from 'react'
+import {useEffect, useLayoutEffect, useMemo, useRef, useState} from 'preact/hooks'
+import type {CSSProperties} from 'preact'
 import {Img} from './Img'
 import {gapFor, layout, type Expansion, type Placed} from './layout'
 import {useReveal} from './reveal'
 import {autoColumns, chosen, maxColumns, setGalleryControls, type Columns} from './controls'
 import {DEFAULT_MOTION, DEFAULT_SPACING, EASINGS, MOTION_PARAMS, SPACING_PARAMS, type Motion} from './tuning'
 import {DevPanel} from '../app/DevPanel'
+import {useExternal} from '../app/useExternal'
 import {glideTo, jumpTo} from '../app/useSmoothScroll'
 import {pickSource, type Photo} from '../photos'
 
@@ -90,10 +83,10 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
   const reveal = useRef(false)
 
   // スクロール位置を刻みで丸めたもの。刻みをまたいだときだけ描き直す
-  const step = useSyncExternalStore(
+  const step = useExternal(
     subscribeScroll,
     () => (metrics ? Math.floor((scrollY - metrics.top) / (metrics.viewport * STEP)) : 0),
-    () => 0
+    0
   )
 
   // 測った寸法を反映する。画面の幅が変わって列数が変わるとき（Auto の列数、選べる上限）は、列数のスライダーと同じく
@@ -314,7 +307,7 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
       className="relative"
       style={
         {
-          height: placed?.height ?? 0,
+          height: `${placed?.height ?? 0}px`,
           '--hover-zoom': motion.hoverZoom,
           '--hover-seconds': `${motion.hoverSeconds}s`,
           '--hover-ease': EASINGS[motion.easing].css
@@ -362,7 +355,7 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
               // 高さも配置の計算値で与える。画像が届くまでの img は高さを持たず、枠が潰れるため。
               // content-visibility: auto は使わない。中身を飛ばすかどうかの判定がフレームの更新に
               // 乗っていて、スクロールが止まったあと画面内の写真が飛ばされたまま残ることがある（Chrome）
-              style={{left: at.x, top: at.y, width: at.w, height: at.h}}
+              style={{left: `${at.x}px`, top: `${at.y}px`, width: `${at.w}px`, height: `${at.h}px`}}
             >
               <Img
                 photo={photo}

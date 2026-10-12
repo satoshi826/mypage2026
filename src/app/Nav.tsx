@@ -1,4 +1,4 @@
-import {useLocation} from 'wouter'
+import {useLocation} from 'wouter-preact'
 import {NAV_ROUTES} from './routes'
 import {TabLink, Tabs, Underline} from './Tabs'
 

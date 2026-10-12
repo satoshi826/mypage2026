@@ -1,6 +1,6 @@
-import {StrictMode} from 'react'
-import {createRoot, hydrateRoot} from 'react-dom/client'
+import {hydrate, render} from 'preact'
 import {App} from './app/App'
+import {hydrated} from './app/useExternal'
 import {registerServiceWorker} from './sw/register'
 import './styles.css'
 
@@ -8,15 +8,10 @@ import './styles.css'
 if (import.meta.env.DEV) import('./dev-fonts.css')
 
 const container = document.getElementById('root')!
-const app = (
-  <StrictMode>
-    <App />
-  </StrictMode>
-)
-
 // プリレンダ済みの HTML があれば hydrate、dev のように空なら通常のマウント
-if (container.hasChildNodes()) hydrateRoot(container, app)
-else createRoot(container).render(app)
+if (container.hasChildNodes()) hydrate(<App />, container)
+else render(<App />, container)
+hydrated()
 
 // 2 回目以降の訪問と、列数の切り替えで読み込みを待たせない（src/sw/）。開発中は古いファイルが残るので使わない
 if (import.meta.env.PROD) registerServiceWorker()

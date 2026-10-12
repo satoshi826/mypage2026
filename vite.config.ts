@@ -1,7 +1,7 @@
 import {spawn} from 'node:child_process'
 import {fileURLToPath} from 'node:url'
 import {defineConfig, type Plugin} from 'vite'
-import react from '@vitejs/plugin-react'
+import preact from '@preact/preset-vite'
 import tailwind from '@tailwindcss/vite'
 
 const API_PORT = 8787
@@ -44,7 +44,8 @@ function apiDev(): Plugin {
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [react(), tailwind(), apiDev()],
+  // React の名前で書いた依存を Preact の互換層へ流す設定（reactAliases）は切る。互換層を使わず、Preact 本体で書くため
+  plugins: [preact({reactAliasesEnabled: false}), tailwind(), apiDev()],
   worker: {
     format: 'es'
   },
