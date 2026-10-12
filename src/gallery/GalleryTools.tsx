@@ -105,16 +105,19 @@ function ColumnSlider({
       className={`group flex items-center gap-2 opacity-90 transition-opacity duration-300 hover:opacity-100 ${className}`}
     >
       {/* 計器の数字のように、2〜6 を縦に積んだ帯を 1 文字ぶんの窓から覗かせ、今の値の位置まで滑らせる。
-          増えると下から上がってきて、減ると上から下りてくる。間の数字は素早く通り過ぎる */}
+          増えると下から上がってきて、減ると上から下りてくる。間の数字は素早く通り過ぎる。
+          帯と点は、今の列数が分かってから描く。分かる前の位置から動いて見えないように（動くのは値が変わったときだけ） */}
       <span aria-hidden className="h-[1em] w-2.5 overflow-hidden text-sm leading-none font-light tabular-nums">
-        <span
-          className={`flex flex-col transition-[translate,opacity] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${value ? '' : 'opacity-0'}`}
-          style={{translate: `0 ${-((value ?? 2) - 2)}em`}}
-        >
-          {COUNTS.map((count) => (
-            <span key={count}>{count}</span>
-          ))}
-        </span>
+        {value && (
+          <span
+            className="flex flex-col transition-[translate] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]"
+            style={{translate: `0 ${-(value - 2)}em`}}
+          >
+            {COUNTS.map((count) => (
+              <span key={count}>{count}</span>
+            ))}
+          </span>
+        )}
       </span>
       <div className="relative h-full w-28 [--thumb:16px]">
         <div
@@ -129,11 +132,13 @@ function ColumnSlider({
             style={{left: position(count)}}
           />
         ))}
-        <div
-          aria-hidden
-          className={`absolute top-1/2 size-[7px] -translate-1/2 rounded-full bg-ink transition-[left,opacity,scale] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-140 group-has-[input:focus-visible]:scale-150 ${value ? '' : 'opacity-0'}`}
-          style={{left: position(value ?? 2)}}
-        />
+        {value && (
+          <div
+            aria-hidden
+            className="absolute top-1/2 size-[7px] -translate-1/2 rounded-full bg-ink transition-[left,scale] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-140 group-has-[input:focus-visible]:scale-150"
+            style={{left: position(value)}}
+          />
+        )}
         <input
           type="range"
           data-slider
