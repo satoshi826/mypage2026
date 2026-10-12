@@ -1,4 +1,13 @@
-import {useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties} from 'react'
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type CSSProperties,
+  type PointerEvent
+} from 'react'
 import {Img} from './Img'
 import {gapFor, layout, type Expansion, type Placed} from './layout'
 import {useReveal} from './reveal'
@@ -6,7 +15,7 @@ import {autoColumns, chosenColumns, maxColumns, rememberColumns, setGalleryContr
 import {DEFAULT_MOTION, DEFAULT_SPACING, EASINGS, MOTION_PARAMS, SPACING_PARAMS, type Motion} from './tuning'
 import {DevPanel} from '../app/DevPanel'
 import {glideTo, jumpTo} from '../app/useSmoothScroll'
-import type {Photo} from '../photos'
+import {pickSource, type Photo} from '../photos'
 
 /**
  * 寸法。容器の幅、画面の幅で決まる列数（auto のとき使う）、広げた写真に許す高さ、画面の高さ、
@@ -178,7 +187,7 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
     let nearest = Infinity
     for (const [file, at] of placed.items) {
       const box = toBox(at, scroll, metrics.left)
-      if (!isNear(box, metrics.viewport)) continue
+      if (!isNear(box, metrics.viewport, 1)) continue
       near.add(file)
       // 配置の変化で画面に入ってくる写真は、ワイプなしで即座に出す。ワイプはスクロールで
       // 見つけるためのもので、動いている最中に現れ始めると不連続に見える
@@ -212,6 +221,16 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
     const timer = setTimeout(() => setKeep(NONE), motion.expandSeconds * 1000)
     return () => clearTimeout(timer)
   }, [keep, motion.expandSeconds])
+
+  /**
+   * マウスのボタンを押した瞬間に、広げたときの拡大用の画像を読み始める。広げるのは離したとき（click）なので、
+   * 押している時間（100ms 前後）ぶん先に読める。タッチは、スクロールしようと写真に指を置くたびに読んでしまうので除く
+   */
+  const preload = (event: PointerEvent, photo: Photo) => {
+    if (event.pointerType !== 'mouse' || event.button !== 0 || !metrics || expanded === photo.file) return
+    const width = Math.min(metrics.width, (metrics.maxHeight * photo.w) / photo.h)
+    new Image().src = pickSource(photo, width * devicePixelRatio, true).src
+  }
 
   /** 押した写真を広げる・戻す。別の写真を広げているときは、そちらを戻しながら広げる */
   const toggle = (file: string) =>
@@ -259,8 +278,11 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
 
     // 大きさが変わる写真も figure ごと動かす。img とワイプ用の覆いが一緒に動くので、中身だけを
     // 動かすより単純で、枠と中身がずれない。
-    // 変更前も変更後も画面から遠い写真は動かさない。見えない動きで、動かす本数が写真の数に比例して増えるため
+    // 動かすのは、変更前か変更後に画面に見えている写真だけ。見えない写真の動きは誰にも見えず、本数が増えると
+    // 組み替えた瞬間の 1 フレームが重くなる（動かす準備が本数に比例するため）。ただし押して広げたときは、
+    // あとで寄せるスクロール（最大でほぼ 1 画面）で画面に入ってくる写真も動かす
     const still = matchMedia('(prefers-reduced-motion: reduce)').matches
+    const margin = reveal.current ? 1 : 0
     if (!still) {
       for (const figure of el.querySelectorAll<HTMLElement>('figure[data-file]')) {
         // 前の動きは止める。続けると、新しい配置の位置を基準に古い差分で動いてしまう
@@ -270,7 +292,7 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
         if (!from || !to) continue
         const a = first.visual.get(figure.dataset.file!) ?? toBox(from, first.scroll, first.left)
         const b = toBox(to, scroll, metrics.left)
-        if (isNear(a, metrics.viewport) || isNear(b, metrics.viewport)) flip(figure, a, b, motion)
+        if (isNear(a, metrics.viewport, margin) || isNear(b, metrics.viewport, margin)) flip(figure, a, b, motion)
       }
     }
 
@@ -336,6 +358,7 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
               ref={(node) => {
                 if (node && revealed.current.has(photo.file)) node.dataset.revealed = ''
               }}
+              onPointerDown={(event) => preload(event, photo)}
               onClick={() => toggle(photo.file)}
               className={`group absolute m-0 overflow-hidden ${wide ? 'cursor-zoom-out' : 'cursor-zoom-in'}`}
               // 高さも配置の計算値で与える。画像が届くまでの img は高さを持たず、枠が潰れるため。
@@ -388,11 +411,9 @@ const toBox = (at: Placed, scroll: number, left: number): Box => ({
   height: at.h
 })
 
-/**
- * 広げる・戻すあいだに見えうる範囲にあるか。画面の上下に 1 画面ずつ余裕を持つ。広げたあとの
- * 寄せるスクロール（最大でほぼ 1 画面）で画面に入ってくる写真も含めるため
- */
-const isNear = (box: Box, viewport: number) => box.top + box.height > -viewport && box.top < viewport * 2
+/** 画面と、その上下 margin 画面ぶんの範囲に入っているか */
+const isNear = (box: Box, viewport: number, margin: number) =>
+  box.top + box.height > -viewport * margin && box.top < viewport * (1 + margin)
 
 /** 変更前の位置・大きさから今の位置へ、transform の差分を戻す形で動かす */
 function flip(el: HTMLElement, from: Box, to: Box, motion: Motion) {
