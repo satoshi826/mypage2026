@@ -34,7 +34,7 @@ npm run bench:compare -- 前.json 後.json         # 指定した 2 回分を比
 | `load-photos-cold` / `load-photos-warm` | Photos を開く                                                      |
 | `photos-scroll`                         | 一覧を 6000px 流す（タッチは指、PC はホイール）                    |
 | `photos-columns`                        | 列数を 6 → 2 → 5 → Auto と切り替える                               |
-| `photos-expand`                         | 画面の中央に近い写真を広げ、もう一度押して戻す（3 回）                    |
+| `photos-expand`                         | 画面の中央に近い写真を広げ、もう一度押して戻す（3 回）             |
 | `page-transition`                       | トップ → Photos → About → Works → Contact → トップ                 |
 | `hero-idle`                             | hero を 5 秒再生したまま置く                                       |
 
@@ -47,7 +47,8 @@ npm run bench:compare -- 前.json 後.json         # 指定した 2 回分を比
   転送量（worker が読む写真も含む）、JS の実行時間、JS のヒープ
 - 操作: requestAnimationFrame で数えたフレームの間隔（p95・最大）と落ちたフレーム、
   長いフレームの詰まり（Long Animation Frames の blockingDuration の合計）、
-  メインスレッドの内訳（JS・スタイルの再計算・レイアウト・合計。Chrome の Performance.getMetrics の差分）
+  メインスレッドの内訳（JS・スタイルの再計算・レイアウト・合計。Chrome の Performance.getMetrics の差分）、
+  終わった時点で DOM にある画像のデコード後の大きさ（画素数 × 4 バイト。GPU 側のメモリの目安）
 - ビルドの大きさ: dist の JS・CSS・HTML の gzip 後の合計、フォントはそのままの大きさ
 
 比較では、中央値の変化が 5% 未満は誤差として扱う。

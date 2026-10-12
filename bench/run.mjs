@@ -197,6 +197,15 @@ async function measureInteraction(browser, profile, scenario, url) {
     await scenario.run(ctx)
     const {times, duration, blocking} = await page.evaluate(() => window.__bench.stop())
     const after = await page.metrics()
+    // 終わった時点で DOM にある画像の、デコード後の大きさ（1 画素 4 バイト）。GPU 側のメモリの目安
+    const imageMB = await page.evaluate(
+      () =>
+        [...document.images].reduce(
+          (n, img) => n + (img.currentSrc ? img.naturalWidth * img.naturalHeight * 4 : 0),
+          0
+        ) /
+        2 ** 20
+    )
     const gaps = times.slice(1).map((t, i) => t - times[i])
     const sorted = [...gaps].sort((a, b) => a - b)
     const delta = (key) => (after[key] - before[key]) * 1000
@@ -210,7 +219,8 @@ async function measureInteraction(browser, profile, scenario, url) {
       style: delta('RecalcStyleDuration'),
       layout: delta('LayoutDuration'),
       task: delta('TaskDuration'),
-      heapMB: after.JSHeapUsedSize / 2 ** 20
+      heapMB: after.JSHeapUsedSize / 2 ** 20,
+      imageMB
     }
   } finally {
     await close()

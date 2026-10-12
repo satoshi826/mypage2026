@@ -172,8 +172,8 @@ worker/     Cloudflare Worker（写真の API）
 | `photos/index.ts`   | 写真一覧の取得（`/api/manifest`）と、派生画像の URL |
 | `admin/`            | 写真の管理画面（`/admin`）。派生画像の生成と API の呼び出し |
 | `worker/`           | Cloudflare Worker。写真の API と Access の検証 |
-| `scripts/encode-photos.sh` | 原本から派生画像を `.photos/` に書き出し、manifest.json を生成する（移行用） |
-| `scripts/sync-photos.mjs` | 写真を `.photos/` → ローカル、本番 ⇄ ローカルで動かす |
+| `scripts/encode-photos.mjs` | 原本（`.photos/originals/`）から派生画像を `.photos/` に書き出し、manifest.json を更新する（移行と作り直し用） |
+| `scripts/sync-photos.mjs` | 写真を `.photos/` → ローカル、本番 ⇄ ローカルで動かす。作り直しの前に本番の一覧と原本を手元に揃える |
 | `scripts/prerender.js` | ビルド後に各ルートを HTML 化する |
 | `scripts/fonts.js` | 本文の書体（Zen Kaku Gothic New）を、プリレンダした全ページに出てくる文字と英数字だけに絞って woff2 にし、各ページの先頭で先読みさせる。元のフォントは `fonts/`（OFL）。開発中は絞らずに `src/dev-fonts.css` で読む |
 
@@ -198,8 +198,8 @@ Worker には `requestAnimationFrame` がないため、駆動はメインスレ
 | キー | 内容 |
 |---|---|
 | `manifest.json` | 一覧。`file / w / h / category / hero` の配列。形は `worker/manifest.ts` が検証する |
-| `thumb/<file>.webp` | 一覧用。長辺 800px |
-| `gallery/<file>.webp` | 拡大用。長辺 2000px、カラー、トリミングなし。一覧で広げたときに読む |
+| `list-<長辺>/<file>.webp` | 一覧用。長辺 200 / 400 / 800 / 1200px、画質 60 |
+| `large-<長辺>/<file>.webp` | 拡大用。長辺 1200 / 2000px、画質 80、カラー、トリミングなし。一覧で広げたときに読む |
 | `hero/<file>.webp` | hero 用。1152x768、中央トリミング、グレースケール。`hero: true` のものだけ使う |
 | `originals/<file>.<ext>` | 原本。再派生のために置く。認証なしでは取れない |
 
@@ -207,18 +207,32 @@ API は `worker/index.ts`。読み取りは誰でも、書き込みと原本の�
 JWT を検証する（`worker/access.ts`）。`ACCESS_TEAM_DOMAIN` と `ACCESS_AUD` が未設定なら
 localhost からの書き込みだけ通す（wrangler dev 用）。
 
+派生の段（長辺と画質）は `src/photos/manifest.ts` の `VARIANTS` が唯一の定義で、表示・Worker・管理画面・
+スクリプトがここを読む。一覧も拡大も、写真ごとに「表示幅 × 画面の密度」以上で一番小さい段を選ぶ
+（`src/photos/index.ts` の `pickSource`）。スマホの 6 列なら 200、PC の高精細な画面の 2 列なら 1200 と、
+画質を落とさずに転送量とデコード後のメモリを減らす。一覧で一覧用の最大でも足りないとき（PC の 2 列の縦長）は
+拡大用の 2000 を使う。Photos の HTML は、先頭数枚を `imagesrcset` で先読みさせる（`worker/index.ts`）。
+
 **管理画面 `/admin`。** 複数アップロード、カテゴリと hero の切り替え、並び替え、削除。
-派生画像（thumb / gallery / hero）はブラウザで作る（`src/admin/derive.ts`。段階的な縮小、
+派生画像（各段と hero）はブラウザで作る（`src/admin/derive.ts`。段階的な縮小、
 Rec.709 のグレースケール、WebP 書き出し。Safari は WebP を書き出せないので Chrome を使う）。一覧の編集は「保存」で
 manifest.json を丸ごと置き換える。画像のアップロードと削除は即座に反映される。
 
-**最初の移行と再派生**は `scripts/encode-photos.sh`（原本 → `.photos/`）のあと
-`npm run photos:import`（`.photos/` → ローカルの R2）、`npm run photos:push`（→ 本番）。
-`.photos/` は作業用で追跡しない。
+**最初の移行と作り直し**（段を変えたときなど）は次の順。`.photos/` は作業用で追跡しない。
+
+```
+npm run photos:originals   # 本番の一覧を .photos/manifest.json に取り、手元に無い原本を本番の R2 から .photos/originals/ へ
+npm run photos:encode      # .photos/originals/ → .photos/<kind>/。一覧の順番・カテゴリ・hero は引き継ぐ
+npm run photos:import      # .photos/ → ローカルの R2。npm run dev で確かめる
+npm run photos:push        # → 本番
+```
+
+原本は管理画面で足したものだけが本番の R2 にある。それ以前の写真の原本は手元にしかないので、
+`.photos/originals/` に置いておく（`photos:originals` は手元にあるものは取りに行かない）。
 
 **写真の移動**は `scripts/sync-photos.mjs`。一覧（manifest.json）を正として、
-thumb / gallery / hero を etag で比べ、違うものだけ送る。送り先の一覧にだけある写真は
-画像ごと消す。原本は扱わない。`npm run dev` を動かしたまま使う（ローカル側は
+各段と hero を etag で比べ、違うものだけ送る。送り先の一覧にだけある写真は
+画像ごと消す。原本は送らない。`npm run dev` を動かしたまま使う（ローカル側は
 wrangler dev の API 経由）。本番への書き込みは wrangler なので、ログインしておく。
 
 ```
@@ -254,7 +268,7 @@ Worker の型 `worker-configuration.d.ts` は `npx wrangler types` の生成物�
 build では生成しない。生成は workerd を起動し、Cloudflare のビルド環境ではそこで止まってデプロイが進まなかったため。
 
 ローカルの R2 は空なので、最初に写真を入れる。本番にあるなら `npm run photos:pull`、
-原本からなら `scripts/encode-photos.sh` のあと `npm run photos:import`。
+原本からなら上の作り直しの順。
 
 一覧は画面の上下 2.5 画面ぶんの写真だけを描き、描いた時点で画像を読み始める。読み込みが
 終わってから現れ、離れたら要素ごと外してデコード済みの画像を手放す（メモリの少ない端末での
@@ -273,7 +287,7 @@ build では生成しない。生成は workerd を起動し、Cloudflare のビ
 ## 本番の準備（Cloudflare 側）
 
 1. R2 を有効にし、バケット `mypage2026-photos` を作る。
-2. `./scripts/encode-photos.sh ~/path/to/originals` → `npm run photos:import` → `npm run photos:push`
+2. 原本を `.photos/originals/` に置き、`npm run photos:encode` → `npm run photos:import` → `npm run photos:push`
    で写真と manifest を入れる。原本は入れない。
 3. Zero Trust > Access で Self-hosted のアプリケーションを作り、パス `/admin` だけを保護する。
    自分のメールだけ許可する。Access はメソッドを区別できないので `/api/*` や `/images/*` は

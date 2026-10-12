@@ -1,5 +1,6 @@
 import {useEffect, useRef, useState} from 'react'
-import {CATEGORIES, isCategory, thumbSrc, type Photo} from '../photos'
+import {CATEGORIES, isCategory, pickSource, type Photo} from '../photos'
+import {VARIANTS} from '../photos/manifest'
 import {deleteImage, fetchManifest, putImage, saveManifest} from './api'
 import {derive} from './derive'
 
@@ -82,11 +83,10 @@ export function Admin() {
       const id = toId(file.name)
       setBusy(`${n + 1}/${files.length} ${file.name}`)
       try {
-        const {thumb, gallery, hero, w, h} = await derive(file)
+        const {variants, hero, w, h} = await derive(file)
         const ext = file.name.split('.').pop()?.toLowerCase() ?? 'jpg'
         await putImage(`originals/${id}.${ext}`, file)
-        await putImage(`thumb/${id}.webp`, thumb)
-        await putImage(`gallery/${id}.webp`, gallery)
+        for (const [kind, blob] of variants) await putImage(`${kind}/${id}.webp`, blob)
         await putImage(`hero/${id}.webp`, hero)
         const existing = photos.find((p) => p.file === id)
         if (existing) {
@@ -110,7 +110,9 @@ export function Admin() {
     if (!confirm(`${photo.file} を消す。画像も R2 から消える。`)) return
     setBusy(`${photo.file} を削除中`)
     try {
-      await Promise.all(['thumb', 'gallery', 'hero'].map((kind) => deleteImage(`${kind}/${photo.file}.webp`)))
+      await Promise.all(
+        [...VARIANTS.map((v) => v.kind), 'hero'].map((kind) => deleteImage(`${kind}/${photo.file}.webp`))
+      )
       update(photos.filter((_, j) => j !== i))
       say(`${photo.file}: 消した（原本は残る）`)
     } catch (e) {
@@ -161,7 +163,7 @@ export function Admin() {
             className="grid grid-cols-[6rem_1fr_auto] items-center gap-4 border-b border-white/10 py-2"
           >
             <img
-              src={thumbSrc(photo)}
+              src={pickSource(photo, 96 * devicePixelRatio, false).src}
               alt=""
               width={photo.w}
               height={photo.h}

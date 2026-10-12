@@ -303,7 +303,7 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
               // 乗っていて、スクロールが止まったあと画面内の写真が飛ばされたまま残ることがある（Chrome）
               style={{left: at.x, top: at.y, width: at.w, height: at.h}}
             >
-              <Img photo={photo} alt={`${label} ${index + 1}`} large={wide} zoom={!wide} />
+              <Img photo={photo} alt={`${label} ${index + 1}`} width={at.w} large={wide} zoom={!wide} />
               {/* ワイプ用の覆い。styles.css の [data-reveal] を参照 */}
               <div data-reveal-cover aria-hidden />
             </figure>

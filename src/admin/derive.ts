@@ -1,20 +1,17 @@
 // 原本から派生画像をブラウザで作る。Workers には画像ライブラリがないので、
 // 管理画面がアップロード前に縮小・トリミング・グレースケール・WebP 化まで済ませる。
-// 形は scripts/encode-photos.sh と揃える（長辺 800 と 2000 のカラー、1152x768 のグレースケール）。
+// 形は scripts/encode-photos.mjs と揃える（段は photos/manifest.ts の VARIANTS、hero は 1152x768 のグレースケール）。
 
+import {VARIANTS, type Variant} from '../photos/manifest'
 import {SOURCE_H, SOURCE_W} from '../hero/table'
 
-export const GALLERY_LONG = 2000
-const THUMB_LONG = 800
-const GALLERY_QUALITY = 0.82
-const THUMB_QUALITY = 0.6
 const HERO_QUALITY = 0.92
 
 export type Derived = {
-  thumb: Blob
-  gallery: Blob
+  /** 段ごとの派生。キーは R2 の kind */
+  variants: [Variant['kind'], Blob][]
   hero: Blob
-  /** 拡大用（gallery）の寸法 */
+  /** 一番大きい派生の寸法（manifest の w / h） */
   w: number
   h: number
 }
@@ -23,16 +20,18 @@ export async function derive(file: File): Promise<Derived> {
   // EXIF の向きを反映して読む
   const source = await createImageBitmap(file, {imageOrientation: 'from-image'})
   try {
-    const scale = Math.min(1, GALLERY_LONG / Math.max(source.width, source.height))
+    // 一番大きい段を原本から縮め、ほかの段はそこから縮める（大きい順に）
+    const largest = Math.max(...VARIANTS.map((v) => v.long))
+    const scale = Math.min(1, largest / Math.max(source.width, source.height))
     const w = Math.round(source.width * scale)
     const h = Math.round(source.height * scale)
-    const galleryCanvas = downscale(source, w, h)
-    const gallery = await toWebp(galleryCanvas, GALLERY_QUALITY)
-    const thumbScale = Math.min(1, THUMB_LONG / Math.max(w, h))
-    const thumb = await toWebp(
-      downscale(galleryCanvas, Math.round(w * thumbScale), Math.round(h * thumbScale)),
-      THUMB_QUALITY
-    )
+    const base = downscale(source, w, h)
+    const variants: Derived['variants'] = []
+    for (const variant of [...VARIANTS].sort((a, b) => b.long - a.long)) {
+      const s = Math.min(1, variant.long / Math.max(w, h))
+      const canvas = s === 1 ? base : downscale(base, Math.round(w * s), Math.round(h * s))
+      variants.push([variant.kind, await toWebp(canvas, variant.quality / 100)])
+    }
 
     // hero: 中央基準で 3:2 に切り出してから縮小、グレースケール
     const cropScale = Math.max(SOURCE_W / source.width, SOURCE_H / source.height)
@@ -50,7 +49,7 @@ export async function derive(file: File): Promise<Derived> {
     grayscale(heroCanvas)
     const hero = await toWebp(heroCanvas, HERO_QUALITY)
 
-    return {thumb, gallery, hero, w, h}
+    return {variants, hero, w, h}
   } finally {
     source.close()
   }

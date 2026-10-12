@@ -5,7 +5,7 @@
 // |----------|---------------------------|------|------|
 // | GET      | /api/manifest             | なし | 写真の一覧 |
 // | PUT      | /api/manifest             | 要   | 一覧を丸ごと置き換える |
-// | GET      | /images/{kind}/{name}     | originals のみ要 | 画像。kind は thumb / gallery / hero / originals |
+// | GET      | /images/{kind}/{name}     | originals のみ要 | 画像。kind は派生の段（manifest.ts の VARIANTS）/ hero / originals |
 // | PUT      | /images/{kind}/{name}     | 要   | 画像を置く。body がそのまま R2 へ |
 // | DELETE   | /images/{kind}/{name}     | 要   | 画像を消す |
 //
@@ -16,11 +16,10 @@
 // 取り始めさせる。どの写真かは一覧（R2）で決まるので、ビルド時には出せない。
 
 import {authorize} from './access'
-import {EAGER_THUMBS, isCategory, parseManifest, type Photo} from '../src/photos/manifest'
+import {EAGER_THUMBS, isCategory, parseManifest, VARIANTS, type Photo} from '../src/photos/manifest'
 
-const KINDS = ['thumb', 'gallery', 'hero', 'originals'] as const
-type Kind = (typeof KINDS)[number]
-const isKind = (value: string): value is Kind => (KINDS as readonly string[]).includes(value)
+const KINDS: readonly string[] = [...VARIANTS.map((v) => v.kind), 'hero', 'originals']
+const isKind = (value: string) => KINDS.includes(value)
 
 const json = (body: unknown, init: ResponseInit = {}) =>
   new Response(JSON.stringify(body), {
@@ -75,14 +74,32 @@ function hintsOf(parts: string[], photos: Photo[]): string[] {
     const first = photos.find((photo) => photo.hero)
     return first ? [`</images/hero/${first.file}.webp>; rel=prefetch`] : []
   }
-  // Photos: 既定は street。カテゴリの先頭数枚（/photos/:category）
+  // Photos: 既定は street。カテゴリの先頭数枚（/photos/:category）。どの段を読むかは表示幅と画面の
+  // 密度で決まるので、一覧用の段を候補に並べてブラウザに選ばせる。幅は列数が Auto のとき
+  // （狭い画面 2 列、ほかは 3 列。src/gallery/Gallery.tsx）の写真 1 枚ぶん
   const category = parts[1] ?? 'street'
   if (parts.length > 2 || !isCategory(category)) return []
+  const list = VARIANTS.filter((v) => v.use === 'list')
   return photos
     .filter((photo) => photo.category === category)
     .slice(0, EAGER_THUMBS)
-    .map((photo) => `</images/thumb/${photo.file}.webp>; rel=preload; as=image`)
+    .map((photo) => {
+      const srcset = list
+        .map((v) => {
+          const width = Math.round(photo.w * Math.min(1, v.long / Math.max(photo.w, photo.h)))
+          return `/images/${v.kind}/${photo.file}.webp ${width}w`
+        })
+        .join(', ')
+      // URL は imagesrcset を知らないブラウザ向けの代わり
+      return `</images/list-800/${photo.file}.webp>; rel=preload; as=image; imagesrcset="${srcset}"; imagesizes="${SIZES}"`
+    })
 }
+
+/**
+ * Photos の一覧で、列数が Auto のときの写真 1 枚の表示幅。容器の左右の余白と写真のあいだ（既定の隙間で、
+ * 狭い画面の 2 列は約 7px、ほかの 3 列は 16px × 2）を引いて列数で割る。一覧の JS が選ぶ段と揃えるため
+ */
+const SIZES = '(max-width: 639px) calc((100vw - 39px) / 2), calc((min(100vw, 1280px) - 96px) / 3)'
 
 async function pageWithHints(request: Request, env: Env, parts: string[]) {
   const [page, photos] = await Promise.all([env.ASSETS.fetch(request), photosOf(env)])

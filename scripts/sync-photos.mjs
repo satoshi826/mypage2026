@@ -2,15 +2,17 @@
 // 写真を、.photos/（原本から書き出したもの）、ローカルの R2（wrangler dev）、本番の R2 の
 // あいだで動かす。
 //
-//   npm run photos:import          # .photos/ → ローカル。原本からの最初の移行と再派生のあと
+//   npm run photos:import          # .photos/ → ローカル。原本からの最初の移行と作り直しのあと
 //   npm run photos:pull            # 本番 → ローカル
 //   npm run photos:push            # ローカル → 本番
+//   npm run photos:originals       # 本番の一覧を .photos/manifest.json に取り、手元に無い原本を本番の R2 から
+//                                  # .photos/originals/ へ取る（作り直しの前に。scripts/encode-photos.mjs）
 //   node scripts/sync-photos.mjs pull --dry-run   # 何が変わるかだけ出す
 //   node scripts/sync-photos.mjs push --yes       # 確認を飛ばす
 //
-// 一覧（manifest.json）を正とし、各写真の thumb / gallery / hero を etag で比べて
-// 違うものだけ送る。送り先の一覧にあって送り元にない写真は、画像ごと消す。
-// 原本（originals）は扱わない（大きく、本番の読み出しに認証が要るため）。
+// 一覧（manifest.json）を正とし、各写真の派生（src/photos/manifest.ts の VARIANTS の段と hero）を etag で
+// 比べて違うものだけ送る。送り先の一覧にあって送り元にない写真は、画像ごと消す。
+// 原本（originals）は送らない（大きく、本番の読み出しに認証が要るため）。取るのは originals だけ。
 //
 // ローカル側は wrangler dev の API（LOCAL_API、既定 http://localhost:8787）を使うので、
 // `npm run dev` を動かしたまま実行する。本番側は、読みは公開 URL（SITE）、書きは wrangler
@@ -18,27 +20,39 @@
 
 import {execFileSync} from 'node:child_process'
 import {createHash} from 'node:crypto'
-import {existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync} from 'node:fs'
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  statSync,
+  writeFileSync
+} from 'node:fs'
 import {tmpdir} from 'node:os'
 import {dirname, join} from 'node:path'
 import {createInterface} from 'node:readline/promises'
 import {fileURLToPath} from 'node:url'
+import {readVariants} from './variants.mjs'
 
 const LOCAL = process.env.LOCAL_API ?? 'http://localhost:8787'
 const SITE = process.env.SITE ?? 'https://mypage2026.stosto826.workers.dev'
-const PHOTOS_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', '.photos')
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
+const PHOTOS_DIR = join(ROOT, '.photos')
 const BUCKET = 'mypage2026-photos'
-const KINDS = ['thumb', 'gallery', 'hero']
+const KINDS = [...readVariants(ROOT).map((v) => v.kind), 'hero']
 const PARALLEL = 6
 
 const [direction, ...flags] = process.argv.slice(2)
-if (!['import', 'pull', 'push'].includes(direction)) {
-  console.error('使い方: node scripts/sync-photos.mjs <import|pull|push> [--dry-run] [--yes]')
+if (!['import', 'pull', 'push', 'originals'].includes(direction)) {
+  console.error('使い方: node scripts/sync-photos.mjs <import|pull|push|originals> [--dry-run] [--yes]')
   process.exit(2)
 }
 const dryRun = flags.includes('--dry-run')
 const yes = flags.includes('--yes')
-const [from, to] = {import: [PHOTOS_DIR, LOCAL], pull: [SITE, LOCAL], push: [LOCAL, SITE]}[direction]
+const [from, to] = {import: [PHOTOS_DIR, LOCAL], pull: [SITE, LOCAL], push: [LOCAL, SITE]}[direction] ?? []
 
 const isDir = (base) => base === PHOTOS_DIR
 const imageUrl = (base, key) => (isDir(base) ? join(base, key) : `${base}/images/${key}`)
@@ -83,7 +97,9 @@ async function mapLimit(items, limit, fn) {
 }
 
 function wrangler(...args) {
-  execFileSync('npx', ['--no-install', 'wrangler', 'r2', 'object', ...args, '--remote'], {stdio: ['ignore', 'ignore', 'inherit']})
+  execFileSync('npx', ['--no-install', 'wrangler', 'r2', 'object', ...args, '--remote'], {
+    stdio: ['ignore', 'ignore', 'inherit']
+  })
 }
 
 /** 送り先へ 1 オブジェクト置く。本番は wrangler、ローカルは API */
@@ -110,13 +126,22 @@ async function del(key) {
 async function putManifest(photos, tmp) {
   const body = JSON.stringify(photos)
   if (to === LOCAL) {
-    const res = await fetch(`${LOCAL}/api/manifest`, {method: 'PUT', headers: {'content-type': 'application/json'}, body})
+    const res = await fetch(`${LOCAL}/api/manifest`, {
+      method: 'PUT',
+      headers: {'content-type': 'application/json'},
+      body
+    })
     if (!res.ok) throw new Error(`PUT manifest: ${res.status}`)
     return
   }
   const file = join(tmp, 'manifest.json')
   writeFileSync(file, body)
   wrangler('put', `${BUCKET}/manifest.json`, '--file', file, '--content-type', 'application/json')
+}
+
+if (direction === 'originals') {
+  await fetchOriginals()
+  process.exit(0)
 }
 
 const source = await manifest(from)
@@ -138,7 +163,9 @@ const toCopy = copies.filter((c) => !c.missing).map((c) => c.key)
 // 消すもの: 送り先の一覧にだけある写真の画像
 const sourceFiles = new Set(source.map((p) => p.file))
 const orphaned = target.filter((p) => !sourceFiles.has(p.file)).flatMap(keysOf)
-const toDelete = (await mapLimit(orphaned, PARALLEL, async (key) => ((await etag(imageUrl(to, key))) ? key : null))).filter(Boolean)
+const toDelete = (
+  await mapLimit(orphaned, PARALLEL, async (key) => ((await etag(imageUrl(to, key))) ? key : null))
+).filter(Boolean)
 
 const manifestChanged = JSON.stringify(source) !== JSON.stringify(target)
 
@@ -146,7 +173,8 @@ console.log(`  画像を送る: ${toCopy.length}`)
 console.log(`  画像を消す: ${toDelete.length}`)
 console.log(`  一覧: ${manifestChanged ? '置き換える' : '同じ'}`)
 // 最初の移行では hero: false の写真に hero 画像を作っていないので、その分はここに出る
-if (missing.length) console.log(`  送り元に画像がないので飛ばす: ${missing.length}（例 ${missing.slice(0, 3).join(', ')}）`)
+if (missing.length)
+  console.log(`  送り元に画像がないので飛ばす: ${missing.length}（例 ${missing.slice(0, 3).join(', ')}）`)
 for (const key of toCopy) console.log(`    + ${key}`)
 for (const key of toDelete) console.log(`    - ${key}`)
 
@@ -183,3 +211,41 @@ try {
   rmSync(tmp, {recursive: true, force: true})
 }
 console.log('done')
+
+/**
+ * 本番の一覧を .photos/manifest.json に取り、手元（.photos/originals/）に無い原本を本番の R2 から取る。
+ * 原本のキーは originals/<file>.<拡張子>（管理画面は小文字の拡張子で置く）。R2 の中身は一覧できないので、
+ * 拡張子を順に試す
+ */
+async function fetchOriginals() {
+  const photos = await manifest(SITE)
+  writeFileSync(join(PHOTOS_DIR, 'manifest.json'), `${JSON.stringify(photos, null, 2)}\n`)
+  console.log(`本番の一覧（${photos.length} 枚）を .photos/manifest.json に取った`)
+  const dir = join(PHOTOS_DIR, 'originals')
+  mkdirSync(dir, {recursive: true})
+  const have = new Set(readdirSync(dir).map((name) => name.replace(/\.[^.]+$/, '')))
+  const tmp = mkdtempSync(join(tmpdir(), 'originals-'))
+  const notFound = []
+  try {
+    for (const {file} of photos.filter((p) => !have.has(p.file))) {
+      const ext = ['jpg', 'jpeg', 'png'].find((ext) => {
+        const out = join(tmp, `${file}.${ext}`)
+        try {
+          wrangler('get', `${BUCKET}/originals/${file}.${ext}`, '--file', out)
+        } catch {
+          return false
+        }
+        return existsSync(out) && statSync(out).size > 0
+      })
+      if (!ext) {
+        notFound.push(file)
+        continue
+      }
+      renameSync(join(tmp, `${file}.${ext}`), join(dir, `${file}.${ext}`))
+      console.log(`  + originals/${file}.${ext}`)
+    }
+  } finally {
+    rmSync(tmp, {recursive: true, force: true})
+  }
+  if (notFound.length) console.log(`本番の R2 にも原本が無い: ${notFound.join(', ')}`)
+}

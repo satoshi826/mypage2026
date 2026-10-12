@@ -20,7 +20,9 @@
     "preview:lan": "npm run build && wrangler dev --ip 0.0.0.0 --port 8788",
     "photos:import": "node scripts/sync-photos.mjs import",
     "photos:pull": "node scripts/sync-photos.mjs pull",
-    "photos:push": "node scripts/sync-photos.mjs push"
+    "photos:push": "node scripts/sync-photos.mjs push",
+    "photos:originals": "node scripts/sync-photos.mjs originals",
+    "photos:encode": "node scripts/encode-photos.mjs"
   },
   "dependencies": {
     "glaku": "^0.5.2",

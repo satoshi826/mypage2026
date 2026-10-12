@@ -1,4 +1,4 @@
-// 配信解像度。public/photos の webp の寸法で、scripts/encode-photos.sh が読む唯一の出典。
+// 配信解像度。hero 用の webp の寸法で、scripts/encode-photos.mjs と src/admin/derive.ts が読む唯一の出典。
 // 全写真がこのアスペクトに揃っている必要がある（粒子集合を共有するため）。
 export const SOURCE_W = 1152
 export const SOURCE_H = 768

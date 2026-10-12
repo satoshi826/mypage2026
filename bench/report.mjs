@@ -26,7 +26,8 @@ export const METRICS = {
     style: {unit: 'ms', lower: true, label: 'スタイルの再計算'},
     layout: {unit: 'ms', lower: true, label: 'レイアウト'},
     task: {unit: 'ms', lower: true, label: 'メインスレッドの合計'},
-    heapMB: {unit: 'MB', lower: true, label: 'JS のヒープ'}
+    heapMB: {unit: 'MB', lower: true, label: 'JS のヒープ'},
+    imageMB: {unit: 'MB', lower: true, label: '画像のデコード後の大きさ'}
   },
   // ビルドの大きさ（dist の全ファイルを gzip した合計）
   build: {

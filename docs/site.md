@@ -28,7 +28,7 @@ hero の写真の横（狭い画面では下）には番号のカレンダーを
 正本は R2 の manifest.json。hero と Photos の両方がこれを実行時に読む。
 追加・入れ替えは管理画面 `/admin`（Cloudflare Access で保護、本人のメールのみ）。
 本番は R2・Access・Worker の secret まで設定済みで動いている。最初の移行は
-`scripts/encode-photos.sh` と `scripts/sync-photos.mjs` で済ませた。
+`scripts/encode-photos.mjs` と `scripts/sync-photos.mjs` で済ませた。
 
 ## 未決
 
