@@ -63,7 +63,7 @@ export function Footer({location}: {location: string}) {
         )}
         {/* SNS との仕切り。ぼかさず、中央の点から上下へ伸びて現れ、点へ縮んで消える（[data-page-grow]） */}
         {isPhotos && <div data-page-grow aria-hidden className="h-5 w-[0.5px] bg-ink/35" />}
-        <div className="flex self-stretch">
+        <div className="flex gap-2 self-stretch max-sm:gap-1">
           <a href={INSTAGRAM} target="_blank" rel="noreferrer" aria-label="Instagram" className={LINK}>
             <svg
               viewBox="0 0 24 24"
