@@ -174,7 +174,11 @@ export function DevDock() {
 
   // 保存した位置が今の画面の外なら、中へ収めて描く。広いウィンドウで端へ寄せたあと狭めると、
   // 画面の外に出たまま見えなくなるため。ウィンドウの大きさが変わったら描き直す
-  const viewport = useSyncExternalStore(subscribeResize, () => `${innerWidth}x${innerHeight}`, () => '0x0')
+  const viewport = useSyncExternalStore(
+    subscribeResize,
+    () => `${innerWidth}x${innerHeight}`,
+    () => '0x0'
+  )
   const [width, height] = viewport.split('x').map(Number)
   const left = Math.min(dock.x, Math.max(0, width - 256))
   const top = Math.min(dock.y, Math.max(0, height - 32))
