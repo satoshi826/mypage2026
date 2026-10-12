@@ -19,10 +19,11 @@ const IMAGES = 'images'
 const ASSETS = `assets-${__BUILD__}`
 const PAGES = `pages-${__BUILD__}`
 /**
- * 先読みで同時に取る数。かかる時間は往復の待ち時間 × 枚数 ÷ 本数で決まり、帯域は余る（往復 310ms の回線で
- * 3 本だと 30 枚に 4.5 秒、10 本だと 1.9 秒）。HTTP/2 で 1 本の接続に重ねて流せるので、本数を増やして待ちを重ねる
+ * 先読みで同時に取る数。本数が少ないうちは往復の待ち時間 × 枚数 ÷ 本数で時間が決まり、帯域は余る。HTTP/2 で
+ * 1 本の接続に重ねて流せるので、本数を増やして待ちを重ねる。往復 310ms の回線では 8 → 16 本で約 2 倍速くなり、
+ * 32 本では回線の太さで頭打ちになった
  */
-const PARALLEL = 8
+const PARALLEL = 16
 
 type Message = {type: 'images'; keep: string[]; fetch: string[]}
 
