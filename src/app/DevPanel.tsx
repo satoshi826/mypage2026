@@ -145,6 +145,11 @@ export function DevPanel<T extends Record<string, number | string>>({
  * 開発用パネルを集めるドック。見出しをつかんで動かせ、見出しのボタンで全体を畳める。位置と畳み具合は
  * ブラウザに覚える。App が import.meta.env.DEV の中でだけ描く
  */
+const subscribeResize = (onChange: () => void) => {
+  addEventListener('resize', onChange)
+  return () => removeEventListener('resize', onChange)
+}
+
 export function DevDock() {
   const [dock, setDock] = useState(() => load('mypage2026.devDock', {x: 16, y: 64, folded: false}))
   const drag = useRef<{dx: number; dy: number} | null>(null)
@@ -167,9 +172,16 @@ export function DevDock() {
     drag.current = null
   }
 
+  // 保存した位置が今の画面の外なら、中へ収めて描く。広いウィンドウで端へ寄せたあと狭めると、
+  // 画面の外に出たまま見えなくなるため。ウィンドウの大きさが変わったら描き直す
+  const viewport = useSyncExternalStore(subscribeResize, () => `${innerWidth}x${innerHeight}`, () => '0x0')
+  const [width, height] = viewport.split('x').map(Number)
+  const left = Math.min(dock.x, Math.max(0, width - 256))
+  const top = Math.min(dock.y, Math.max(0, height - 32))
+
   return (
     <div
-      style={{left: dock.x, top: dock.y}}
+      style={{left, top}}
       className="fixed z-50 flex w-64 flex-col border border-white/25 bg-black/80 font-mono text-[11px] leading-tight text-ink"
     >
       <div
