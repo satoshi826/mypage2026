@@ -79,7 +79,8 @@ export function GalleryTools() {
 }
 
 /**
- * 列数のスライダー。0.5px の溝に列数ぶんの目盛りを刻み、今の列数に点を置き、横に数字を添える。左が列の少ない
+ * 列数のスライダー。0.5px の溝に列数ぶんの目盛りを刻み、今の列数に点を置き、横に数字を添える。マウスを載せると
+ * 点が大きくなり、溝と目盛りが濃くなる。左が列の少ない
  * （写真の大きい）側。目盛りをまたぐたびに列数を変え、一覧はそのたびに組み替わる（Gallery が動きの途中から
  * 引き継ぐ）。
  * 見た目は自前で描き、操作は透明な input[type=range] が受ける（ドラッグ、タップ、矢印キー、読み上げ）。
@@ -104,18 +105,21 @@ function ColumnSlider({
       className={`group flex items-center gap-2 opacity-90 transition-opacity duration-300 hover:opacity-100 ${className}`}
     >
       <div className="relative h-full w-28 [--thumb:16px]">
-        <div aria-hidden className="absolute inset-x-[calc(var(--thumb)/2)] top-1/2 h-[0.5px] bg-ink/35" />
+        <div
+          aria-hidden
+          className="absolute inset-x-[calc(var(--thumb)/2)] top-1/2 h-[0.5px] bg-ink/35 transition-colors duration-300 group-hover:bg-ink/60"
+        />
         {steps.map((count) => (
           <div
             key={count}
             aria-hidden
-            className="absolute top-1/2 h-[5px] w-[0.5px] -translate-1/2 bg-ink/45"
+            className="absolute top-1/2 h-[5px] w-[0.5px] -translate-1/2 bg-ink/45 transition-colors duration-300 group-hover:bg-ink/75"
             style={{left: position(count)}}
           />
         ))}
         <div
           aria-hidden
-          className={`absolute top-1/2 size-[7px] -translate-1/2 rounded-full bg-ink transition-[left,opacity,scale] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] group-has-[input:focus-visible]:scale-150 ${value ? '' : 'opacity-0'}`}
+          className={`absolute top-1/2 size-[7px] -translate-1/2 rounded-full bg-ink transition-[left,opacity,scale] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-140 group-has-[input:focus-visible]:scale-150 ${value ? '' : 'opacity-0'}`}
           style={{left: position(value ?? 2)}}
         />
         <input
@@ -132,8 +136,17 @@ function ColumnSlider({
           className="absolute inset-0 m-0 h-full w-full cursor-pointer appearance-none bg-transparent opacity-0"
         />
       </div>
-      <span aria-hidden className="w-2 text-xs font-light tabular-nums">
-        {value}
+      {/* 計器の数字のように、2〜6 を縦に積んだ帯を 1 文字ぶんの窓から覗かせ、今の値の位置まで滑らせる。
+          増えると下から上がってきて、減ると上から下りてくる。間の数字は素早く通り過ぎる */}
+      <span aria-hidden className="h-[1em] w-2 overflow-hidden text-xs leading-none font-light tabular-nums">
+        <span
+          className={`flex flex-col transition-[translate,opacity] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${value ? '' : 'opacity-0'}`}
+          style={{translate: `0 ${-((value ?? 2) - 2)}em`}}
+        >
+          {COUNTS.map((count) => (
+            <span key={count}>{count}</span>
+          ))}
+        </span>
       </span>
     </div>
   )
