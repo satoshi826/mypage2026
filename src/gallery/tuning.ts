@@ -93,3 +93,45 @@ export const SPACING_PARAMS: Param<Spacing>[] = [
   {key: 'gapMin', label: '最小', min: 0, max: 16, step: 1, hint: 'px'},
   {key: 'gapMax', label: '最大', min: 0, max: 40, step: 1, hint: 'px'}
 ]
+
+/** 列数のスライダーの見た目（GalleryTools.tsx）。px */
+export type SliderLook = {
+  /** 溝の長さ（両端の目盛りのあいだ） */
+  length: number
+  /** 目盛りの形。line は縦の短い線、dot は点 */
+  tick: 'line' | 'dot'
+  /** 目盛りの高さ（線のとき） */
+  tickHeight: number
+  /** 目盛りの直径（点のとき） */
+  tickDot: number
+  /** 溝の線を引くか */
+  track: 'on' | 'off'
+  /** 点の直径 */
+  thumbSize: number
+  /** 数字と溝の左端のあいだ */
+  numberGap: number
+  /** 溝の右端と SNS との仕切りのあいだ（PC） */
+  dividerGap: number
+}
+
+export const DEFAULT_SLIDER: SliderLook = {
+  length: 128,
+  tick: 'dot',
+  tickHeight: 0,
+  tickDot: 2,
+  track: 'on',
+  thumbSize: 8,
+  numberGap: 16,
+  dividerGap: 40
+}
+
+export const SLIDER_PARAMS: Param<SliderLook>[] = [
+  {key: 'length', label: '溝の長さ', min: 48, max: 240, step: 4, hint: 'px。両端の目盛りのあいだ'},
+  {key: 'tick', label: '目盛りの形', options: ['line', 'dot'], hint: 'line は縦の短い線、dot は点'},
+  {key: 'tickHeight', label: '目盛りの高さ', min: 0, max: 16, step: 0.5, hint: 'px。線のとき'},
+  {key: 'tickDot', label: '目盛りの直径', min: 1, max: 6, step: 0.5, hint: 'px。点のとき'},
+  {key: 'track', label: '溝の線', options: ['on', 'off'], hint: 'off にすると目盛りだけが並ぶ'},
+  {key: 'thumbSize', label: '点の直径', min: 3, max: 14, step: 0.5, hint: 'px'},
+  {key: 'numberGap', label: '数字との間', min: 0, max: 40, step: 1, hint: 'px。数字と溝の左端'},
+  {key: 'dividerGap', label: '仕切りとの間', min: 8, max: 80, step: 1, hint: 'px。溝の右端と SNS との仕切り（PC）'}
+]
