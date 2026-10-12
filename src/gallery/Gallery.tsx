@@ -2,7 +2,7 @@ import {useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalSt
 import {Img} from './Img'
 import {gapFor, layout, type Expansion, type Placed} from './layout'
 import {useReveal} from './reveal'
-import {chosenColumns, rememberColumns, setGalleryControls, type Columns} from './controls'
+import {autoColumns, chosenColumns, rememberColumns, setGalleryControls, type Columns} from './controls'
 import {DEFAULT_MOTION, DEFAULT_SPACING, EASINGS, MOTION_PARAMS, SPACING_PARAMS, type Motion} from './tuning'
 import {DevPanel} from '../app/DevPanel'
 import {glideTo, jumpTo} from '../app/useSmoothScroll'
@@ -37,7 +37,7 @@ type Box = {left: number; top: number; width: number; height: number}
 const NONE: ReadonlySet<string> = new Set()
 
 /**
- * Photos の一覧。3 列（狭い画面は 2 列）の段組。配置は layout.ts が計算し、
+ * Photos の一覧。既定は画面の幅で 2〜4 列の段組（controls.ts の autoColumns）。配置は layout.ts が計算し、
  * ここは絶対配置で並べるだけ。画面に近い写真だけを描く。全部の写真の位置は計算で分かっているので、
  * 写真が何枚あっても描く要素の数は画面の大きさで決まる。
  *
@@ -85,7 +85,7 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
       }
       const next: Metrics = {
         width: el.clientWidth,
-        autoCols: innerWidth < 640 ? 2 : 3,
+        autoCols: autoColumns(innerWidth),
         maxHeight: innerHeight - bars.top - bars.bottom - MARGIN * 2,
         viewport: innerHeight,
         top: pageTop(el),

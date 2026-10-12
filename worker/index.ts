@@ -85,7 +85,7 @@ function hintsOf(parts: string[], photos: Photo[]): string[] {
   }
   // Photos: 既定は street。カテゴリの先頭数枚（/photos/:category）。どの段を読むかは表示幅と画面の
   // 密度で決まるので、一覧用の段を候補に並べてブラウザに選ばせる。幅は列数が Auto のとき
-  // （狭い画面 2 列、ほかは 3 列。src/gallery/Gallery.tsx）の写真 1 枚ぶん
+  // （src/gallery/controls.ts の autoColumns）の写真 1 枚ぶん
   const category = parts[1] ?? 'street'
   if (parts.length > 2 || !isCategory(category)) return []
   // 一覧の JS（pickSource）と同じく、一覧用の段に拡大用の最大を足した候補（PC の高精細な画面の縦長が使う）
@@ -107,10 +107,15 @@ function hintsOf(parts: string[], photos: Photo[]): string[] {
 
 /**
  * Photos の一覧で、列数が Auto のときの写真 1 枚の表示幅に、段を選ぶときの余裕（LIST_HEADROOM）を掛けたもの。
- * 幅は容器の左右の余白と写真のあいだ（既定の隙間で、狭い画面の 2 列は約 7px、ほかの 3 列は 16px × 2）を
+ * 列数は src/gallery/controls.ts の autoColumns（640px 未満は 2 列、1280px 以上は 4 列、ほかは 3 列）。
+ * 幅は容器の左右の余白と写真のあいだ（既定の隙間で、2 列は約 7px、3 列は約 14px × 2、4 列は約 12px × 3）を
  * 引いて列数で割る。一覧の JS が選ぶ段と揃えるため
  */
-const SIZES = `(max-width: 639px) calc((100vw - 39px) / 2 * ${LIST_HEADROOM}), calc((min(100vw, 1280px) - 96px) / 3 * ${LIST_HEADROOM})`
+const SIZES = [
+  `(max-width: 639px) calc((100vw - 39px) / 2 * ${LIST_HEADROOM})`,
+  `(max-width: 1279px) calc((100vw - 92px) / 3 * ${LIST_HEADROOM})`,
+  `calc(1181px / 4 * ${LIST_HEADROOM})`
+].join(', ')
 
 async function pageWithHints(request: Request, env: Env, parts: string[]) {
   const [page, photos] = await Promise.all([env.ASSETS.fetch(request), photosOf(env)])
