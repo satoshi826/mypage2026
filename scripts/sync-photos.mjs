@@ -58,9 +58,24 @@ const isDir = (base) => base === PHOTOS_DIR
 const imageUrl = (base, key) => (isDir(base) ? join(base, key) : `${base}/images/${key}`)
 const keysOf = (photo) => KINDS.map((kind) => `${kind}/${photo.file}.webp`)
 
+/**
+ * 通信が切れたら、少し待って試し直す。本番へ wrangler で 1 枚置くたびに、手元の wrangler dev が
+ * 読み込み直して接続を切ることがあるため
+ */
+async function request(url, init) {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await fetch(url, init)
+    } catch (error) {
+      if (attempt >= 5) throw error
+      await new Promise((resolve) => setTimeout(resolve, 1000 * attempt))
+    }
+  }
+}
+
 async function manifest(base) {
   if (isDir(base)) return JSON.parse(readFileSync(join(base, 'manifest.json'), 'utf8'))
-  const res = await fetch(`${base}/api/manifest`, {cache: 'no-store'})
+  const res = await request(`${base}/api/manifest`, {cache: 'no-store'})
   if (!res.ok) throw new Error(`${base}/api/manifest: ${res.status}`)
   return res.json()
 }
@@ -70,7 +85,7 @@ async function etag(url) {
   if (!url.startsWith('http')) {
     return existsSync(url) ? `"${createHash('md5').update(readFileSync(url)).digest('hex')}"` : null
   }
-  const res = await fetch(url, {method: 'HEAD'})
+  const res = await request(url, {method: 'HEAD'})
   if (res.status === 404) return null
   if (!res.ok) throw new Error(`${url}: ${res.status}`)
   return res.headers.get('etag')
@@ -80,7 +95,7 @@ async function etag(url) {
 async function read(key) {
   const url = imageUrl(from, key)
   if (!url.startsWith('http')) return {body: readFileSync(url), contentType: 'image/webp'}
-  const res = await fetch(url)
+  const res = await request(url)
   if (!res.ok) throw new Error(`GET ${key}: ${res.status}`)
   return {body: await res.arrayBuffer(), contentType: res.headers.get('content-type') ?? 'image/webp'}
 }
@@ -105,7 +120,7 @@ function wrangler(...args) {
 /** 送り先へ 1 オブジェクト置く。本番は wrangler、ローカルは API */
 async function put(key, body, contentType, tmp) {
   if (to === LOCAL) {
-    const res = await fetch(imageUrl(LOCAL, key), {method: 'PUT', headers: {'content-type': contentType}, body})
+    const res = await request(imageUrl(LOCAL, key), {method: 'PUT', headers: {'content-type': contentType}, body})
     if (!res.ok) throw new Error(`PUT ${key}: ${res.status}`)
     return
   }
@@ -116,7 +131,7 @@ async function put(key, body, contentType, tmp) {
 
 async function del(key) {
   if (to === LOCAL) {
-    const res = await fetch(imageUrl(LOCAL, key), {method: 'DELETE'})
+    const res = await request(imageUrl(LOCAL, key), {method: 'DELETE'})
     if (!res.ok) throw new Error(`DELETE ${key}: ${res.status}`)
     return
   }
@@ -126,7 +141,7 @@ async function del(key) {
 async function putManifest(photos, tmp) {
   const body = JSON.stringify(photos)
   if (to === LOCAL) {
-    const res = await fetch(`${LOCAL}/api/manifest`, {
+    const res = await request(`${LOCAL}/api/manifest`, {
       method: 'PUT',
       headers: {'content-type': 'application/json'},
       body
