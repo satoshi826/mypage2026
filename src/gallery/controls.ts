@@ -9,7 +9,7 @@ export const COUNTS: Count[] = [2, 3, 4, 5, 6]
 
 /**
  * 列数の状態。auto は画面の幅で決める（autoColumns）。一度列数を選んだら、その列数に固定し、auto には戻らない。
- * メニューに auto は出さず、auto のあいだも実際の列数に下線を付ける（GalleryTools.tsx）
+ * スライダーに auto は無く、auto のあいだも実際の列数に点を置く（GalleryTools.tsx）
  */
 export type Columns = 'auto' | Count
 
@@ -55,8 +55,4 @@ export function useGalleryControls() {
  * 選んだ列数。カテゴリを切り替えると一覧は作り直されるので、ここに置いて引き継ぐ。
  * ブラウザには残さず、ページを開き直すと auto に戻る
  */
-let chosen: Columns = 'auto'
-export const chosenColumns = () => chosen
-export const rememberColumns = (columns: Count) => {
-  chosen = columns
-}
+export const chosen: {columns: Columns} = {columns: 'auto'}

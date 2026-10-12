@@ -1,12 +1,4 @@
-import {
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-  useSyncExternalStore,
-  type CSSProperties,
-  type ReactNode
-} from 'react'
+import {useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type CSSProperties} from 'react'
 import {createPortal} from 'react-dom'
 import {COUNTS, MAX_COLUMNS, useGalleryControls, type Count} from './controls'
 import {DEFAULT_SLIDER, SLIDER_PARAMS, type SliderLook} from './tuning'
@@ -14,12 +6,8 @@ import {DevPanel} from '../app/DevPanel'
 
 const subscribe = () => () => {}
 
-/** メニューの出入りの動き。少し下から浮かびながら現れ、沈みながら消える */
 /** input[type=range] のつまみの幅（styles.css の [data-slider]）。溝の両端はこの半分ずつ内側になる */
 const THUMB = 16
-
-const SHOWN = 'opacity-100 translate-y-0'
-const HIDDEN = 'pointer-events-none opacity-0 translate-y-1'
 
 /**
  * Photos のフッターの右（SNS の手前）に置く一覧の操作。列数のスライダー。
@@ -29,7 +17,7 @@ const HIDDEN = 'pointer-events-none opacity-0 translate-y-1'
 export function GalleryTools() {
   const [open, setOpen] = useState(false)
   const [look, setLook] = useState(DEFAULT_SLIDER)
-  const button = useRef<HTMLDivElement>(null)
+  const button = useRef<HTMLButtonElement>(null)
   const menu = useRef<HTMLDivElement>(null)
   // 開く入れ物はフッターの外（body の直下）に描く。フッターはぼかし（backdrop-filter）を持つので、
   // その中に置くと入れ物のぼかしがフッターの中しか見えず、後ろの写真をぼかせないため。
@@ -88,19 +76,37 @@ export function GalleryTools() {
         className="max-sm:hidden"
         style={{marginRight: look.dividerGap - 24 - THUMB / 2}}
       />
-      <div ref={button} className="flex sm:hidden">
-        <IconButton label="列数" onClick={() => setOpen(!open)} expanded={open}>
+      {/* 狭い画面で開くボタン。バーの高さいっぱいを押せる細い線のアイコンで、濃さはタブと同じ 90%、ホバーで 100%。
+          枠の幅は SNS のアイコンと同じ（Footer.tsx） */}
+      <button
+        ref={button}
+        type="button"
+        aria-label="列数"
+        aria-expanded={open}
+        onClick={() => setOpen(!open)}
+        className="flex w-10 cursor-pointer items-center justify-center opacity-90 transition-opacity duration-300 hover:opacity-100 max-sm:w-8 sm:hidden"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          aria-hidden
+          className="size-[18px]"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={1.25}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
           <rect x="4" y="5" width="16" height="14" rx="1" />
           <path d="M9.33 5v14M14.67 5v14" />
-        </IconButton>
-      </div>
+        </svg>
+      </button>
       {body &&
         createPortal(
           <div
             ref={menu}
             aria-hidden={!open}
             style={at}
-            className={`fixed z-20 border border-white/10 bg-black/70 px-3 backdrop-blur-[20px] transition-[opacity,translate] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] sm:hidden ${open ? SHOWN : HIDDEN}`}
+            className={`fixed z-20 border border-white/10 bg-black/70 px-3 backdrop-blur-[20px] transition-[opacity,translate] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] sm:hidden ${open ? '' : 'pointer-events-none translate-y-1 opacity-0'}`}
           >
             <ColumnSlider max={MAX_COLUMNS.narrow} look={look} focusable={open} className="h-12" />
           </div>,
@@ -199,44 +205,5 @@ function ColumnSlider({
         />
       </div>
     </div>
-  )
-}
-
-/**
- * バーの高さいっぱいを押せる、細い線のアイコンのボタン。濃さはタブと同じ 90%、ホバーで 100%。
- * 枠の幅は SNS のアイコンと同じ（Footer.tsx）。アイコンは SNS と高さをそろえ、タブの文字のようには上げない
- */
-function IconButton({
-  label,
-  onClick,
-  expanded,
-  children
-}: {
-  label: string
-  onClick: () => void
-  expanded?: boolean
-  children: ReactNode
-}) {
-  return (
-    <button
-      type="button"
-      aria-label={label}
-      aria-expanded={expanded}
-      onClick={onClick}
-      className="flex w-10 cursor-pointer items-center justify-center opacity-90 transition-opacity duration-300 hover:opacity-100 max-sm:w-8"
-    >
-      <svg
-        viewBox="0 0 24 24"
-        aria-hidden
-        className="size-[18px]"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth={1.25}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        {children}
-      </svg>
-    </button>
   )
 }

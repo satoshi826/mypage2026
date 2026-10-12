@@ -2,17 +2,9 @@ import {useEffect, useState} from 'react'
 
 // サイトに載せる写真の一覧。正本は R2 の manifest.json で、Worker の /api/manifest から
 // 実行時に読む（写真の追加・入れ替えで再ビルドしない）。画像も /images/ 経由で R2 から。
-// 形は worker/manifest.ts と同じ。管理画面（/admin）が書き換える。
-//
-// | 派生      | キー            | 形 |
-// |-----------|-----------------|----|
-// | 一覧用    | list-<長辺>/<file>.webp  | 長辺 200 / 400 / 800 / 1200、画質 60。表示の大きさで選ぶ |
-// | 拡大用    | large-<長辺>/<file>.webp | 長辺 1200 / 2000、画質 80、カラー、トリミングなし。広げたときに表示の大きさで選ぶ |
-// | hero 用   | hero/<file>.webp    | 1152x768、中央トリミング、グレースケール。hero: true のものだけ |
-// | 原本      | originals/<file>.<ext> | 再派生のために置く。公開しない |
-// 段の定義は manifest.ts の VARIANTS。
+// 形と派生画像の段（VARIANTS）は manifest.ts。管理画面（/admin）が書き換える。
 
-export {CATEGORIES, EAGER_THUMBS, isCategory, type Category, type Photo} from './manifest'
+export {CATEGORIES, isCategory, type Category, type Photo} from './manifest'
 import {
   imageUrl,
   isCategory,
@@ -31,12 +23,6 @@ export const toCategory = (value: string | undefined): Category => (isCategory(v
 /** 表示に使う派生画像。width はその段での写真の幅（画素） */
 export type Source = {src: string; width: number; use: Variant['use']}
 
-const sourceOf = (photo: Photo, variant: Variant): Source => ({
-  src: imageUrl(variant.kind, photo),
-  width: Math.round(photo.w * Math.min(1, variant.long / Math.max(photo.w, photo.h))),
-  use: variant.use
-})
-
 /**
  * 表示に使う派生画像を選ぶ。need は要る幅（表示幅 × 画面の密度、画素）。その段の中で need 以上の
  * 一番小さいものを選び、足りなければ一番大きいもの。一覧用は、マウスのある端末では need に余裕（LIST_HEADROOM）を掛ける。
@@ -46,7 +32,11 @@ export function pickSource(photo: Photo, need: number, large: boolean): Source {
   const ladder = VARIANTS.filter((v) => v.use === (large ? 'large' : 'list'))
   if (!large) ladder.push(VARIANTS[VARIANTS.length - 1])
   const target = large || !matchMedia(HOVER).matches ? need : need * LIST_HEADROOM
-  const sources = ladder.map((variant) => sourceOf(photo, variant))
+  const sources = ladder.map((variant) => ({
+    src: imageUrl(variant.kind, photo),
+    width: Math.round(photo.w * Math.min(1, variant.long / Math.max(photo.w, photo.h))),
+    use: variant.use
+  }))
   return sources.find((source) => source.width >= target) ?? sources[sources.length - 1]
 }
 

@@ -1,7 +1,8 @@
 import type {Param} from '../app/DevPanel'
 
-// Photos で写真を広げる・戻すときと、マウスを載せたときの動き、写真のあいだの調整値。Gallery（既定値）と
-// 開発用パネルの両方がここを使う。値が固まったら DEFAULT_MOTION / DEFAULT_SPACING を書き換える。
+// Photos で写真を広げる・戻すときと、マウスを載せたときの動き、写真のあいだ、列数のスライダーの見た目の
+// 調整値。Gallery・GalleryTools（既定値）と開発用パネルの両方がここを使う。値が固まったら DEFAULT_* を書き換える。
+// イージング（EASINGS）はページの移動（src/app/pageMotion.ts）も使う。
 // スクロールで見つけた写真が現れるワイプは固定で、styles.css の [data-reveal] が持つ。
 
 /** 広く使われるイージング。CSS 用の cubic-bezier と、スクロールに渡す関数の両方を持つ */

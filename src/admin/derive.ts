@@ -22,14 +22,14 @@ export async function derive(file: File): Promise<Derived> {
   // EXIF の向きを反映して読む
   const source = await createImageBitmap(file, {imageOrientation: 'from-image'})
   try {
-    // 一番大きい段を原本から縮め、ほかの段はそこから縮める（大きい順に）
+    // 一番大きい段を原本から縮め、ほかの段はそれを元に縮める
     const largest = Math.max(...VARIANTS.map((v) => v.long))
     const scale = Math.min(1, largest / Math.max(source.width, source.height))
     const w = Math.round(source.width * scale)
     const h = Math.round(source.height * scale)
     const base = downscale(source, w, h)
     const variants: Derived['variants'] = []
-    for (const variant of [...VARIANTS].sort((a, b) => b.long - a.long)) {
+    for (const variant of VARIANTS) {
       const s = Math.min(1, variant.long / Math.max(w, h))
       const canvas = s === 1 ? base : downscale(base, Math.round(w * s), Math.round(h * s))
       variants.push([variant.kind, await toWebp(canvas, variant.quality / 100)])
@@ -51,9 +51,9 @@ export async function derive(file: File): Promise<Derived> {
     grayscale(heroCanvas)
     const hero = await toWebp(heroCanvas, HERO_QUALITY)
 
-    // 版は段の並び（VARIANTS の順）と hero をつないだ中身のハッシュ（scripts/encode-photos.mjs と同じ決め方）
-    const ordered = VARIANTS.map((variant) => variants.find(([kind]) => kind === variant.kind)![1])
-    return {variants, hero, w, h, v: await versionOf([...ordered, hero])}
+    // 版は段（VARIANTS の順）と hero をつないだ中身のハッシュ。管理画面は hero を必ず作るので必ず含める
+    // （scripts/encode-photos.mjs は hero: true の写真だけ）。中身が変われば版が変わる、が成り立てばよい
+    return {variants, hero, w, h, v: await versionOf([...variants.map(([, blob]) => blob), hero])}
   } finally {
     source.close()
   }

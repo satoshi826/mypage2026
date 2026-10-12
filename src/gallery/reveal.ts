@@ -51,17 +51,13 @@ export function useReveal(
       }
     }
     check()
-    addEventListener('scroll', check, {passive: true})
-    addEventListener('resize', check)
+    const listeners = new AbortController()
+    const {signal} = listeners
+    addEventListener('scroll', check, {passive: true, signal})
+    addEventListener('resize', check, {signal})
     // load はバブリングしないので capture で拾う。読み込みの完了を待っていた写真を見直す
-    el.addEventListener('load', check, true)
-    el.addEventListener('error', check, true)
-    return () => {
-      removeEventListener('scroll', check)
-      removeEventListener('resize', check)
-      el.removeEventListener('load', check, true)
-      el.removeEventListener('error', check, true)
-    }
+    el.addEventListener('load', check, {capture: true, signal})
+    return () => listeners.abort()
     // oxlint-disable-next-line react-hooks/exhaustive-deps
   }, deps)
 }

@@ -2,9 +2,6 @@ import {imageUrl, VARIANTS} from '../photos/manifest'
 import {loadPhotos, toCategory} from '../photos'
 import {listSources} from '../gallery/prefetch'
 
-/** 先読みを控える回線の状態。Chrome 系だけが教えてくれる（Safari は分からないので先読みする） */
-type Connection = {saveData?: boolean; effectiveType?: string}
-
 /**
  * Service Worker（worker.ts）を登録し、表示に要る読み込みが落ち着いてから画像の先読みを頼む。本番だけで呼ぶ（main.tsx）。
  * 先読みするのは、この端末で列数をどれにしても一覧に要る派生で、今のカテゴリから順に全カテゴリ。
@@ -30,8 +27,9 @@ async function start() {
   registration.active?.postMessage({type: 'images', keep, fetch: saving() ? [] : listSources(ordered)})
 }
 
+/** 先読みを控える回線の状態か。Chrome 系だけが教えてくれる（Safari は分からないので先読みする） */
 function saving() {
-  const connection = (navigator as Navigator & {connection?: Connection}).connection
+  const connection = (navigator as Navigator & {connection?: {saveData?: boolean; effectiveType?: string}}).connection
   return !!connection?.saveData || connection?.effectiveType === 'slow-2g'
 }
 

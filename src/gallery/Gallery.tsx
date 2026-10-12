@@ -11,7 +11,7 @@ import {
 import {Img} from './Img'
 import {gapFor, layout, type Expansion, type Placed} from './layout'
 import {useReveal} from './reveal'
-import {autoColumns, chosenColumns, maxColumns, rememberColumns, setGalleryControls, type Columns} from './controls'
+import {autoColumns, chosen, maxColumns, setGalleryControls, type Columns} from './controls'
 import {DEFAULT_MOTION, DEFAULT_SPACING, EASINGS, MOTION_PARAMS, SPACING_PARAMS, type Motion} from './tuning'
 import {DevPanel} from '../app/DevPanel'
 import {glideTo, jumpTo} from '../app/useSmoothScroll'
@@ -79,7 +79,7 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
   const [motion, setMotion] = useState(DEFAULT_MOTION)
   const [spacing, setSpacing] = useState(DEFAULT_SPACING)
   // 列数。フッターで選ぶ（controls.ts）
-  const [columns, setColumns] = useState<Columns>(chosenColumns)
+  const [columns, setColumns] = useState<Columns>(chosen.columns)
   // 段組を変えている最中の、変更前の状態。変えた直後の useLayoutEffect が使って消す
   const [before, setBefore] = useState<Before | null>(null)
   // 段組を変えるとき、変更前に画面の近くにあった写真。動き終わるまで描き続ける（離れていく動きを見せるため）
@@ -96,7 +96,7 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
     () => 0
   )
 
-  // 測った寸法を反映する。画面の幅が変わって列数が変わるとき（Auto の列数、選べる上限）は、列数のボタンと同じく
+  // 測った寸法を反映する。画面の幅が変わって列数が変わるとき（Auto の列数、選べる上限）は、列数のスライダーと同じく
   // 基準の写真の位置を保って動かす（スマホの回転、ウィンドウの幅が境目をまたいだとき）。それ以外は
   // その場で合わせる。容器の高さが変わるたび（写真を広げるたび）にも呼ばれるので、変わらなければ描き直さない
   const applyMetrics = useRef<(next: Metrics) => void>(() => {})
@@ -121,8 +121,7 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
         maxCols: maxColumns(innerWidth),
         maxHeight: innerHeight - bars.top - bars.bottom - MARGIN * 2,
         viewport: innerHeight,
-        top: pageTop(el),
-        left: pageLeft(el),
+        ...pageOffset(el),
         bars
       }
       applyMetrics.current(next)
@@ -253,7 +252,7 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
     setGalleryControls({
       columns: cols,
       setColumns: (next) => {
-        rememberColumns(next)
+        chosen.columns = next
         // 今の列数と同じなら、固定するだけで段組は変わらない
         if (next === cols) setColumns(next)
         else relayout(null, () => setColumns(next))
@@ -264,16 +263,15 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
 
   // レイアウトが変わった直後。基準の写真の画面上の位置を固定してから、差分を動かす
   useLayoutEffect(() => {
-    const first = before
     const el = root.current
-    if (!first || !el || !metrics || !placed) return
+    if (!before || !el || !metrics || !placed) return
     setBefore(null)
 
     // 基準の写真の文書上の位置が変わったぶんだけスクロールを即座にずらし、
     // 画面上の位置を変えない。残りの動きは全部 FLIP が受け持つ
-    const was = first.anchor ? first.items.get(first.anchor) : undefined
-    const now = first.anchor ? placed.items.get(first.anchor) : undefined
-    if (was && now) jumpTo(scrollY + now.y - was.y + metrics.top - first.top)
+    const was = before.anchor ? before.items.get(before.anchor) : undefined
+    const now = before.anchor ? placed.items.get(before.anchor) : undefined
+    if (was && now) jumpTo(scrollY + now.y - was.y + metrics.top - before.top)
     const scroll = scrollY - metrics.top
 
     // 大きさが変わる写真も figure ごと動かす。img とワイプ用の覆いが一緒に動くので、中身だけを
@@ -287,10 +285,10 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
       for (const figure of el.querySelectorAll<HTMLElement>('figure[data-file]')) {
         // 前の動きは止める。続けると、新しい配置の位置を基準に古い差分で動いてしまう
         for (const animation of figure.getAnimations()) animation.cancel()
-        const from = first.items.get(figure.dataset.file!)
+        const from = before.items.get(figure.dataset.file!)
         const to = placed.items.get(figure.dataset.file!)
         if (!from || !to) continue
-        const a = first.visual.get(figure.dataset.file!) ?? toBox(from, first.scroll, first.left)
+        const a = before.visual.get(figure.dataset.file!) ?? toBox(from, before.scroll, before.left)
         const b = toBox(to, scroll, metrics.left)
         if (isNear(a, metrics.viewport, margin) || isNear(b, metrics.viewport, margin)) flip(figure, a, b, motion)
       }
@@ -389,18 +387,15 @@ const subscribeScroll = (onChange: () => void) => {
   return () => removeEventListener('scroll', onChange)
 }
 
-/** 文書の上端からの位置。transform を含まない（ページの移動の演出で動いている最中に測っても狂わない） */
-function pageTop(el: HTMLElement) {
+/** 文書の上端・左端からの位置。transform を含まない（ページの移動の演出で動いている最中に測っても狂わない） */
+function pageOffset(el: HTMLElement) {
   let top = 0
-  for (let node: HTMLElement | null = el; node; node = node.offsetParent as HTMLElement | null) top += node.offsetTop
-  return top
-}
-
-/** 文書の左端からの位置。pageTop と同じく transform を含まない */
-function pageLeft(el: HTMLElement) {
   let left = 0
-  for (let node: HTMLElement | null = el; node; node = node.offsetParent as HTMLElement | null) left += node.offsetLeft
-  return left
+  for (let node: HTMLElement | null = el; node; node = node.offsetParent as HTMLElement | null) {
+    top += node.offsetTop
+    left += node.offsetLeft
+  }
+  return {top, left}
 }
 
 /** 配置（容器の中の位置）を、容器の上端から scroll だけスクロールし、容器の左端が left にあるときの画面上の位置にする */
