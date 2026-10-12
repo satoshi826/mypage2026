@@ -50,13 +50,11 @@ try {
     return template.replace(/<title>.*?<\/title>/, head).replace('<div id="root"></div>', `<div id="root">${body}</div>`)
   }
 
-  const write = async (file, html) => {
-    await mkdir(dirname(file), {recursive: true})
-    await writeFile(file, html)
-    console.log('prerendered', file.replace(root + '/', ''))
+  for (const page of pages) {
+    await mkdir(dirname(page.file), {recursive: true})
+    await writeFile(page.file, html(page))
+    console.log('prerendered', page.file.replace(root + '/', ''))
   }
-
-  for (const page of pages) await write(page.file, html(page))
 } finally {
   await vite.close()
 }

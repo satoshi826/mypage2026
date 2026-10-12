@@ -1,4 +1,4 @@
-import {spawn, type ChildProcess} from 'node:child_process'
+import {spawn} from 'node:child_process'
 import {fileURLToPath} from 'node:url'
 import {defineConfig, type Plugin} from 'vite'
 import react from '@vitejs/plugin-react'
@@ -12,11 +12,6 @@ const API_PORT = 8787
  * 単体で動かしたいときは `npm run dev:api`。
  */
 function apiDev(): Plugin {
-  let child: ChildProcess | null = null
-  const stop = () => {
-    child?.kill()
-    child = null
-  }
   return {
     name: 'api-dev',
     apply: 'serve',
@@ -26,7 +21,7 @@ function apiDev(): Plugin {
       if (!server.httpServer) return
       const wrangler = fileURLToPath(new URL('./node_modules/.bin/wrangler', import.meta.url))
       // 同じプロセスグループに置く。端末の Ctrl+C は wrangler にも直接届き、自分で workerd を止める
-      child = spawn(wrangler, ['dev', '--port', String(API_PORT)], {stdio: ['ignore', 'pipe', 'pipe']})
+      const child = spawn(wrangler, ['dev', '--port', String(API_PORT)], {stdio: ['ignore', 'pipe', 'pipe']})
       const {logger} = server.config
       const relay = (chunk: unknown) =>
         logger.info(
@@ -34,13 +29,15 @@ function apiDev(): Plugin {
             .trimEnd()
             .replace(/^(?=.)/gm, '[api] ')
         )
-      child.stdout?.on('data', relay)
-      child.stderr?.on('data', relay)
+      child.stdout.on('data', relay)
+      child.stderr.on('data', relay)
       child.once('exit', (code: number | null) => {
-        if (code) logger.error(`[api] wrangler dev が終了した (code ${code})。/api と /images は応答しない`)
+        // 自分で止めたとき（設定の変更での再起動など）は知らせない
+        if (code && !child.killed)
+          logger.error(`[api] wrangler dev が終了した (code ${code})。/api と /images は応答しない`)
       })
       // 設定の変更での再起動と、SIGTERM や stdin の終了での停止は httpServer が閉じる
-      server.httpServer?.once('close', stop)
+      server.httpServer.once('close', () => child.kill())
     }
   }
 }

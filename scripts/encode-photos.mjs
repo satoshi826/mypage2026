@@ -133,7 +133,7 @@ async function encode(entry) {
     ])
     await run('cwebp', ['-quiet', '-q', String(HERO_QUALITY), gray, '-o', join(PHOTOS, 'hero', `${entry.file}.webp`)])
   }
-  // 版は段の並び（VARIANTS の順）と hero をつないだ中身のハッシュ（src/admin/derive.ts と同じ決め方）
+  // 版は段（VARIANTS の順）と、hero を作った写真はその hero をつないだ中身のハッシュ。中身が変われば版が変わる
   const hash = createHash('sha256')
   for (const variant of variants) hash.update(readFileSync(join(PHOTOS, variant.kind, `${entry.file}.webp`)))
   if (hero) hash.update(readFileSync(join(PHOTOS, 'hero', `${entry.file}.webp`)))

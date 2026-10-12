@@ -32,7 +32,7 @@ dist-ssr
 # 借り物のスキル。launch.json だけ追跡する
 .claude/skills/
 
-# 原本から書き出した派生画像と manifest。scripts/encode-photos.sh が作り、
+# 原本から書き出した派生画像と manifest。scripts/encode-photos.mjs が作り、
 # `npm run photos:import` がローカルの R2 へ入れる。正本は R2 で、ここは作業用
 .photos/
 # wrangler dev のローカル状態（R2 の模擬など）

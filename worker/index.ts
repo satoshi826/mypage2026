@@ -28,7 +28,6 @@ import {
 } from '../src/photos/manifest'
 
 const KINDS: readonly string[] = [...VARIANTS.map((v) => v.kind), 'hero', 'originals']
-const isKind = (value: string) => KINDS.includes(value)
 
 const json = (body: unknown, init: ResponseInit = {}) =>
   new Response(JSON.stringify(body), {
@@ -51,7 +50,7 @@ export default {
       return error(405, 'method not allowed')
     }
 
-    if (parts[0] === 'images' && parts.length === 3 && isKind(parts[1])) {
+    if (parts[0] === 'images' && parts.length === 3 && KINDS.includes(parts[1])) {
       const key = `${parts[1]}/${parts[2]}`
       // HEAD は etag の確認用（scripts/sync-photos.mjs）。本文はランタイムが落とす
       if (request.method === 'GET' || request.method === 'HEAD') {

@@ -117,10 +117,11 @@ function wrangler(...args) {
   })
 }
 
-/** 送り先へ 1 オブジェクト置く。本番は wrangler、ローカルは API */
+/** 送り先へ 1 オブジェクト置く。本番は wrangler、ローカルは API（一覧は /api/manifest、画像は /images/） */
 async function put(key, body, contentType, tmp) {
   if (to === LOCAL) {
-    const res = await request(imageUrl(LOCAL, key), {method: 'PUT', headers: {'content-type': contentType}, body})
+    const url = key === 'manifest.json' ? `${LOCAL}/api/manifest` : imageUrl(LOCAL, key)
+    const res = await request(url, {method: 'PUT', headers: {'content-type': contentType}, body})
     if (!res.ok) throw new Error(`PUT ${key}: ${res.status}`)
     return
   }
@@ -136,22 +137,6 @@ async function del(key) {
     return
   }
   wrangler('delete', `${BUCKET}/${key}`)
-}
-
-async function putManifest(photos, tmp) {
-  const body = JSON.stringify(photos)
-  if (to === LOCAL) {
-    const res = await request(`${LOCAL}/api/manifest`, {
-      method: 'PUT',
-      headers: {'content-type': 'application/json'},
-      body
-    })
-    if (!res.ok) throw new Error(`PUT manifest: ${res.status}`)
-    return
-  }
-  const file = join(tmp, 'manifest.json')
-  writeFileSync(file, body)
-  wrangler('put', `${BUCKET}/manifest.json`, '--file', file, '--content-type', 'application/json')
 }
 
 if (direction === 'originals') {
@@ -219,7 +204,7 @@ try {
     console.log(`  - ${key}`)
   })
   if (manifestChanged) {
-    await putManifest(source, tmp)
+    await put('manifest.json', JSON.stringify(source), 'application/json', tmp)
     console.log('  一覧を置き換えた')
   }
 } finally {
