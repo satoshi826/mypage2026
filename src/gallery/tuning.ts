@@ -43,8 +43,8 @@ export type Motion = {
 }
 
 export const DEFAULT_MOTION: Motion = {
-  expandSeconds: 1,
-  scrollSeconds: 1,
+  expandSeconds: 1.2,
+  scrollSeconds: 1.2,
   easing: 'easeOutQuint',
   hoverZoom: 1.1,
   hoverSeconds: 1.4
