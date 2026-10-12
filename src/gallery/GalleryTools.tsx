@@ -1,7 +1,6 @@
 import {useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode} from 'react'
 import {createPortal} from 'react-dom'
-import {Underline} from '../app/Tabs'
-import {COUNTS, maxColumns, useGalleryControls} from './controls'
+import {COUNTS, MAX_COLUMNS, useGalleryControls, type Count} from './controls'
 
 const subscribe = () => () => {}
 
@@ -10,23 +9,23 @@ const SHOWN = 'opacity-100 translate-y-0'
 const HIDDEN = 'pointer-events-none opacity-0 translate-y-1'
 
 /**
- * Photos のフッターの右（SNS の手前）に置く一覧の操作。列数のボタンで、押すとメニューが開く。
+ * Photos のフッターの右（SNS の手前）に置く一覧の操作。列数のスライダー。
+ * PC（640px 以上）はフッターにそのまま置き、狭い画面はアイコンを押すと上に開く。
  * 状態と操作は Gallery が controls.ts に出したものを使う
  */
 export function GalleryTools() {
-  const controls = useGalleryControls()
   const [open, setOpen] = useState(false)
   const button = useRef<HTMLDivElement>(null)
   const menu = useRef<HTMLDivElement>(null)
-  // メニューはフッターの外（body の直下）に描く。フッターはぼかし（backdrop-filter）を持つので、
-  // その中に置くとメニューのぼかしがフッターの中しか見えず、後ろの写真をぼかせないため。
+  // 開く入れ物はフッターの外（body の直下）に描く。フッターはぼかし（backdrop-filter）を持つので、
+  // その中に置くと入れ物のぼかしがフッターの中しか見えず、後ろの写真をぼかせないため。
   // プリレンダでは描かず、ブラウザでだけ出す
   const body = useSyncExternalStore(
     subscribe,
     () => document.body,
     () => null
   )
-  // メニューの位置。ボタンの上に、右端をそろえて左へ開く（フッターの右端寄りに置くので）
+  // 開く位置。ボタンの上に、右端をそろえて左へ開く（フッターの右端寄りに置くので）
   const [at, setAt] = useState({right: 0, bottom: 0})
   useLayoutEffect(() => {
     const place = () => {
@@ -38,7 +37,7 @@ export function GalleryTools() {
     return () => removeEventListener('resize', place)
   }, [open])
 
-  // メニューとボタンの外を押すか Esc で閉じる。選んでも閉じない（見比べられるように）
+  // 入れ物とボタンの外を押すか Esc で閉じる。動かしても閉じない（見比べられるように）
   useEffect(() => {
     if (!open) return
     const close = (event: PointerEvent) => {
@@ -56,7 +55,8 @@ export function GalleryTools() {
 
   return (
     <div className="flex h-full items-stretch">
-      <div ref={button} className="flex">
+      <ColumnSlider max={MAX_COLUMNS.wide} className="max-sm:hidden" />
+      <div ref={button} className="flex sm:hidden">
         <IconButton label="列数" onClick={() => setOpen(!open)} expanded={open}>
           <rect x="4" y="5" width="16" height="14" rx="1" />
           <path d="M9.33 5v14M14.67 5v14" />
@@ -64,32 +64,77 @@ export function GalleryTools() {
       </div>
       {body &&
         createPortal(
-          // 選んでいる列数は下線で示し、切り替えると線が滑る
           <div
             ref={menu}
             aria-hidden={!open}
             style={at}
-            className={`fixed z-20 border border-white/10 bg-black/70 backdrop-blur-[20px] transition-[opacity,translate] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${open ? SHOWN : HIDDEN}`}
+            className={`fixed z-20 border border-white/10 bg-black/70 px-3 backdrop-blur-[20px] transition-[opacity,translate] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] sm:hidden ${open ? SHOWN : HIDDEN}`}
           >
-            {/* 選択肢は同じ幅の枠。中身から幅が決まる入れ物なので、1fr ずつの等分では幅が決まらない */}
-            <div className="relative flex h-10 px-2 text-xs font-light tracking-[0.12em] max-sm:text-[0.625rem]">
-              {COUNTS.filter((columns) => columns <= maxColumns(innerWidth)).map((columns) => (
-                <button
-                  key={columns}
-                  type="button"
-                  tabIndex={open ? 0 : -1}
-                  aria-current={controls?.columns === columns || undefined}
-                  onClick={() => controls?.setColumns(columns)}
-                  className="flex w-10 shrink-0 cursor-pointer items-center justify-center opacity-90 transition-opacity duration-300 hover:opacity-100 max-sm:w-9"
-                >
-                  <span className="-translate-y-0.5">{columns}</span>
-                </button>
-              ))}
-              <Underline current={String(controls?.columns)} />
-            </div>
+            <ColumnSlider max={MAX_COLUMNS.narrow} focusable={open} className="h-12" />
           </div>,
           body
         )}
+    </div>
+  )
+}
+
+/**
+ * 列数のスライダー。0.5px の溝に列数ぶんの目盛りを刻み、今の列数に点を置き、横に数字を添える。左が列の少ない
+ * （写真の大きい）側。目盛りをまたぐたびに列数を変え、一覧はそのたびに組み替わる（Gallery が動きの途中から
+ * 引き継ぐ）。
+ * 見た目は自前で描き、操作は透明な input[type=range] が受ける（ドラッグ、タップ、矢印キー、読み上げ）。
+ * 目盛りの位置は、input のつまみの幅（styles.css の [data-slider]）の半分ずつ内側に寄せて揃える
+ */
+function ColumnSlider({
+  max,
+  focusable = true,
+  className = ''
+}: {
+  max: Count
+  /** 閉じている入れ物の中では、キーボードで辿れないようにする */
+  focusable?: boolean
+  className?: string
+}) {
+  const controls = useGalleryControls()
+  const value = controls?.columns
+  const steps = COUNTS.filter((count) => count <= max)
+  const position = (count: number) => `calc(var(--thumb) / 2 + (100% - var(--thumb)) * ${(count - 2) / (max - 2)})`
+  return (
+    <div
+      className={`group flex items-center gap-2 opacity-90 transition-opacity duration-300 hover:opacity-100 ${className}`}
+    >
+      <div className="relative h-full w-28 [--thumb:16px]">
+        <div aria-hidden className="absolute inset-x-[calc(var(--thumb)/2)] top-1/2 h-[0.5px] bg-ink/35" />
+        {steps.map((count) => (
+          <div
+            key={count}
+            aria-hidden
+            className="absolute top-1/2 h-[5px] w-[0.5px] -translate-1/2 bg-ink/45"
+            style={{left: position(count)}}
+          />
+        ))}
+        <div
+          aria-hidden
+          className={`absolute top-1/2 size-[7px] -translate-1/2 rounded-full bg-ink transition-[left,opacity,scale] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] group-has-[input:focus-visible]:scale-150 ${value ? '' : 'opacity-0'}`}
+          style={{left: position(value ?? 2)}}
+        />
+        <input
+          type="range"
+          data-slider
+          min={2}
+          max={max}
+          step={1}
+          value={value ?? 2}
+          disabled={!controls}
+          tabIndex={focusable ? 0 : -1}
+          aria-label="列数"
+          onChange={(event) => controls?.setColumns(Number(event.target.value) as Count)}
+          className="absolute inset-0 m-0 h-full w-full cursor-pointer appearance-none bg-transparent opacity-0"
+        />
+      </div>
+      <span aria-hidden className="w-2 text-xs font-light tabular-nums">
+        {value}
+      </span>
     </div>
   )
 }

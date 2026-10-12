@@ -44,19 +44,23 @@ export const SCENARIOS = {
     }
   },
 
-  // 列数を 5 → 2 → 4 → 3 と切り替える。写真が一斉に動く（スマホは 5 列まで）
+  // 列数を 5 → 2 → 4 → 3 と切り替える。写真が一斉に動く（スマホは 5 列まで）。列数はスライダー
+  // （input[type=range]）の値を変えて選ぶ。操作の速さに左右されず、毎回同じ切り替えになるように
   'photos-columns': {
     kind: 'interaction',
     path: '/photos',
-    async setup({page, press, wait}) {
+    async setup({page, wait}) {
       await page.evaluate(() => scrollTo(0, 1500))
       await wait(500)
-      await press('::-p-aria(列数)')
-      await wait(800)
     },
-    async run({press, wait}) {
-      for (const columns of ['5', '2', '4', '3']) {
-        await press(`::-p-aria([name="${columns}"][role="button"])`)
+    async run({page, wait}) {
+      for (const columns of [5, 2, 4, 3]) {
+        await page.evaluate((value) => {
+          const input = [...document.querySelectorAll('input[data-slider]')].find((i) => Number(i.max) >= value)
+          // React は値の書き換えを input イベントで拾うので、ネイティブの setter で書いてから知らせる
+          Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, String(value))
+          input.dispatchEvent(new Event('input', {bubbles: true}))
+        }, columns)
         await wait(SETTLE)
       }
     }

@@ -20,7 +20,8 @@ export type Columns = 'auto' | Count
 export const autoColumns = (viewport: number) => (viewport < 640 ? 2 : viewport >= 1280 ? 4 : 3)
 
 /** 選べる列数の上限。狭い画面（640px 未満）は 5 列まで。6 列だと写真 1 枚が約 58px になり、小さすぎるため */
-export const maxColumns = (viewport: number) => (viewport < 640 ? 5 : 6)
+export const MAX_COLUMNS = {narrow: 5, wide: 6} as const satisfies Record<string, Count>
+export const maxColumns = (viewport: number): Count => (viewport < 640 ? MAX_COLUMNS.narrow : MAX_COLUMNS.wide)
 
 export type GalleryControls = {
   /** 実際の列数 */

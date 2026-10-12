@@ -82,6 +82,19 @@ a {
   color: inherit;
 }
 
+/* 列数のスライダー（src/gallery/GalleryTools.tsx）。見た目は自前で描き、操作は透明な input[type=range] が受ける。
+   つまみの幅を目盛りの計算（--thumb）と同じにして、押した位置と目盛りを揃える */
+input[data-slider]::-webkit-slider-thumb {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+}
+input[data-slider]::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border: 0;
+}
+
 /* 視界に入った要素を現す演出（src/gallery/reveal.ts）。下から現像するワイプ。
    [data-revealed] が付いたら現す。
 
