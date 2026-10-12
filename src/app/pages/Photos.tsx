@@ -16,8 +16,10 @@ export function Photos() {
   const all = usePhotos()
   const photos = all?.filter((photo) => photo.category === category) ?? []
 
+  // 一覧のまわりの余白は、上下も左右と同じ幅（PC 32px、狭い画面 16px）。見出しを置かないので、
+  // 固定のナビとフッターの内側から同じ幅の額縁で囲む。下はホームインジケータのぶん（safe area）も足す
   return (
-    <div className="mx-auto min-h-[100svh] max-w-7xl px-8 pt-[calc(var(--spacing-nav)+3.5rem)] pb-24 max-sm:px-4">
+    <div className="mx-auto min-h-[100svh] max-w-7xl px-8 pt-[calc(var(--spacing-nav)+2rem)] pb-[calc(var(--spacing-footer)+env(safe-area-inset-bottom)+2rem)] max-sm:px-4 max-sm:pt-[calc(var(--spacing-nav)+1rem)] max-sm:pb-[calc(var(--spacing-footer)+env(safe-area-inset-bottom)+1rem)]">
       <Gallery key={category} photos={photos} label={LABEL[category]} />
     </div>
   )
