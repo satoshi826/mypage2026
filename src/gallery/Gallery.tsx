@@ -10,7 +10,7 @@ import type {Photo} from '../photos'
 
 /**
  * 寸法。容器の幅、画面の幅で決まる列数（auto のとき使う）、広げた写真に許す高さ、画面の高さ、
- * 容器の文書上の上端、固定のナビとフッターの高さ。どれも画面の大きさが変わったときだけ読む
+ * 容器の文書上の上端と左端、固定のナビとフッターの高さ。どれも画面の大きさが変わったときだけ読む
  */
 type Metrics = {
   width: number
@@ -18,6 +18,7 @@ type Metrics = {
   maxHeight: number
   viewport: number
   top: number
+  left: number
   bars: {top: number; bottom: number}
 }
 
@@ -28,8 +29,11 @@ const RANGE = 2.5
 /** 描く範囲を見直すスクロールの刻み。画面の高さに対する割合。スクロールのたびに描き直さないため */
 const STEP = 0.25
 
-/** 段組を変える直前の状態。変更前の配置、そのときのスクロール（容器の上端から）、画面上の位置を保つ写真 */
-type Before = {items: Map<string, Placed>; scroll: number; anchor: string | null}
+/**
+ * 段組を変える直前の状態。変更前の配置、そのときのスクロール（容器の上端から）、容器の文書上の上端と左端
+ * （画面の幅が変わると容器も動く）、画面上の位置を保つ写真
+ */
+type Before = {items: Map<string, Placed>; scroll: number; top: number; left: number; anchor: string | null}
 
 /** 画面上の位置と大きさ */
 type Box = {left: number; top: number; width: number; height: number}
@@ -75,6 +79,17 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
     () => 0
   )
 
+  // 測った寸法を反映する。列数が Auto で、画面の幅が変わって列数が変わるときは、列数のボタンと同じく
+  // 基準の写真の位置を保って動かす（スマホの回転、ウィンドウの幅が境目をまたいだとき）。それ以外は
+  // その場で合わせる。容器の高さが変わるたび（写真を広げるたび）にも呼ばれるので、変わらなければ描き直さない
+  const applyMetrics = useRef<(next: Metrics) => void>(() => {})
+  useEffect(() => {
+    applyMetrics.current = (next) => {
+      if (metrics && columns === 'auto' && next.autoCols !== metrics.autoCols) relayout(null, () => setMetrics(next))
+      else setMetrics((prev) => (prev && JSON.stringify(prev) === JSON.stringify(next) ? prev : next))
+    }
+  })
+
   useEffect(() => {
     const el = root.current
     if (!el) return
@@ -89,10 +104,10 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
         maxHeight: innerHeight - bars.top - bars.bottom - MARGIN * 2,
         viewport: innerHeight,
         top: pageTop(el),
+        left: pageLeft(el),
         bars
       }
-      // 容器の高さが変わるたび（写真を広げるたび）に呼ばれるので、変わらなければ描き直さない
-      setMetrics((prev) => (prev && JSON.stringify(prev) === JSON.stringify(next) ? prev : next))
+      applyMetrics.current(next)
     }
     const observer = new ResizeObserver(measure)
     observer.observe(el)
@@ -151,21 +166,21 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
     let center: string | null = null
     let nearest = Infinity
     for (const [file, at] of placed.items) {
-      const box = toBox(at, scroll)
+      const box = toBox(at, scroll, metrics.left)
       if (!isNear(box, metrics.viewport)) continue
       near.add(file)
       // 配置の変化で画面に入ってくる写真は、ワイプなしで即座に出す。ワイプはスクロールで
       // 見つけるためのもので、動いている最中に現れ始めると不連続に見える
       revealed.current.add(file)
       const distance = Math.hypot(
-        box.left + box.width / 2 - metrics.width / 2,
+        box.left + box.width / 2 - innerWidth / 2,
         box.top + box.height / 2 - metrics.viewport / 2
       )
       if (distance < nearest) [nearest, center] = [distance, file]
     }
     el.dataset.revealInstant = ''
     requestAnimationFrame(() => delete el.dataset.revealInstant)
-    setBefore({items: placed.items, scroll, anchor: anchor ?? center})
+    setBefore({items: placed.items, scroll, top: metrics.top, left: metrics.left, anchor: anchor ?? center})
     setKeep(near)
     change()
   }
@@ -216,7 +231,7 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
     // 画面上の位置を変えない。残りの動きは全部 FLIP が受け持つ
     const was = first.anchor ? first.items.get(first.anchor) : undefined
     const now = first.anchor ? placed.items.get(first.anchor) : undefined
-    if (was && now) jumpTo(scrollY + now.y - was.y)
+    if (was && now) jumpTo(scrollY + now.y - was.y + metrics.top - first.top)
     const scroll = scrollY - metrics.top
 
     // 大きさが変わる写真も figure ごと動かす。img とワイプ用の覆いが一緒に動くので、中身だけを
@@ -228,8 +243,8 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
         const from = first.items.get(figure.dataset.file!)
         const to = placed.items.get(figure.dataset.file!)
         if (!from || !to) continue
-        const a = toBox(from, first.scroll)
-        const b = toBox(to, scroll)
+        const a = toBox(from, first.scroll, first.left)
+        const b = toBox(to, scroll, metrics.left)
         if (isNear(a, metrics.viewport) || isNear(b, metrics.viewport)) flip(figure, a, b, motion)
       }
     }
@@ -238,7 +253,7 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
     if (reveal.current && now) {
       reveal.current = false
       const {top, bottom} = metrics.bars
-      const box = toBox(now, scroll)
+      const box = toBox(now, scroll, metrics.left)
       if (box.top < top + MARGIN || box.top + box.height > metrics.viewport - bottom)
         glideTo(metrics.top + now.y - top - MARGIN, {
           duration: motion.scrollSeconds,
@@ -333,8 +348,20 @@ function pageTop(el: HTMLElement) {
   return top
 }
 
-/** 配置（容器の中の位置）を、容器の上端から scroll だけスクロールしたときの画面上の位置にする。左右は容器の左端から */
-const toBox = (at: Placed, scroll: number): Box => ({left: at.x, top: at.y - scroll, width: at.w, height: at.h})
+/** 文書の左端からの位置。pageTop と同じく transform を含まない */
+function pageLeft(el: HTMLElement) {
+  let left = 0
+  for (let node: HTMLElement | null = el; node; node = node.offsetParent as HTMLElement | null) left += node.offsetLeft
+  return left
+}
+
+/** 配置（容器の中の位置）を、容器の上端から scroll だけスクロールし、容器の左端が left にあるときの画面上の位置にする */
+const toBox = (at: Placed, scroll: number, left: number): Box => ({
+  left: left + at.x,
+  top: at.y - scroll,
+  width: at.w,
+  height: at.h
+})
 
 /**
  * 広げる・戻すあいだに見えうる範囲にあるか。画面の上下に 1 画面ずつ余裕を持つ。広げたあとの
