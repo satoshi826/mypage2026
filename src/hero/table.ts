@@ -9,7 +9,8 @@ export const SOURCE_H = 768
  */
 export type Grid = {width: number; height: number; count: number}
 
-const ASPECT = SOURCE_W / SOURCE_H
+/** 縦横比。全写真がこれに揃っている */
+export const ASPECT = SOURCE_W / SOURCE_H
 /** これ以下に落とすと写真として成立しないという下限 */
 const MIN_HEIGHT = 256
 /**

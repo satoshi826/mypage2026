@@ -9,7 +9,7 @@ type RouteDef = {
   description: string
 }
 
-const NAME = 'Satoshi Hata'
+export const NAME = 'Satoshi Hata'
 
 export const ROUTES: RouteDef[] = [
   {
@@ -66,4 +66,3 @@ export const ROUTES: RouteDef[] = [
 
 export const NAV_ROUTES = ROUTES.filter((route) => route.label !== null)
 export const findRoute = (path: string) => ROUTES.find((route) => route.path === path)
-export {NAME}

@@ -2,7 +2,6 @@ import {Core, Vao, Program, Renderer} from 'glaku'
 import {blockOrigin, buildTable, chooseGrid, layoutFor, loadPixels, type AtlasLayout, type Grid} from './table'
 import type {Frame} from './sequence'
 import {DEFAULT_INTERACTION, DEFAULT_TUNING, type Interaction, type Tuning} from './tuning'
-export default {}
 
 /**
  * 同時にデコードする枚数。31枚での実測では 6 で頭打ちになり、8 で全並列と同じ
@@ -131,7 +130,6 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number, photos: string
           (layer / ${layout.cols}) * ${grid.height} + row
         );
       }
-
 
       // p = 1 で等速、p = 3 で easeInOutCubic と一致する
       float easeInOut(float t, float p) {

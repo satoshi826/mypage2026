@@ -1,8 +1,6 @@
 import type {CSSProperties} from 'react'
 import type {Param} from '../app/DevPanel'
-import {SOURCE_H, SOURCE_W} from './table'
-
-const ASPECT = SOURCE_W / SOURCE_H
+import {ASPECT} from './table'
 
 /**
  * コントロールパネルの寸法。CSS 変数としてパネルのルートに書き込む。

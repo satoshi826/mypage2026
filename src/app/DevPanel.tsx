@@ -141,15 +141,15 @@ export function DevPanel<T extends Record<string, number | string>>({
   )
 }
 
-/**
- * 開発用パネルを集めるドック。見出しをつかんで動かせ、見出しのボタンで全体を畳める。位置と畳み具合は
- * ブラウザに覚える。App が import.meta.env.DEV の中でだけ描く
- */
 const subscribeResize = (onChange: () => void) => {
   addEventListener('resize', onChange)
   return () => removeEventListener('resize', onChange)
 }
 
+/**
+ * 開発用パネルを集めるドック。見出しをつかんで動かせ、見出しのボタンで全体を畳める。位置と畳み具合は
+ * ブラウザに覚える。App が import.meta.env.DEV の中でだけ描く
+ */
 export function DevDock() {
   const [dock, setDock] = useState(() => load('mypage2026.devDock', {x: 16, y: 64, folded: false}))
   const drag = useRef<{dx: number; dy: number} | null>(null)

@@ -46,8 +46,6 @@
 
 html,
 body {
-  margin: 0;
-  padding: 0;
   background: var(--color-ground);
   color: var(--color-ink);
   font: 400 16px/1.7 var(--font-sans);
@@ -76,10 +74,6 @@ html {
   ::-webkit-scrollbar {
     display: none;
   }
-}
-
-a {
-  color: inherit;
 }
 
 /* 列数のスライダー（src/gallery/GalleryTools.tsx）。見た目は自前で描き、操作は透明な input[type=range] が受ける。

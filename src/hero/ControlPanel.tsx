@@ -1,8 +1,6 @@
 import {useLayoutEffect, useRef} from 'react'
 import {layoutVars, type Layout, type Tone} from './layout'
 
-const label = (index: number) => String(index + 1).padStart(2, '0')
-
 /**
  * 写真に添える操作面。カレンダー状に並べた番号。
  * 再生操作と次までのプログレスはフッターにある（HeroPlayer.tsx）。
@@ -84,7 +82,7 @@ export function ControlPanel({
                       : '[opacity:calc(var(--idle-opacity)*0.3)]'
                 }`}
               >
-                {label(i)}
+                {String(i + 1).padStart(2, '0')}
               </button>
             </li>
           ))}

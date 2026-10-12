@@ -105,11 +105,6 @@ export function jumpTo(y: number) {
   write(position)
 }
 
-/** 先頭へ即座に戻す。ページの移動で、中身が見えていないあいだに使う（PageTransition.tsx） */
-export function resetScroll() {
-  jumpTo(0)
-}
-
 /** 全ページ共通 */
 export function useSmoothScroll() {
   useEffect(() => {

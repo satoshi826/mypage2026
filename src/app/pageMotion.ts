@@ -1,7 +1,7 @@
 import {useEffect, useLayoutEffect, useRef, useState} from 'react'
 import {matchRoute, useLocation, useRouter} from 'wouter'
 import type {Param} from './DevPanel'
-import {resetScroll} from './useSmoothScroll'
+import {jumpTo} from './useSmoothScroll'
 import {EASINGS, type Easing} from '../gallery/tuning'
 
 /*
@@ -240,7 +240,7 @@ export function usePageTransition(motion: PageMotion) {
     const page = m.variant !== 'none' && !(inPage && m.categories === 'no')
     const footer = m.footerVariant !== 'none' && !inPage
     if (matchMedia('(prefers-reduced-motion: reduce)').matches || (!page && !footer)) {
-      resetScroll()
+      jumpTo(0)
       setDisplayed(location)
       return
     }
@@ -298,7 +298,7 @@ export function usePageTransition(motion: PageMotion) {
     entering.current = null
     const exits = leaving.current ?? []
     leaving.current = null
-    resetScroll()
+    jumpTo(0)
     const m = motionRef.current
     const easing = EASINGS[m.enterEasing].css
     const timing = (seconds: number, delay: number) => ({

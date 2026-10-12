@@ -1,9 +1,5 @@
-import {useEffect, useRef, type CSSProperties, type ReactNode} from 'react'
+import {useEffect, useRef, type ReactNode} from 'react'
 import {progressLines, usePlayer} from './playback'
-
-/** プログレスの未通過部分の濃さ %。遷移帯ぶんと静止帯ぶん。通過した部分は 100% */
-const MORPH_OPACITY = 30
-const DWELL_OPACITY = 16
 
 /**
  * フッターの左に置く hero の再生操作と、広い画面での次の写真までのプログレス。
@@ -70,10 +66,10 @@ export function HeroProgress({className}: {className: string}) {
       ref={ref}
       aria-hidden
       className={`relative flex transition-opacity duration-700 ${player.visible ? '' : 'opacity-0'} ${className}`}
-      style={{'--morph-opacity': `${MORPH_OPACITY}%`, '--dwell-opacity': `${DWELL_OPACITY}%`} as CSSProperties}
     >
-      <div className="shrink-0 bg-ink [opacity:var(--morph-opacity)] [width:var(--morph)]" />
-      <div className="flex-1 bg-ink [opacity:var(--dwell-opacity)]" />
+      {/* 未通過部分の濃さ。遷移帯ぶん 30%、静止帯ぶん 16%。通過した部分は 100% */}
+      <div className="shrink-0 bg-ink opacity-30 [width:var(--morph)]" />
+      <div className="flex-1 bg-ink opacity-16" />
       <div
         className="absolute inset-0 bg-ink"
         style={{clipPath: 'inset(0 calc((1 - var(--progress, 0)) * 100%) 0 0)'}}
@@ -88,14 +84,12 @@ function Transport({
   onClick,
   pressed,
   size = 'size-4',
-  className = '',
   children
 }: {
   label: string
   onClick: () => void
   pressed?: boolean
   size?: string
-  className?: string
   children: ReactNode
 }) {
   return (
@@ -105,7 +99,7 @@ function Transport({
       aria-label={label}
       aria-pressed={pressed}
       // before は指の当たり判定。配置を変えずに 44px を確保する
-      className={`relative flex cursor-pointer transition-opacity duration-300 before:absolute before:top-1/2 before:left-1/2 before:size-11 before:-translate-x-1/2 before:-translate-y-1/2 before:content-[''] hover:opacity-60 ${className} ${
+      className={`relative flex cursor-pointer transition-opacity duration-300 before:absolute before:top-1/2 before:left-1/2 before:size-11 before:-translate-x-1/2 before:-translate-y-1/2 before:content-[''] hover:opacity-60 ${
         pressed === false ? 'opacity-35' : ''
       }`}
     >

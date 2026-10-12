@@ -53,21 +53,18 @@ export function usePointer(ref: {current: HTMLElement | null}) {
 
     const observer = new ResizeObserver(refresh)
     observer.observe(el)
-    addEventListener('scroll', refresh, {passive: true})
-    addEventListener('resize', refresh)
-    el.addEventListener('pointerdown', move)
-    el.addEventListener('pointermove', move)
-    el.addEventListener('pointerleave', leave)
-    el.addEventListener('pointercancel', leave)
+    const listeners = new AbortController()
+    const {signal} = listeners
+    addEventListener('scroll', refresh, {passive: true, signal})
+    addEventListener('resize', refresh, {signal})
+    el.addEventListener('pointerdown', move, {signal})
+    el.addEventListener('pointermove', move, {signal})
+    el.addEventListener('pointerleave', leave, {signal})
+    el.addEventListener('pointercancel', leave, {signal})
 
     return () => {
       observer.disconnect()
-      removeEventListener('scroll', refresh)
-      removeEventListener('resize', refresh)
-      el.removeEventListener('pointerdown', move)
-      el.removeEventListener('pointermove', move)
-      el.removeEventListener('pointerleave', leave)
-      el.removeEventListener('pointercancel', leave)
+      listeners.abort()
     }
   }, [ref])
 

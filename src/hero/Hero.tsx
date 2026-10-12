@@ -29,7 +29,7 @@ import {
   panelWidth,
   type Layout
 } from './layout'
-import {SOURCE_H, SOURCE_W} from './table'
+import {ASPECT} from './table'
 import {
   DEFAULT_INTERACTION,
   DEFAULT_TUNING,
@@ -330,9 +330,8 @@ const CONTROLS_SHOWN = 0.4
 
 /** 使える領域から、パネルに取られるぶんを引いて、3:2 を保った最大の枠を出す */
 function fitPhoto({width, height}: {width: number; height: number}, takenX: number) {
-  const aspect = SOURCE_W / SOURCE_H
-  const fitted = Math.round(Math.min(Math.max(0, width - takenX), height * aspect))
-  return {width: fitted, height: Math.round(fitted / aspect)}
+  const fitted = Math.round(Math.min(Math.max(0, width - takenX), height * ASPECT))
+  return {width: fitted, height: Math.round(fitted / ASPECT)}
 }
 
 /** 要素のコンテンツ領域（padding を除いた大きさ）を測る */

@@ -17,7 +17,12 @@ import {PageCover, PageMotionPanel} from './PageTransition'
 import {DevDock} from './DevPanel'
 
 export function App() {
-  useDocumentTitle()
+  const [location] = useLocation()
+  // プリレンダされた HTML には正しい title が入っているが、クライアント遷移では変わらないので追随させる
+  useEffect(() => {
+    const route = findRoute(location)
+    if (route) document.title = route.title
+  }, [location])
   useSmoothScroll()
   const [motion, setMotion] = useState(DEFAULT_PAGE_MOTION)
   // 中身（main とフッター）は表示中の場所で描く。ナビは実際の URL で、下線がすぐ滑り始める
@@ -29,8 +34,7 @@ export function App() {
       <main data-page className="font-light">
         <Switch location={displayed}>
           <Route path="/" component={Top} />
-          <Route path="/photos" component={Photos} />
-          <Route path="/photos/:category" component={Photos} />
+          <Route path="/photos/:category?" component={Photos} />
           <Route path="/works" component={Works} />
           <Route path="/about" component={About} />
           <Route path="/contact" component={Contact} />
@@ -47,14 +51,4 @@ export function App() {
       {import.meta.env.DEV && <PageMotionPanel onChange={setMotion} />}
     </>
   )
-}
-
-// プリレンダされた HTML には正しい title が入っているが、クライアント遷移では
-// 変わらないのでここで追随させる
-function useDocumentTitle() {
-  const [location] = useLocation()
-  useEffect(() => {
-    const route = findRoute(location)
-    if (route) document.title = route.title
-  }, [location])
 }

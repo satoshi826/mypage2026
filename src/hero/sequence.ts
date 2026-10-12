@@ -96,7 +96,8 @@ export function advance(state: SequenceState, seconds: number, order: Order, tim
 }
 
 /** 丸が示している1枚。遷移の開始で次へ切り替わる */
-const markedOf = ({from, to}: SequenceState, phase: number) => (phase > 0 ? (to ?? from) : from)
+const markedOf = (state: SequenceState, timing: Timing) =>
+  frameOf(state, timing).phase > 0 ? (state.to ?? state.from) : state.from
 
 /** 粒子が位置として近い1枚。中点で切り替わる */
 const originOf = ({from, to}: SequenceState, phase: number) => (phase < 0.5 ? from : (to ?? from))
@@ -121,15 +122,14 @@ function startFrom(state: SequenceState, target: number, timing: Timing, history
 /** 番号を選ぶ。読み込みが済んでいない番号は無視する */
 export function jumpTo(state: SequenceState, target: number, order: Order, timing: Timing): SequenceState {
   if (!order.available.includes(target)) return state
-  const {phase} = frameOf(state, timing)
-  if (target === markedOf(state, phase)) return state
-  return startFrom(state, target, timing, remember(state.history, markedOf(state, phase)))
+  const marked = markedOf(state, timing)
+  if (target === marked) return state
+  return startFrom(state, target, timing, remember(state.history, marked))
 }
 
 /** 「次へ」。自動再生が選ぶのと同じ1枚へ、静止帯を待たずに進む */
 export function goNext(state: SequenceState, order: Order, timing: Timing): SequenceState {
-  const {phase} = frameOf(state, timing)
-  const marked = markedOf(state, phase)
+  const marked = markedOf(state, timing)
   const target = pickNext(marked, order)
   if (target === marked) return state
   return startFrom(state, target, timing, remember(state.history, marked))
@@ -140,8 +140,7 @@ export function goNext(state: SequenceState, order: Order, timing: Timing): Sequ
  * シャッフルでも履歴が空なら番号順に落とす。
  */
 export function goBack(state: SequenceState, order: Order, timing: Timing): SequenceState {
-  const {phase} = frameOf(state, timing)
-  const marked = markedOf(state, phase)
+  const marked = markedOf(state, timing)
   const previous = order.shuffle ? state.history[state.history.length - 1] : undefined
   const target = previous ?? pickPrev(marked, order)
   if (target === marked) return state
