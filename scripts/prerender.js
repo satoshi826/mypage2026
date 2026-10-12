@@ -14,7 +14,11 @@ const dist = join(root, 'dist')
 
 const escapeHtml = (text) => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 
-const vite = await createServer({root, appType: 'custom', server: {middlewareMode: true}})
+// 本番として読む。dev サーバの既定（development）のままだと import.meta.env.DEV が true になり、
+// 開発用のパネルが HTML に入ってしまう（クライアントの本番バンドルには入らないので、表示が食い違う）。
+// DEV は mode ではなく NODE_ENV で決まる
+process.env.NODE_ENV = 'production'
+const vite = await createServer({root, mode: 'production', appType: 'custom', server: {middlewareMode: true}})
 
 try {
   const {render} = await vite.ssrLoadModule('/src/entry-server.tsx')
