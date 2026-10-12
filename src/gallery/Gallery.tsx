@@ -32,9 +32,16 @@ const STEP = 0.25
 
 /**
  * 段組を変える直前の状態。変更前の配置、そのときのスクロール（容器の上端から）、容器の文書上の上端と左端
- * （画面の幅が変わると容器も動く）、画面上の位置を保つ写真
+ * （画面の幅が変わると容器も動く）、画面上の位置を保つ写真、動いている最中だった写真の見えている位置
  */
-type Before = {items: Map<string, Placed>; scroll: number; top: number; left: number; anchor: string | null}
+type Before = {
+  items: Map<string, Placed>
+  scroll: number
+  top: number
+  left: number
+  anchor: string | null
+  visual: Map<string, Box>
+}
 
 /** 画面上の位置と大きさ */
 type Box = {left: number; top: number; width: number; height: number}
@@ -182,10 +189,20 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
       )
       if (distance < nearest) [nearest, center] = [distance, file]
     }
+    // 前の組み替えで動いている最中の写真は、見えている位置（動きの変形を含む）を読む。そこから次の動きを
+    // 始めないと、行き先から動き出して跳ねる（列数のスライダーを続けて動かしたときなど）。動いている写真だけ
+    // なので、読む数は少ない
+    const visual = new Map<string, Box>()
+    for (const figure of el.querySelectorAll<HTMLElement>('figure[data-file]')) {
+      if (figure.getAnimations().length === 0) continue
+      const r = figure.getBoundingClientRect()
+      visual.set(figure.dataset.file!, {left: r.left, top: r.top, width: r.width, height: r.height})
+    }
     el.dataset.revealInstant = ''
     requestAnimationFrame(() => delete el.dataset.revealInstant)
-    setBefore({items: placed.items, scroll, top: metrics.top, left: metrics.left, anchor: anchor ?? center})
-    setKeep(near)
+    setBefore({items: placed.items, scroll, top: metrics.top, left: metrics.left, anchor: anchor ?? center, visual})
+    // 前の組み替えで描き続けている写真も、まだ動いているので引き継ぐ
+    setKeep((prev) => new Set([...prev, ...near]))
     change()
   }
 
@@ -246,10 +263,12 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
     const still = matchMedia('(prefers-reduced-motion: reduce)').matches
     if (!still) {
       for (const figure of el.querySelectorAll<HTMLElement>('figure[data-file]')) {
+        // 前の動きは止める。続けると、新しい配置の位置を基準に古い差分で動いてしまう
+        for (const animation of figure.getAnimations()) animation.cancel()
         const from = first.items.get(figure.dataset.file!)
         const to = placed.items.get(figure.dataset.file!)
         if (!from || !to) continue
-        const a = toBox(from, first.scroll, first.left)
+        const a = first.visual.get(figure.dataset.file!) ?? toBox(from, first.scroll, first.left)
         const b = toBox(to, scroll, metrics.left)
         if (isNear(a, metrics.viewport) || isNear(b, metrics.viewport)) flip(figure, a, b, motion)
       }
