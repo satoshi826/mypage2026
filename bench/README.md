@@ -28,15 +28,15 @@ npm run bench:compare -- 前.json 後.json         # 指定した 2 回分を比
 
 ## 場面（scenarios.mjs の SCENARIOS）
 
-| 名前                                    | 内容                                                               |
-| --------------------------------------- | ------------------------------------------------------------------ |
-| `load-top-cold` / `load-top-warm`       | トップを開く。cold はキャッシュ無し、warm は一度開いてから開き直す |
-| `load-photos-cold` / `load-photos-warm` | Photos を開く                                                      |
-| `photos-scroll`                         | 一覧を 6000px 流す（タッチは指、PC はホイール）                    |
-| `photos-columns`                        | 列数を 6 → 2 → 5 → Auto と切り替える                               |
-| `photos-expand`                         | 画面の中央に近い写真を広げ、もう一度押して戻す（3 回）             |
-| `page-transition`                       | トップ → Photos → About → Works → Contact → トップ                 |
-| `hero-idle`                             | hero を 5 秒再生したまま置く                                       |
+| 名前                                    | 内容                                                                         |
+| --------------------------------------- | ---------------------------------------------------------------------------- |
+| `load-top-cold` / `load-top-warm`       | トップを開く。cold はキャッシュ無し、warm は一度開いてから開き直す           |
+| `load-photos-cold` / `load-photos-warm` | Photos を開く                                                                |
+| `photos-scroll`                         | 一覧を 6000px 流す（タッチは指、PC はホイール）                              |
+| `photos-columns`                        | 列数を 5 → 2 → 4 → Auto と切り替える（この変更より前の結果とは比べられない） |
+| `photos-expand`                         | 画面の中央に近い写真を広げ、もう一度押して戻す（3 回）                       |
+| `page-transition`                       | トップ → Photos → About → Works → Contact → トップ                           |
+| `hero-idle`                             | hero を 5 秒再生したまま置く                                                 |
 
 場面の操作の量や待ち時間を変えると、それ以前の結果とは比べられなくなる。
 

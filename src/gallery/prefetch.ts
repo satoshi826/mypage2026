@@ -1,4 +1,4 @@
-import {COLUMNS} from './controls'
+import {COLUMNS, maxColumns} from './controls'
 import {gapFor} from './layout'
 import {DEFAULT_SPACING} from './tuning'
 import {pickSource, type Photo} from '../photos'
@@ -15,7 +15,9 @@ const padding = (viewport: number) => (viewport < 640 ? 16 : 32)
  */
 export function listSources(photos: Photo[]): string[] {
   const width = Math.min(innerWidth, MAX_WIDTH) - padding(innerWidth) * 2
-  const widths = COLUMNS.filter((columns) => columns !== 'auto').map((cols) => {
+  // この画面で選べる列数（Auto はどれかと同じなので数えない）
+  const counts = COLUMNS.filter((columns) => columns !== 'auto').filter((cols) => cols <= maxColumns(innerWidth))
+  const widths = counts.map((cols) => {
     const gap = gapFor(width, cols, DEFAULT_SPACING)
     return (width - gap * (cols - 1)) / cols
   })

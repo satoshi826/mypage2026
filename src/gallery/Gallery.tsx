@@ -2,7 +2,7 @@ import {useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalSt
 import {Img} from './Img'
 import {gapFor, layout, type Expansion, type Placed} from './layout'
 import {useReveal} from './reveal'
-import {autoColumns, chosenColumns, rememberColumns, setGalleryControls, type Columns} from './controls'
+import {autoColumns, chosenColumns, maxColumns, rememberColumns, setGalleryControls, type Columns} from './controls'
 import {DEFAULT_MOTION, DEFAULT_SPACING, EASINGS, MOTION_PARAMS, SPACING_PARAMS, type Motion} from './tuning'
 import {DevPanel} from '../app/DevPanel'
 import {glideTo, jumpTo} from '../app/useSmoothScroll'
@@ -15,6 +15,7 @@ import type {Photo} from '../photos'
 type Metrics = {
   width: number
   autoCols: number
+  maxCols: number
   maxHeight: number
   viewport: number
   top: number
@@ -79,13 +80,13 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
     () => 0
   )
 
-  // 測った寸法を反映する。列数が Auto で、画面の幅が変わって列数が変わるときは、列数のボタンと同じく
+  // 測った寸法を反映する。画面の幅が変わって列数が変わるとき（Auto の列数、選べる上限）は、列数のボタンと同じく
   // 基準の写真の位置を保って動かす（スマホの回転、ウィンドウの幅が境目をまたいだとき）。それ以外は
   // その場で合わせる。容器の高さが変わるたび（写真を広げるたび）にも呼ばれるので、変わらなければ描き直さない
   const applyMetrics = useRef<(next: Metrics) => void>(() => {})
   useEffect(() => {
     applyMetrics.current = (next) => {
-      if (metrics && columns === 'auto' && next.autoCols !== metrics.autoCols) relayout(null, () => setMetrics(next))
+      if (metrics && colsOf(next) !== colsOf(metrics)) relayout(null, () => setMetrics(next))
       else setMetrics((prev) => (prev && JSON.stringify(prev) === JSON.stringify(next) ? prev : next))
     }
   })
@@ -101,6 +102,7 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
       const next: Metrics = {
         width: el.clientWidth,
         autoCols: autoColumns(innerWidth),
+        maxCols: maxColumns(innerWidth),
         maxHeight: innerHeight - bars.top - bars.bottom - MARGIN * 2,
         viewport: innerHeight,
         top: pageTop(el),
@@ -118,7 +120,9 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
     }
   }, [])
 
-  const cols = columns === 'auto' ? metrics?.autoCols : columns
+  // 実際の列数。Auto は画面の幅で決め、選んだ列数は画面で選べる上限に収める
+  const colsOf = (m: Metrics) => (columns === 'auto' ? m.autoCols : Math.min(columns, m.maxCols))
+  const cols = metrics ? colsOf(metrics) : undefined
 
   const placed = useMemo(() => {
     if (!metrics || !cols) return null
@@ -210,7 +214,8 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
   // フッターの操作（列数）を出す。外れるときは消す
   useEffect(() => {
     setGalleryControls({
-      columns,
+      // 上限に収めて表示しているときは、収めた列数を選んでいることにする（メニューの下線）
+      columns: columns !== 'auto' && metrics && columns > metrics.maxCols ? (metrics.maxCols as Columns) : columns,
       setColumns: (next) => {
         if (next === columns) return
         rememberColumns(next)

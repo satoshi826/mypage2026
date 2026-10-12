@@ -44,7 +44,7 @@ export const SCENARIOS = {
     }
   },
 
-  // 列数を 6 → 2 → 5 → Auto と切り替える。写真が一斉に動く
+  // 列数を 5 → 2 → 4 → Auto と切り替える。写真が一斉に動く（スマホは 5 列まで）
   'photos-columns': {
     kind: 'interaction',
     path: '/photos',
@@ -55,7 +55,7 @@ export const SCENARIOS = {
       await wait(800)
     },
     async run({press, wait}) {
-      for (const columns of ['6', '2', '5', 'Auto']) {
+      for (const columns of ['5', '2', '4', 'Auto']) {
         await press(`::-p-aria([name="${columns}"][role="button"])`)
         await wait(SETTLE)
       }

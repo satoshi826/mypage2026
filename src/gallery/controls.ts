@@ -13,6 +13,9 @@ export const COLUMNS: Columns[] = ['auto', 2, 3, 4, 5, 6]
  */
 export const autoColumns = (viewport: number) => (viewport < 640 ? 2 : viewport >= 1280 ? 4 : 3)
 
+/** 選べる列数の上限。狭い画面（640px 未満）は 5 列まで。6 列だと写真 1 枚が約 58px になり、小さすぎるため */
+export const maxColumns = (viewport: number) => (viewport < 640 ? 5 : 6)
+
 export type GalleryControls = {
   columns: Columns
   setColumns: (columns: Columns) => void
