@@ -62,8 +62,9 @@ try {
 }
 
 /**
- * 先読みのヒント。トップは「JS の起動 → 一覧の取得 → hero チャンク → worker」と
+ * 先読みのヒント。トップは「JS の起動 → hero チャンク → worker」と
  * 直列に待ってから写真を取りに行くので、HTML の時点で後ろの段を取り始めさせる。
+ * 写真の一覧は、トップと Photos では Worker が HTML に埋め込むので、ここでは先読みしない（worker/index.ts）。
  * hero は lazy import なので、チャンク名はビルドの対応表から引く。
  * worker のチャンクは対応表に出ないので、dist/assets の名前で探す。
  * worker のスクリプトは別コンテキストが読むので preload では「使われない」扱いになり
@@ -76,16 +77,8 @@ async function preloadHints() {
   const worker = (await readdir(join(dist, 'assets'))).find((name) => /^worker-.*\.js$/.test(name))
   if (!hero || !worker) throw new Error('hero のチャンクが見つからない。vite.config の build.manifest を確認する')
 
-  const photos = `<link rel="preload" href="/api/manifest" as="fetch" crossorigin>`
-  return (path) => {
-    if (path === '/') {
-      return [
-        photos,
-        `<link rel="prefetch" href="/assets/${worker}" as="script">`,
-        `<link rel="modulepreload" href="/${hero}">`
-      ]
-    }
-    if (path.startsWith('/photos')) return [photos]
-    return []
-  }
+  return (path) =>
+    path === '/'
+      ? [`<link rel="prefetch" href="/assets/${worker}" as="script">`, `<link rel="modulepreload" href="/${hero}">`]
+      : []
 }

@@ -117,10 +117,31 @@ const SIZES = [
   `calc(1181px / 4 * ${LIST_HEADROOM})`
 ].join(', ')
 
+/**
+ * トップと Photos の HTML。最初に要る写真の先読みヘッダを足し、写真の一覧を埋め込む（src/photos/index.ts の
+ * loadPhotos が読む）。JS が動いてから一覧を取りに行く往復が 1 回減り、すぐに段組を組める。
+ * 中身が一覧ごとに変わるので、静的ファイルの ETag は外し、条件付きの取得（304）で古い一覧のまま
+ * 使い回されないようにする
+ */
 async function pageWithHints(request: Request, env: Env, parts: string[]) {
-  const [page, photos] = await Promise.all([env.ASSETS.fetch(request), photosOf(env)])
+  const headers = new Headers(request.headers)
+  headers.delete('if-none-match')
+  headers.delete('if-modified-since')
+  const [page, photos] = await Promise.all([env.ASSETS.fetch(new Request(request, {headers})), photosOf(env)])
   if (!page.ok) return page
-  const response = new Response(page.body, page)
+  // </script> で閉じられないよう、< を逃がす
+  const json = JSON.stringify(photos).replace(/</g, '\\u003c')
+  const body = new HTMLRewriter()
+    .on('head', {
+      element(head) {
+        head.append(`<script type="application/json" id="manifest">${json}</script>`, {html: true})
+      }
+    })
+    .transform(page)
+  const response = new Response(body.body, page)
+  response.headers.delete('etag')
+  response.headers.delete('last-modified')
+  response.headers.set('cache-control', 'no-cache')
   for (const hint of hintsOf(parts, photos)) response.headers.append('link', hint)
   return response
 }

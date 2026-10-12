@@ -59,8 +59,21 @@ function parse(body: unknown): Photo[] {
 
 let loading: Promise<Photo[]> | null = null
 
-/** 一覧を取得する。同じセッション内では1回だけ取りに行く */
+/** トップと Photos の HTML に Worker が埋め込んだ一覧。ほかのページから入ったときは無い */
+function embedded(): Photo[] | null {
+  const text = document.getElementById('manifest')?.textContent
+  if (!text) return null
+  try {
+    return parse(JSON.parse(text))
+  } catch {
+    return null
+  }
+}
+
+/** 一覧を取得する。HTML に埋め込まれていればそれを使い、無ければ取りに行く。同じセッション内では 1 回だけ */
 export function loadPhotos(): Promise<Photo[]> {
+  const inline = loading ? null : embedded()
+  if (inline) loading = Promise.resolve(inline)
   loading ??= fetch('/api/manifest')
     .then((res) => {
       if (!res.ok) throw new Error(`manifest: ${res.status}`)
