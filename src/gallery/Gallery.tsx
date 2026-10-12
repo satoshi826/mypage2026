@@ -308,7 +308,8 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
                 alt={`${label} ${index + 1}`}
                 width={at.w}
                 large={wide}
-                hold={keep.size > 0}
+                // 広げる写真は待たずに拡大用へ替える。1 枚なので重くなく、待つと小さい段が全幅に引き伸ばされて荒れる
+                hold={keep.size > 0 && !wide}
                 zoom={!wide}
               />
               {/* ワイプ用の覆い。styles.css の [data-reveal] を参照 */}
