@@ -42,7 +42,8 @@ const NONE: ReadonlySet<string> = new Set()
  * 写真が何枚あっても描く要素の数は画面の大きさで決まる。
  *
  * クリックした写真はその場で広がり（全幅。縦長は画面の高さに収まる幅）、上にあった
- * 写真は動かさず、残りを押し下げる。もう一度押すと戻る。何枚でも広げておける。動きは FLIP。
+ * 写真は動かさず、残りを押し下げる。もう一度押すか Esc で戻る。広げられるのは 1 枚で、広げているあいだに
+ * 別の写真を押すと、前の写真を戻しながらその写真を広げる（1 回の動きで）。動きは FLIP。
  * 変更前と変更後の位置はどちらも配置の計算から出し、差分だけ transform で動かして 0 へ戻す。DOM から
  * 位置を読まないので、レイアウトの計算を強制しない。基準の写真の画面上の位置は
  * スクロールを即座にずらして固定する（docs/design.md の連続性）。
@@ -52,8 +53,8 @@ const NONE: ReadonlySet<string> = new Set()
 export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
   const root = useRef<HTMLDivElement>(null)
   const [metrics, setMetrics] = useState<Metrics | null>(null)
-  // 広げている写真。広げた順
-  const [expanded, setExpanded] = useState<string[]>([])
+  // 広げている写真
+  const [expanded, setExpanded] = useState<string | null>(null)
   const [motion, setMotion] = useState(DEFAULT_MOTION)
   const [spacing, setSpacing] = useState(DEFAULT_SPACING)
   // 列数。フッターで選ぶ（controls.ts）
@@ -106,11 +107,11 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
 
   const placed = useMemo(() => {
     if (!metrics || !cols) return null
-    const expansions: Expansion[] = expanded.flatMap((file) => {
-      const photo = photos.find((p) => p.file === file)
-      return photo ? [{file, width: Math.min(metrics.width, (metrics.maxHeight * photo.w) / photo.h)}] : []
-    })
-    return layout(photos, metrics.width, cols, gapFor(metrics.width, cols, spacing), expansions)
+    const photo = expanded ? photos.find((p) => p.file === expanded) : undefined
+    const expansion: Expansion | null = photo
+      ? {file: photo.file, width: Math.min(metrics.width, (metrics.maxHeight * photo.w) / photo.h)}
+      : null
+    return layout(photos, metrics.width, cols, gapFor(metrics.width, cols, spacing), expansion)
   }, [photos, metrics, cols, spacing, expanded])
 
   // 描く写真。画面の近くと、動き終わるまで描き続ける写真。段組を変えている最中は、基準の写真に
@@ -134,7 +135,9 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
 
   // 描く写真が変わったときと、段組を変える動きの始めと終わりに見直す。配置の変化で画面に入ってきた
   // 写真は、動いているあいだは位置の判定にかからないので、動き終わってから現す
-  useReveal(root, [mounted.map(({photo}) => photo.file).join(), keep], (target) => revealed.current.add(target.dataset.file!))
+  useReveal(root, [mounted.map(({photo}) => photo.file).join(), keep], (target) =>
+    revealed.current.add(target.dataset.file!)
+  )
 
   /**
    * 段組を変える。変更前の配置を記録してから change で状態を変え、直後に FLIP で動かす（下の useLayoutEffect）。
@@ -174,14 +177,22 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
     return () => clearTimeout(timer)
   }, [keep, motion.expandSeconds])
 
-  /** 押した写真を広げる・戻す */
+  /** 押した写真を広げる・戻す。別の写真を広げているときは、そちらを戻しながら広げる */
   const toggle = (file: string) =>
     relayout(file, () => {
-      reveal.current = !expanded.includes(file)
-      setExpanded((list) => (list.includes(file) ? list.filter((f) => f !== file) : [...list, file]))
+      reveal.current = expanded !== file
+      setExpanded(expanded === file ? null : file)
     })
 
-  // フッターの操作（列数、全部戻す）を出す。外れるときは消す
+  // 広げているあいだは Esc でも戻す
+  useEffect(() => {
+    if (!expanded) return
+    const close = (event: KeyboardEvent) => event.key === 'Escape' && toggle(expanded)
+    addEventListener('keydown', close)
+    return () => removeEventListener('keydown', close)
+  })
+
+  // フッターの操作（列数）を出す。外れるときは消す
   useEffect(() => {
     setGalleryControls({
       columns,
@@ -189,10 +200,6 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
         if (next === columns) return
         rememberColumns(next)
         relayout(null, () => setColumns(next))
-      },
-      collapsible: expanded.length > 0,
-      collapseAll: () => {
-        if (expanded.length > 0) relayout(null, () => setExpanded([]))
       }
     })
   })
@@ -279,7 +286,7 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
       {placed &&
         mounted.map(({photo, index}) => {
           const at = placed.items.get(photo.file)!
-          const wide = expanded.includes(photo.file)
+          const wide = expanded === photo.file
           return (
             <figure
               key={photo.file}

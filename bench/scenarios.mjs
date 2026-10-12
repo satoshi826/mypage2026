@@ -62,8 +62,7 @@ export const SCENARIOS = {
     }
   },
 
-  // 画面の中央に近い写真を広げ、全部戻すボタンで戻す。これを 3 回。続けて広げると、全幅に広げた写真が
-  // 画面を埋めて次に押す写真が無くなるため、1 枚ずつ戻す
+  // 画面の中央に近い写真を広げ、もう一度押して戻す。これを 3 回
   'photos-expand': {
     kind: 'interaction',
     path: '/photos',
@@ -89,7 +88,7 @@ export const SCENARIOS = {
         if (!figure) throw new Error('画面に広げられる写真が無い')
         await press(figure)
         await wait(SETTLE)
-        await press('::-p-aria(広げた写真をすべて戻す)')
+        await press(figure)
         await wait(SETTLE)
       }
     }

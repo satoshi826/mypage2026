@@ -5,13 +5,12 @@ import {COLUMNS, useGalleryControls} from './controls'
 
 const subscribe = () => () => {}
 
-/** 出入りするものの動き。少し下から浮かびながら現れ、沈みながら消える */
+/** メニューの出入りの動き。少し下から浮かびながら現れ、沈みながら消える */
 const SHOWN = 'opacity-100 translate-y-0'
 const HIDDEN = 'pointer-events-none opacity-0 translate-y-1'
 
 /**
- * Photos のフッターの右（SNS の手前）に置く一覧の操作。広げた写真を全部戻すボタンと、列数のボタン（押すと
- * メニューが開く）。
+ * Photos のフッターの右（SNS の手前）に置く一覧の操作。列数のボタンで、押すとメニューが開く。
  * 状態と操作は Gallery が controls.ts に出したものを使う
  */
 export function GalleryTools() {
@@ -55,19 +54,8 @@ export function GalleryTools() {
     }
   }, [open])
 
-  const collapsible = !!controls?.collapsible
   return (
     <div className="flex h-full items-stretch">
-      {/* 広げている写真があるときだけ出す。場所は空けたままにして、列数のボタンを動かさない。
-          出入りするので、仕切りから遠い側に置く */}
-      <div
-        aria-hidden={!collapsible}
-        className={`flex transition-[opacity,translate] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${collapsible ? SHOWN : HIDDEN}`}
-      >
-        <IconButton label="広げた写真をすべて戻す" onClick={() => controls?.collapseAll()} focusable={collapsible}>
-          <path d="M4 9h5V4M20 15h-5v5M9 9 4 4M15 15l5 5" />
-        </IconButton>
-      </div>
       <div ref={button} className="flex">
         <IconButton label="列数" onClick={() => setOpen(!open)} expanded={open}>
           <rect x="4" y="5" width="16" height="14" rx="1" />
@@ -114,13 +102,11 @@ function IconButton({
   label,
   onClick,
   expanded,
-  focusable = true,
   children
 }: {
   label: string
   onClick: () => void
   expanded?: boolean
-  focusable?: boolean
   children: ReactNode
 }) {
   return (
@@ -128,7 +114,6 @@ function IconButton({
       type="button"
       aria-label={label}
       aria-expanded={expanded}
-      tabIndex={focusable ? 0 : -1}
       onClick={onClick}
       className="flex w-10 cursor-pointer items-center justify-center opacity-90 transition-opacity duration-300 hover:opacity-100 max-sm:w-8"
     >

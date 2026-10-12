@@ -1,6 +1,6 @@
 import {useSyncExternalStore} from 'react'
 
-// Photos の一覧の操作をフッターに置くための受け渡し（列数の切り替え、広げた写真を全部戻す）。
+// Photos の一覧の操作をフッターに置くための受け渡し（列数の切り替え）。
 // 状態と操作は Gallery が持ち、マウント中だけここへ出す。フッターはここを読んで描く。
 
 /** 列数。auto は画面の幅で決める（狭い画面 2 列、それ以外 3 列） */
@@ -10,10 +10,6 @@ export const COLUMNS: Columns[] = ['auto', 2, 3, 4, 5, 6]
 export type GalleryControls = {
   columns: Columns
   setColumns: (columns: Columns) => void
-  /** 広げている写真があるか。無いあいだ、全部戻すボタンは出さない */
-  collapsible: boolean
-  /** 広げている写真を全部戻す */
-  collapseAll: () => void
 }
 
 let current: GalleryControls | null = null
