@@ -6,6 +6,7 @@ import {useReveal} from './reveal'
 import {autoColumns, chosen, maxColumns, setGalleryControls, type Columns} from './controls'
 import {DEFAULT_MOTION, DEFAULT_SPACING, EASINGS, MOTION_PARAMS, SPACING_PARAMS, type Motion} from './tuning'
 import {DevPanel} from '../app/DevPanel'
+import {onScrollFrame} from '../app/scrollFrame'
 import {useExternal} from '../app/useExternal'
 import {glideTo, jumpTo} from '../app/useSmoothScroll'
 import {pickSource, type Photo} from '../photos'
@@ -375,10 +376,10 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
   )
 }
 
-const subscribeScroll = (onChange: () => void) => {
-  addEventListener('scroll', onChange, {passive: true})
-  return () => removeEventListener('scroll', onChange)
-}
+const subscribeScroll = (onChange: () => void) =>
+  onScrollFrame(() => {
+    onChange()
+  })
 
 /** 文書の上端・左端からの位置。transform を含まない（ページの移動の演出で動いている最中に測っても狂わない） */
 function pageOffset(el: HTMLElement) {

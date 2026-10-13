@@ -1,5 +1,6 @@
 import type {RefObject} from 'preact'
 import {useEffect} from 'preact/hooks'
+import {onScrollFrame} from '../app/scrollFrame'
 
 /** 要素のこの割合が見えたら現す */
 const THRESHOLD = 0.15
@@ -14,7 +15,7 @@ const MARGIN = 0.08
  * 判定はスクロールのたびに、まだ現れていない要素の位置を読んで行う。上辺が画面の上に出た要素は
  * 見えている割合に関わらず現す。IntersectionObserver のしきい値に頼らないのは、画像のデコードで main thread が
  * 止まっている間にスクロールが大きく進むと、一度も「15% 見えた」状態を経ずに画面の上へ抜ける
- * 要素が出て、しきい値の通知では拾えないため。読むだけなので再レイアウトは起きない。
+ * 要素が出て、しきい値の通知では拾えないため。スクロール中は位置をまとめて読んでから現す（scrollFrame.ts）。
  *
  * 中に画像があるときは、読み込みが終わるまで待ってから現す。空の枠に演出をかけて
  * あとから画像が突然出るのを避けるため。待っている写真は候補に残したまま、スクロールと
@@ -31,8 +32,10 @@ export function useReveal(
     const el = root.current
     if (!el) return
     const pending = new Set(el.querySelectorAll<HTMLElement>('[data-reveal]:not([data-revealed])'))
-    const check = () => {
+    // 位置を読んで現すものを決め、現す関数を返す
+    const measure = () => {
       const bottom = innerHeight * (1 - MARGIN) - (document.querySelector('footer')?.offsetHeight ?? 0)
+      const shown: HTMLElement[] = []
       for (const target of pending) {
         // 配置の変化に合わせて即座に出したもの（Gallery の relayout）
         if (target.hasAttribute('data-revealed')) {
@@ -47,18 +50,27 @@ export function useReveal(
         const img = target.querySelector('img')
         if (img && !isLoaded(img)) continue
         pending.delete(target)
-        target.dataset.revealed = ''
-        onReveal(target)
+        shown.push(target)
+      }
+      return () => {
+        for (const target of shown) {
+          target.dataset.revealed = ''
+          onReveal(target)
+        }
       }
     }
+    const check = () => measure()()
     check()
+    const stop = onScrollFrame(measure)
     const listeners = new AbortController()
     const {signal} = listeners
-    addEventListener('scroll', check, {passive: true, signal})
     addEventListener('resize', check, {signal})
     // load はバブリングしないので capture で拾う。読み込みの完了を待っていた写真を見直す
     el.addEventListener('load', check, {capture: true, signal})
-    return () => listeners.abort()
+    return () => {
+      stop()
+      listeners.abort()
+    }
     // oxlint-disable-next-line react-hooks/exhaustive-deps
   }, deps)
 }
