@@ -38,6 +38,7 @@ function flush() {
  *   写真と、広げる写真（Gallery が hold を渡さない）は待たない
  * - 読んだ画像は表示に入れる前にデコードまで済ませる。描画のフレームでデコードが走ると
  *   そのフレームが遅れ、スクロールがカクつくため。差し替えのあいだは前の画像を見せたままにする。
+ * - 最初の画像が出せるまでは img を置かない。src の無い img を、ブラウザは代替テキストや枠で描くため。
  */
 export function Img({
   photo,
@@ -89,9 +90,10 @@ export function Img({
     // oxlint-disable-next-line react-hooks/exhaustive-deps
   }, [wanted.src])
 
+  if (!shown) return null
   return (
     <img
-      src={shown?.src}
+      src={shown.src}
       alt={alt}
       width={photo.w}
       height={photo.h}

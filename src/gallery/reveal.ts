@@ -17,7 +17,7 @@ const MARGIN = 0.08
  * 止まっている間にスクロールが大きく進むと、一度も「15% 見えた」状態を経ずに画面の上へ抜ける
  * 要素が出て、しきい値の通知では拾えないため。スクロール中は位置をまとめて読んでから現す（scrollFrame.ts）。
  *
- * 中に画像があるときは、読み込みが終わるまで待ってから現す。空の枠に演出をかけて
+ * 中の画像（img）が置かれて読み込みが終わるまで待ってから現す。空の枠に演出をかけて
  * あとから画像が突然出るのを避けるため。待っている写真は候補に残したまま、スクロールと
  * 画像の読み込み完了のたびに見直す。1 回きりのリスナーだと、src の付け外しの順序次第で取りこぼす。
  * deps は描かれている要素が変わったときに見直すため。onReveal は現したときに呼ぶ。要素が外れて
@@ -48,7 +48,7 @@ export function useReveal(
         if (rect.top >= 0 && visible < rect.height * THRESHOLD) continue
         // 画像が届くまでは残しておき、届いたとき（load）に見直す
         const img = target.querySelector('img')
-        if (img && !isLoaded(img)) continue
+        if (!img || !isLoaded(img)) continue
         pending.delete(target)
         shown.push(target)
       }

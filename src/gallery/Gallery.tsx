@@ -182,9 +182,6 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
       const box = toBox(at, scroll, metrics.left)
       if (!isNear(box, metrics.viewport, 1)) continue
       near.add(file)
-      // 配置の変化で画面に入ってくる写真は、ワイプなしで即座に出す。ワイプはスクロールで
-      // 見つけるためのもので、動いている最中に現れ始めると不連続に見える
-      revealed.current.add(file)
       const distance = Math.hypot(
         box.left + box.width / 2 - innerWidth / 2,
         box.top + box.height / 2 - metrics.viewport / 2
@@ -284,7 +281,13 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
         if (!from || !to) continue
         const a = before.visual.get(figure.dataset.file!) ?? toBox(from, before.scroll, before.left)
         const b = toBox(to, scroll, metrics.left)
-        if (isNear(a, metrics.viewport, margin) || isNear(b, metrics.viewport, margin)) flip(figure, a, b, motion)
+        if (!isNear(a, metrics.viewport, margin) && !isNear(b, metrics.viewport, margin)) continue
+        flip(figure, a, b, motion)
+        // 配置の変化で画面に入ってくる写真は、ワイプなしで即座に出す（覆いが残ると、地の色の四角が
+        // 写真の上を動いて見える）。ワイプはスクロールで見つけるためのもので、動いている最中に
+        // 現れ始めると不連続に見える
+        figure.dataset.revealed = ''
+        revealed.current.add(figure.dataset.file!)
       }
     }
 
