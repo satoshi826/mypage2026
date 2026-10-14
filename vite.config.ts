@@ -23,15 +23,23 @@ function apiDev(): Plugin {
       // 同じプロセスグループに置く。端末の Ctrl+C は wrangler にも直接届き、自分で workerd を止める
       const child = spawn(wrangler, ['dev', '--port', String(API_PORT)], {stdio: ['ignore', 'pipe', 'pipe']})
       const {logger} = server.config
-      const relay = (chunk: unknown) =>
-        logger.info(
-          String(chunk)
-            .trimEnd()
-            .replace(/^(?=.)/gm, '[api] ')
-        )
+      // wrangler の準備が済むまで /api と /images を待たせる。Vite のほうが先に立ち上がるので、開いた直後の
+      // 一覧の取得が失敗し、そのページは写真が出ないままになるため。終了したときも待つのをやめる
+      let ready!: () => void
+      const started = new Promise<void>((resolve) => (ready = resolve))
+      server.middlewares.use((req, _res, next) => {
+        if (/^\/(api|images)\//.test(req.url ?? '')) void started.then(next)
+        else next()
+      })
+      const relay = (chunk: unknown) => {
+        const text = String(chunk)
+        if (text.includes('Ready on')) ready()
+        logger.info(text.trimEnd().replace(/^(?=.)/gm, '[api] '))
+      }
       child.stdout.on('data', relay)
       child.stderr.on('data', relay)
       child.once('exit', (code: number | null) => {
+        ready()
         // 自分で止めたとき（設定の変更での再起動など）は知らせない
         if (code && !child.killed)
           logger.error(`[api] wrangler dev が終了した (code ${code})。/api と /images は応答しない`)
