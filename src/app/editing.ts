@@ -1,3 +1,5 @@
+import type {ComponentType} from 'preact'
+import type {Photo} from '../photos'
 import {useExternal} from './useExternal'
 
 // サイトの上での編集（src/editor）の入口。訪問者の JS に入るのはこのファイルだけで、編集用の UI は
@@ -57,12 +59,24 @@ export function setEditing(next: boolean) {
   for (const listener of listeners) listener()
 }
 
-/** 編集の UI を出しているか。編集用のコードを読み込む前とプリレンダでは false */
-export const useEditing = () => useExternal(subscribe, () => editing && editorLoaded, false)
+/** Gallery に差し込む編集の部品。編集用のコードが読み込まれたときに渡す */
+export type EditorTools = {
+  /** 写真の上に重ねる操作（hero、カテゴリ、差し替え、削除） */
+  Photo: ComponentType<{photo: Photo}>
+  /** 一覧の先頭に置く「＋」の枠の中身。押すと写真を足す */
+  Add: ComponentType
+}
+let tools: EditorTools | null = null
 
-let editorLoaded = false
 /** 編集用のコードが読み込まれたときに呼ぶ（src/editor） */
-export function editorReady() {
-  editorLoaded = true
+export function editorReady(next: EditorTools) {
+  tools = next
   for (const listener of listeners) listener()
 }
+
+/** 編集中なら差し込む部品、そうでなければ null。編集用のコードを読み込む前とプリレンダでは null */
+export const useEditorTools = () => useExternal(subscribe, () => (editing ? tools : null), null)
+/** 編集の UI を出しているか */
+export const useEditing = () => !!useEditorTools()
+/** 編集の UI を出しているか（描画の外から読むとき） */
+export const isEditing = () => editing && !!tools

@@ -94,9 +94,12 @@ export function edit(
   })
 }
 
-/** 長い処理を、操作バーに出しながら行う */
+/** 公開中の一覧か、下書きがあれば下書き。まだ読めていなければ null */
+export const current = () => state.draft?.photos ?? state.live
+
+/** 長い処理を、操作バーに「〜中」と出しながら行う */
 export async function run(label: string, task: () => Promise<void>) {
-  set({busy: label, error: null})
+  set({busy: `${label}中`, error: null})
   try {
     await task()
     set({busy: null})
@@ -104,6 +107,9 @@ export async function run(label: string, task: () => Promise<void>) {
     set({busy: null, error: `${label}に失敗: ${(e as Error).message}`})
   }
 }
+
+/** 処理中の表示を変える（追加の進み具合など） */
+export const report = (busy: string) => set({busy})
 
 /** 下書きを本番の一覧へ書く。下書きを始めたあとに別の場所で一覧が変わっていたら、上書きしてよいか尋ねる */
 export const publish = () =>
@@ -117,7 +123,12 @@ export const publish = () =>
     )
       return
     await saveManifest(draft.photos)
-    await Promise.all(draft.removed.flatMap((file) => VARIANTS.map((v) => deleteImage(`${v.kind}/${file}.webp`))))
+    // 消す写真の派生画像。この下書きで足して消した写真は、原本も消す（公開中の一覧に一度も載っていない）
+    const fresh = draft.uploads.filter((key) => draft.removed.includes(key.split('/')[1].replace(/\.[^.]+$/, '')))
+    await Promise.all([
+      ...draft.removed.flatMap((file) => VARIANTS.map((v) => deleteImage(`${v.kind}/${file}.webp`))),
+      ...fresh.filter((key) => key.startsWith('originals/')).map((key) => deleteImage(key))
+    ])
     set({live: draft.photos, draft: null})
   })
 
@@ -143,9 +154,11 @@ export function changes(draft: Draft): number {
     if (!was || JSON.stringify(was) !== JSON.stringify(photo)) count++
   }
   for (const file of before.keys()) if (!after.has(file)) count++
+  // 並びは、前後で同じカテゴリにいる写真だけで比べる（足した・消した・カテゴリを移した写真は上で数えた）
+  const stayed = (photo: Photo) => before.get(photo.file)?.category === photo.category && after.has(photo.file)
   const order = (list: Photo[], category: string) =>
     list
-      .filter((photo) => photo.category === category && before.has(photo.file) && after.has(photo.file))
+      .filter((photo) => photo.category === category && stayed(after.get(photo.file) ?? photo))
       .map((photo) => photo.file)
       .join()
   for (const category of new Set(draft.photos.map((photo) => photo.category)))

@@ -1,12 +1,12 @@
 import {useEffect, useLayoutEffect, useMemo, useRef, useState} from 'preact/hooks'
 import type {CSSProperties} from 'preact'
 import {Img} from './Img'
-import {gapFor, layout, type Expansion, type Placed} from './layout'
+import {gapFor, layout, type Expansion, type Layout, type Placed} from './layout'
 import {useReveal} from './reveal'
 import {autoColumns, chosen, maxColumns, setGalleryControls, type Columns} from './controls'
 import {DEFAULT_MOTION, DEFAULT_SPACING, EASINGS, MOTION_PARAMS, SPACING_PARAMS, type Motion} from './tuning'
 import {DevPanel} from '../app/DevPanel'
-import {useEditing} from '../app/editing'
+import {useEditorTools} from '../app/editing'
 import {onScrollFrame} from '../app/scrollFrame'
 import {useExternal} from '../app/useExternal'
 import {glideTo, jumpTo} from '../app/useSmoothScroll'
@@ -52,6 +52,9 @@ type Box = {left: number; top: number; width: number; height: number}
 
 const NONE: ReadonlySet<string> = new Set()
 
+/** 編集中に一覧の先頭に置く「＋」の枠。配置の計算では 3:2 の写真 1 枚として扱う */
+const ADD: Photo = {file: '+', w: 3, h: 2, category: 'street', hero: false, v: ''}
+
 /**
  * Photos の一覧。既定は画面の幅で 2〜4 列の段組（controls.ts の autoColumns）。配置は layout.ts が計算し、
  * ここは絶対配置で並べるだけ。画面に近い写真だけを描く。全部の写真の位置は計算で分かっているので、
@@ -81,7 +84,11 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
   const [keep, setKeep] = useState(NONE)
   // 現れる演出を済ませた写真。画面から離れて要素が外れても、戻ってきたときにもう一度演出しない
   const revealed = useRef(new Set<string>())
-  const editing = useEditing()
+  // 編集中（src/editor）に差し込む部品。編集中でなければ null
+  const tools = useEditorTools()
+  const editing = !!tools
+  // 並べる写真。編集中は先頭に「＋」の枠を足す
+  const items = useMemo(() => (tools ? [ADD, ...photos] : photos), [tools, photos])
   // 広げた写真が画面に収まらなければ寄せるか。押して広げたときだけ
   const reveal = useRef(false)
 
@@ -137,12 +144,12 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
 
   const placed = useMemo(() => {
     if (!metrics || !cols) return null
-    const photo = expanded ? photos.find((p) => p.file === expanded) : undefined
+    const photo = expanded ? items.find((p) => p.file === expanded) : undefined
     const expansion: Expansion | null = photo
       ? {file: photo.file, width: Math.min(metrics.width, (metrics.maxHeight * photo.w) / photo.h)}
       : null
-    return layout(photos, metrics.width, cols, gapFor(metrics.width, cols, spacing), expansion)
-  }, [photos, metrics, cols, spacing, expanded])
+    return layout(items, metrics.width, cols, gapFor(metrics.width, cols, spacing), expansion)
+  }, [items, metrics, cols, spacing, expanded])
 
   // 描く写真。画面の近くと、動き終わるまで描き続ける写真。段組を変えている最中は、基準の写真に
   // 合わせてずらしたあとのスクロール位置で選ぶ（ずらす前の位置で選ぶと、ずらした先の写真が 1 フレーム欠ける）
@@ -157,9 +164,11 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
     }
     const from = view - RANGE * height
     const to = view + (1 + STEP + RANGE) * height
-    photos.forEach((photo, index) => {
+    // 番号（alt）は写真だけで数える。「＋」の枠のぶんをずらす
+    const offset = tools ? 1 : 0
+    items.forEach((photo, i) => {
       const at = placed.items.get(photo.file)!
-      if ((at.y + at.h > from && at.y < to) || keep.has(photo.file)) mounted.push({photo, index})
+      if ((at.y + at.h > from && at.y < to) || keep.has(photo.file)) mounted.push({photo, index: i - offset})
     })
   }
 
@@ -194,7 +203,7 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
     // 始めないと、行き先から動き出して跳ねる（列数のスライダーを続けて動かしたときなど）。動いている写真だけ
     // なので、読む数は少ない
     const visual = new Map<string, Box>()
-    for (const figure of el.querySelectorAll<HTMLElement>('figure[data-file]')) {
+    for (const figure of el.querySelectorAll<HTMLElement>('[data-file]')) {
       if (figure.getAnimations().length === 0) continue
       const r = figure.getBoundingClientRect()
       visual.set(figure.dataset.file!, {left: r.left, top: r.top, width: r.width, height: r.height})
@@ -254,6 +263,23 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
   })
   useEffect(() => () => setGalleryControls(null), [])
 
+  // 並べる写真が変わったとき（編集で足す・消す・カテゴリを移す、編集の切り替えで「＋」の枠が出入りする）も、
+  // 段組を変えるときと同じく、変わる前の配置から動かす。スクロールはずらさない
+  const last = useRef<{items: Photo[]; layout: Layout} | null>(null)
+  useLayoutEffect(() => {
+    const prev = last.current
+    last.current = placed && {items, layout: placed}
+    if (!prev || !placed || !metrics || before || prev.items === items) return
+    const scroll = scrollY - metrics.top
+    setBefore({items: prev.layout.items, scroll, top: metrics.top, left: metrics.left, anchor: null, visual: new Map()})
+    // oxlint-disable-next-line react-hooks/exhaustive-deps
+  }, [placed])
+
+  // 編集に入ったら、広げている写真は戻す
+  useEffect(() => {
+    if (editing) setExpanded(null)
+  }, [editing])
+
   // レイアウトが変わった直後。基準の写真の画面上の位置を固定してから、差分を動かす
   useLayoutEffect(() => {
     const el = root.current
@@ -275,7 +301,7 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
     const still = matchMedia('(prefers-reduced-motion: reduce)').matches
     const margin = reveal.current ? 1 : 0
     if (!still) {
-      for (const figure of el.querySelectorAll<HTMLElement>('figure[data-file]')) {
+      for (const figure of el.querySelectorAll<HTMLElement>('[data-file]')) {
         // 前の動きは止める。続けると、新しい配置の位置を基準に古い差分で動いてしまう
         for (const animation of figure.getAnimations()) animation.cancel()
         const from = before.items.get(figure.dataset.file!)
@@ -345,6 +371,13 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
       {placed &&
         mounted.map(({photo, index}) => {
           const at = placed.items.get(photo.file)!
+          const box = {left: `${at.x}px`, top: `${at.y}px`, width: `${at.w}px`, height: `${at.h}px`}
+          if (tools && photo === ADD)
+            return (
+              <div key={photo.file} data-file={photo.file} className="absolute" style={box}>
+                <tools.Add />
+              </div>
+            )
           const wide = expanded === photo.file
           return (
             <figure
@@ -362,7 +395,7 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
               // 高さも配置の計算値で与える。画像が届くまでの img は高さを持たず、枠が潰れるため。
               // content-visibility: auto は使わない。中身を飛ばすかどうかの判定がフレームの更新に
               // 乗っていて、スクロールが止まったあと画面内の写真が飛ばされたまま残ることがある（Chrome）
-              style={{left: `${at.x}px`, top: `${at.y}px`, width: `${at.w}px`, height: `${at.h}px`}}
+              style={box}
             >
               <Img
                 photo={photo}
@@ -375,6 +408,7 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
               />
               {/* ワイプ用の覆い。styles.css の [data-reveal] を参照 */}
               <div data-reveal-cover aria-hidden />
+              {tools && <tools.Photo photo={photo} />}
             </figure>
           )
         })}

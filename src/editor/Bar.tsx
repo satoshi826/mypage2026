@@ -27,7 +27,7 @@ export function Bar() {
         編集
       </button>
       {busy ? (
-        <span>{busy}中</span>
+        <span>{busy}</span>
       ) : error ? (
         <span className="max-w-60 truncate" title={error}>
           {error}
