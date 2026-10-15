@@ -59,6 +59,8 @@ export function Hero({photos: PHOTOS}: {photos: string[]}) {
   const velocity = useRef({x: 0, y: 0})
   const settling = useRef(0)
   const jumped = useRef(false)
+  // 時間の進む速さ（1 が普通）。静止しているあいだに干渉していれば止める
+  const pace = useRef(1)
 
   const [index, setIndex] = useState(0)
   const [shuffle, setShuffle] = useState(true)
@@ -140,17 +142,30 @@ export function Hero({photos: PHOTOS}: {photos: string[]}) {
       lastTime.current = now
 
       const timing = timingRef.current
+      const {attack, release, returnSeconds, stopBelow, holdPace, holdEase} = interactionRef.current
+      const p = takePointer()
+      // 静止しているあいだにマウス（指）が写真の上にあれば、時間を止めて（holdPace が 0 のとき）、干渉している
+      // 写真を見ていられるようにする。急に止めると引っかかって見えるので、holdEase 秒かけて止める。
+      // 粒子が移っている途中は普段どおりに進め、移りきらせる
+      if (frameOf(stateRef.current, timing).phase > 0) pace.current = 1
+      else {
+        // 一定の割合で速さを変え、holdEase 秒でちょうど行き着く（指数で近づけると、止めたつもりでも長く進み続ける）
+        const target = p.active ? holdPace : 1
+        const step = delta / Math.max(holdEase, 0.01)
+        pace.current =
+          target < pace.current ? Math.max(target, pace.current - step) : Math.min(target, pace.current + step)
+      }
+      const clock = delta * pace.current
       if (visibleRef.current) {
         if (autoplay) {
-          stateRef.current = advance(stateRef.current, delta, order, timing)
+          stateRef.current = advance(stateRef.current, clock, order, timing)
         } else {
           // 自動再生を切っても進行中の遷移は完走させる
-          stateRef.current = settle(stateRef.current, delta, timing)
+          stateRef.current = settle(stateRef.current, clock, timing)
         }
       }
 
       const command: Command = {}
-      const {attack, release, returnSeconds, stopBelow} = interactionRef.current
 
       const {from, to, phase: linear} = frameOf(stateRef.current, timing)
       // 動きを減らす設定では中点で切り替えるだけにして、粒子の移動を見せない
@@ -175,7 +190,6 @@ export function Hero({photos: PHOTOS}: {photos: string[]}) {
       // ポインタ速度は瞬間値をそのまま使わず、時定数で均した値にする。
       // 速くなるときと遅くなるときで時定数を変えることで、力がゆっくり乗り、
       // 止めたあともしばらく尾を引く。exp を使うのはフレームレートに依存させないため
-      const p = takePointer()
       const step = Math.max(delta, 1 / 240)
       const targetX = p.active ? p.dx / step : 0
       const targetY = p.active ? p.dy / step : 0

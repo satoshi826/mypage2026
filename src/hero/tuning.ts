@@ -92,6 +92,10 @@ export type Interaction = {
   damping: number
   /** 速度がこれを下回ったら描画を止める。0 にすると止めずに回し続ける */
   stopBelow: number
+  /** 静止しているあいだにマウス（指）が写真の上にあるときの、時間の進む速さ。0 で止める、1 で変えない。粒子が移っている途中は効かない */
+  holdPace: number
+  /** 進む速さを切り替えるのにかける秒数。この秒数で、普段の速さから holdPace まで一定の割合で変える */
+  holdEase: number
 }
 
 export const DEFAULT_INTERACTION: Interaction = {
@@ -106,7 +110,9 @@ export const DEFAULT_INTERACTION: Interaction = {
   release: 0.15,
   returnSeconds: 0.6,
   damping: 0.2,
-  stopBelow: 0
+  stopBelow: 0,
+  holdPace: 0,
+  holdEase: 0.3
 }
 
 export const INTERACTION_PARAMS: Param<Interaction>[] = [
@@ -193,5 +199,23 @@ export const INTERACTION_PARAMS: Param<Interaction>[] = [
     max: 0.05,
     step: 0.001,
     hint: 'これを下回ったら描画を止める。0 で止めずに回し続ける'
+  },
+  {
+    group: '干渉中の再生',
+    key: 'holdPace',
+    label: '進む速さ',
+    min: 0,
+    max: 1,
+    step: 0.01,
+    hint: '倍。静止しているあいだに写真の上にあるときの時間の速さ。0 で止める。粒子が移っている途中は効かない'
+  },
+  {
+    group: '干渉中の再生',
+    key: 'holdEase',
+    label: '切り替えの秒数',
+    min: 0.01,
+    max: 2,
+    step: 0.01,
+    hint: '秒。速さを変えるのにかける時間'
   }
 ]
