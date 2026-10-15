@@ -54,7 +54,7 @@ export const addPhotos = (files: File[], category: Category) =>
       report(`追加中 ${n + 1}/${files.length}`)
       const id = freshId(file.name, taken)
       const {size, keys} = await upload(file, id)
-      edit((photos) => insertAtStart(photos, {file: id, ...size, category, hero: false}), {uploads: keys})
+      edit((photos) => insertAtStart(photos, {file: id, ...size, category}), {uploads: keys})
     }
   })
 
@@ -74,14 +74,18 @@ export function removePhoto(photo: Photo) {
   edit((photos) => photos.filter((p) => p.file !== photo.file), {removed: [photo.file]})
 }
 
-/** hero（トップの粒子）に使うか。hero は 3:2 で描くので、違う縦横比の写真は端が切れる */
-export function setHero(photo: Photo, hero: boolean) {
+/**
+ * hero（トップの粒子）に使うか。使うときは hero の並びの末尾に入る。外すと残りの番号は詰まる（draft.ts）。
+ * hero は 3:2 で描くので、違う縦横比の写真は端が切れる
+ */
+export function setHero(photo: Photo, on: boolean) {
   if (
-    hero &&
+    on &&
     Math.abs(photo.w / photo.h - 1.5) > 0.01 &&
     !confirm('3:2 でない写真なので、hero では端が切れます。使いますか？')
   )
     return
+  const hero = on ? Number.MAX_SAFE_INTEGER : undefined
   edit((photos) => photos.map((p) => (p.file === photo.file ? {...p, hero} : p)))
 }
 

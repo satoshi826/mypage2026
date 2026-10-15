@@ -1,4 +1,4 @@
-import {showPhotos, type Photo} from '../photos'
+import {renumberHero, showPhotos, type Photo} from '../photos'
 import {VARIANTS} from '../photos/manifest'
 import {deleteImage, fetchManifest, saveManifest} from './api'
 
@@ -87,7 +87,8 @@ export function edit(
   set({
     draft: {
       ...draft,
-      photos: change(draft.photos),
+      // hero の番号は、足す・外す・消すたびに 1 から詰め直す
+      photos: renumberHero(change(draft.photos)),
       uploads: [...draft.uploads, ...uploads],
       removed: [...draft.removed, ...removed]
     }

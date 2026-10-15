@@ -37,8 +37,8 @@ export type Photo = {
   w: number
   h: number
   category: Category
-  /** トップの hero に使うか */
-  hero: boolean
+  /** トップの hero での順番（1 から）。カレンダーの番号と、シャッフルを切ったときの再生順。hero に使わない写真は持たない */
+  hero?: number
   /**
    * 派生画像の版。その写真の派生を全部つないだ中身のハッシュ（先頭 10 桁）で、書き出し直して中身が
    * 変わったときだけ変わる。画像の URL に付け、URL が同じなら中身も同じ、としてずっと手元に持てるようにする
@@ -54,6 +54,19 @@ export const imageUrl = (kind: Variant['kind'], photo: Photo) => `/images/${kind
  * hero の粒子は 1100×730 前後（src/hero/table.ts）なので、長辺 1200 で足りる
  */
 export const heroSrc = (photo: Photo) => imageUrl('large-1200', photo)
+
+/** hero に使う写真を、hero での順番に並べる */
+export const heroesOf = (photos: Photo[]) =>
+  photos.filter((photo) => photo.hero !== undefined).sort((a, b) => a.hero! - b.hero!)
+
+/** hero の番号を、順番を保ったまま 1 から詰め直す。足す・外す・消したあとに使う */
+export function renumberHero(photos: Photo[]): Photo[] {
+  const rank = new Map(heroesOf(photos).map((photo, i) => [photo.file, i + 1]))
+  return photos.map((photo) => {
+    const hero = rank.get(photo.file)
+    return photo.hero === hero ? photo : {...photo, hero}
+  })
+}
 
 /** Photos の最初の数枚。Worker が HTML の時点で preload させ、一覧が描いたときにはキャッシュから出せるようにする */
 export const EAGER_THUMBS = 9
@@ -78,10 +91,17 @@ export function parseManifest(body: unknown): {photos: Photo[]} | {error: string
     if (!Number.isInteger(w) || !Number.isInteger(h) || (w as number) <= 0 || (h as number) <= 0)
       return {error: `${at}: invalid size`}
     if (!isCategory(category)) return {error: `${at}: invalid category`}
-    if (typeof hero !== 'boolean') return {error: `${at}: hero must be boolean`}
+    // 古い形（true / false）も読む。true は番号付きの写真の後ろに一覧の順で並べる。本番の一覧が新しい形に
+    // なったら（公開すると検証済みの形で書かれる）、この読み替えは消す
+    const legacy = hero === true || hero === false
+    if (hero !== undefined && !legacy && !(Number.isInteger(hero) && (hero as number) > 0))
+      return {error: `${at}: hero must be a positive integer`}
     if (typeof v !== 'string' || !VERSION.test(v)) return {error: `${at}: invalid v`}
     seen.add(file)
-    photos.push({file, w: w as number, h: h as number, category, hero, v})
+    const photo: Photo = {file, w: w as number, h: h as number, category, v}
+    if (hero === true) photo.hero = Number.MAX_SAFE_INTEGER - body.length + i
+    else if (!legacy && hero !== undefined) photo.hero = hero as number
+    photos.push(photo)
   }
-  return {photos}
+  return {photos: renumberHero(photos)}
 }

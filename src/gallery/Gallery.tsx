@@ -53,7 +53,7 @@ type Box = {left: number; top: number; width: number; height: number}
 const NONE: ReadonlySet<string> = new Set()
 
 /** 編集中に一覧の先頭に置く「＋」の枠。配置の計算では 3:2 の写真 1 枚として扱う */
-const ADD: Photo = {file: '+', w: 3, h: 2, category: 'street', hero: false, v: ''}
+const ADD: Photo = {file: '+', w: 3, h: 2, category: 'street', v: ''}
 
 /**
  * Photos の一覧。既定は画面の幅で 2〜4 列の段組（controls.ts の autoColumns）。配置は layout.ts が計算し、

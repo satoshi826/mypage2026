@@ -24,7 +24,7 @@ export function PhotoTools({photo}: {photo: Photo}) {
       onPointerDown={(event) => startDrag(event, photo)}
       onClick={() => select(photo.file)}
     >
-      {photo.hero && (
+      {photo.hero !== undefined && (
         <span className="absolute bottom-1.5 left-1.5 transition-opacity duration-300 group-data-dragging:opacity-0 border border-white/25 bg-black/70 px-1.5 py-0.5 text-[11px] leading-snug">
           hero
         </span>
@@ -32,7 +32,7 @@ export function PhotoTools({photo}: {photo: Photo}) {
       <div
         className={`absolute top-1.5 right-1.5 flex flex-col items-end gap-1 transition-opacity duration-300 group-data-dragging:!opacity-0 ${active ? '' : 'pointer-events-none opacity-0 pointer-fine:group-hover:pointer-events-auto pointer-fine:group-hover:opacity-100'}`}
       >
-        <Chip onClick={() => setHero(photo, !photo.hero)} pressed={photo.hero}>
+        <Chip onClick={() => setHero(photo, photo.hero === undefined)} pressed={photo.hero !== undefined}>
           hero
         </Chip>
         <select

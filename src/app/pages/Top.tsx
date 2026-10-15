@@ -1,7 +1,7 @@
 import {useEffect, useState} from 'preact/hooks'
 import {Link} from 'wouter-preact'
 import {NAME} from '../routes'
-import {heroSrc, usePhotos} from '../../photos'
+import {heroesOf, heroSrc, usePhotos} from '../../photos'
 import {Page, Text} from '../Page'
 
 type HeroComponent = typeof import('../../hero/Hero').Hero
@@ -22,7 +22,7 @@ function useHero() {
 export function Top() {
   const Hero = useHero()
   const photos = usePhotos()
-  const heroPhotos = photos?.filter((photo) => photo.hero).map(heroSrc) ?? []
+  const heroPhotos = photos ? heroesOf(photos).map(heroSrc) : []
 
   return (
     <>

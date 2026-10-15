@@ -19,6 +19,7 @@
 import {authorize} from './access'
 import {
   EAGER_THUMBS,
+  heroesOf,
   heroSrc,
   imageUrl,
   isCategory,
@@ -92,7 +93,7 @@ function hintsOf(parts: string[], photos: Photo[]): string[] {
   // トップ: hero は 0 番から描き始めるので、最初の hero の写真。読むのは Web Worker なので
   // preload では「使われない」扱いになる。HTTP キャッシュを温める prefetch にする
   if (parts.length === 0) {
-    const first = photos.find((photo) => photo.hero)
+    const [first] = heroesOf(photos)
     return first ? [`<${heroSrc(first)}>; rel=prefetch`] : []
   }
   // Photos: カテゴリの先頭数枚（/photos/:category）。どの段を読むかは表示幅と画面の

@@ -13,7 +13,7 @@
 //
 // 一覧の順番・カテゴリ・hero の選択は既存の .photos/manifest.json から引き継ぐ。一覧にあって原本が
 // 無い写真があれば止める（作り直せないので）。新規の写真は一覧の末尾に足し、彩度で color / street を
-// 仮置きし、hero は false。
+// 仮置きし、hero には使わない（hero を持たない）。
 // 必要なツール: imagemagick, cwebp
 
 import {execFile} from 'node:child_process'
@@ -104,13 +104,13 @@ async function encode(entry) {
       ])
     )
     category = saturation > COLOR_THRESHOLD ? 'color' : 'street'
-    hero = false
+    hero = undefined
   }
   // 版は段（VARIANTS の順）をつないだ中身のハッシュ。中身が変われば版が変わる
   const hash = createHash('sha256')
   for (const variant of variants) hash.update(readFileSync(join(PHOTOS, variant.kind, `${entry.file}.webp`)))
   const v = hash.digest('hex').slice(0, 10)
-  console.log(`${entry.file}  ${w}x${h}  ${category}  hero=${hero}  v=${v}${entry.isNew ? '  （新規）' : ''}`)
+  console.log(`${entry.file}  ${w}x${h}  ${category}  hero=${hero ?? '-'}  v=${v}${entry.isNew ? '  （新規）' : ''}`)
   return {file: entry.file, w, h, category, hero, v}
 }
 
