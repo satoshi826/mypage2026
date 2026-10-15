@@ -8,11 +8,8 @@
 //   npm run photos:encode                # .photos/originals/ から書き出す
 //   npm run photos:encode -- <原本のディレクトリ>
 //
-// | 派生      | 置き場                 | 形 |
-// |-----------|------------------------|----|
-// | 段ごと    | .photos/<kind>/        | src/photos/manifest.ts の VARIANTS（長辺、画質）。カラー、トリミングなし。全部 |
-// | hero 用   | .photos/hero/          | 粒子グリッド実寸（src/hero/table.ts の SOURCE_W/H）、中央トリミング、
-// |           |                        | グレースケール。manifest で hero: true のものだけ |
+// 派生は段ごとに .photos/<kind>/ へ。形は src/photos/manifest.ts の VARIANTS（長辺、画質）で、カラー、
+// トリミングなし。トップの hero も、この段の 1 つ（拡大用の 1200）を読む。
 //
 // 一覧の順番・カテゴリ・hero の選択は既存の .photos/manifest.json から引き継ぐ。一覧にあって原本が
 // 無い写真があれば止める（作り直せないので）。新規の写真は一覧の末尾に足し、彩度で color / street を
@@ -32,18 +29,12 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const PHOTOS = join(ROOT, '.photos')
 const SRC = process.argv[2] ?? join(PHOTOS, 'originals')
 const LIST = join(PHOTOS, 'manifest.json')
-const HERO_QUALITY = 92
 /** 平均彩度（HSL の S、0〜1）がこれを超えたらカラー扱い */
 const COLOR_THRESHOLD = 0.08
 const PARALLEL = Math.max(1, Math.min(4, cpus().length - 1))
 
 const variants = readVariants(ROOT)
 const largest = Math.max(...variants.map((v) => v.long))
-// hero の配信解像度は src/hero/table.ts を唯一の出典にする
-const table = readFileSync(join(ROOT, 'src/hero/table.ts'), 'utf8')
-const HERO_W = Number(table.match(/export const SOURCE_W = (\d+)/)?.[1])
-const HERO_H = Number(table.match(/export const SOURCE_H = (\d+)/)?.[1])
-if (!HERO_W || !HERO_H) throw new Error('src/hero/table.ts の SOURCE_W / SOURCE_H を読めない')
 
 const exec = promisify(execFile)
 const run = async (cmd, args) => (await exec(cmd, args)).stdout.trim()
@@ -72,7 +63,7 @@ const order = [
     .map((file) => ({file, isNew: true}))
 ]
 
-for (const dir of [...variants.map((v) => v.kind), 'hero']) mkdirSync(join(PHOTOS, dir), {recursive: true})
+for (const variant of variants) mkdirSync(join(PHOTOS, variant.kind), {recursive: true})
 const tmp = mkdtempSync(join(tmpdir(), 'encode-photos-'))
 
 async function encode(entry) {
@@ -115,28 +106,9 @@ async function encode(entry) {
     category = saturation > COLOR_THRESHOLD ? 'color' : 'street'
     hero = false
   }
-  // hero 用: 中央基準で切り出してグリッド実寸へ、グレースケール
-  if (hero) {
-    const gray = join(tmp, `${entry.file}-hero.png`)
-    await run('magick', [
-      src,
-      '-auto-orient',
-      '-resize',
-      `${HERO_W}x${HERO_H}^`,
-      '-gravity',
-      'center',
-      '-extent',
-      `${HERO_W}x${HERO_H}`,
-      '-colorspace',
-      'Gray',
-      gray
-    ])
-    await run('cwebp', ['-quiet', '-q', String(HERO_QUALITY), gray, '-o', join(PHOTOS, 'hero', `${entry.file}.webp`)])
-  }
-  // 版は段（VARIANTS の順）と、hero を作った写真はその hero をつないだ中身のハッシュ。中身が変われば版が変わる
+  // 版は段（VARIANTS の順）をつないだ中身のハッシュ。中身が変われば版が変わる
   const hash = createHash('sha256')
   for (const variant of variants) hash.update(readFileSync(join(PHOTOS, variant.kind, `${entry.file}.webp`)))
-  if (hero) hash.update(readFileSync(join(PHOTOS, 'hero', `${entry.file}.webp`)))
   const v = hash.digest('hex').slice(0, 10)
   console.log(`${entry.file}  ${w}x${h}  ${category}  hero=${hero}  v=${v}${entry.isNew ? '  （新規）' : ''}`)
   return {file: entry.file, w, h, category, hero, v}

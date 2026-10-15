@@ -5,7 +5,7 @@
 // |----------|---------------------------|------|------|
 // | GET      | /api/manifest             | なし | 写真の一覧 |
 // | PUT      | /api/manifest             | 要   | 一覧を丸ごと置き換える |
-// | GET      | /images/{kind}/{name}     | originals のみ要 | 画像。kind は派生の段（manifest.ts の VARIANTS）/ hero / originals |
+// | GET      | /images/{kind}/{name}     | originals のみ要 | 画像。kind は派生の段（manifest.ts の VARIANTS）/ originals |
 // | PUT      | /images/{kind}/{name}     | 要   | 画像を置く。body がそのまま R2 へ |
 // | DELETE   | /images/{kind}/{name}     | 要   | 画像を消す |
 //
@@ -18,6 +18,7 @@
 import {authorize} from './access'
 import {
   EAGER_THUMBS,
+  heroSrc,
   imageUrl,
   isCategory,
   HOVER,
@@ -27,7 +28,7 @@ import {
   type Photo
 } from '../src/photos/manifest'
 
-const KINDS: readonly string[] = [...VARIANTS.map((v) => v.kind), 'hero', 'originals']
+const KINDS: readonly string[] = [...VARIANTS.map((v) => v.kind), 'originals']
 
 const json = (body: unknown, init: ResponseInit = {}) =>
   new Response(JSON.stringify(body), {
@@ -77,11 +78,11 @@ async function photosOf(env: Env): Promise<Photo[]> {
 
 /** そのページが最初に要る写真の Link ヘッダ。parts はパスを / で割ったもの */
 function hintsOf(parts: string[], photos: Photo[]): string[] {
-  // トップ: hero は 0 番から描き始めるので、最初の hero 用の写真。読むのは Web Worker なので
+  // トップ: hero は 0 番から描き始めるので、最初の hero の写真。読むのは Web Worker なので
   // preload では「使われない」扱いになる。HTTP キャッシュを温める prefetch にする
   if (parts.length === 0) {
     const first = photos.find((photo) => photo.hero)
-    return first ? [`<${imageUrl('hero', first)}>; rel=prefetch`] : []
+    return first ? [`<${heroSrc(first)}>; rel=prefetch`] : []
   }
   // Photos: 既定は street。カテゴリの先頭数枚（/photos/:category）。どの段を読むかは表示幅と画面の
   // 密度で決まるので、一覧用の段を候補に並べてブラウザに選ばせる。幅は列数が Auto のとき

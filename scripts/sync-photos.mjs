@@ -10,7 +10,7 @@
 //   node scripts/sync-photos.mjs pull --dry-run   # 何が変わるかだけ出す
 //   node scripts/sync-photos.mjs push --yes       # 確認を飛ばす
 //
-// 一覧（manifest.json）を正とし、各写真の派生（src/photos/manifest.ts の VARIANTS の段と hero）を etag で
+// 一覧（manifest.json）を正とし、各写真の派生（src/photos/manifest.ts の VARIANTS の段）を etag で
 // 比べて違うものだけ送る。送り先の一覧にあって送り元にない写真は、画像ごと消す。
 // 原本（originals）は送らない（大きく、本番の読み出しに認証が要るため）。取るのは originals だけ。
 //
@@ -42,7 +42,7 @@ const SITE = process.env.SITE ?? 'https://mypage2026.stosto826.workers.dev'
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const PHOTOS_DIR = join(ROOT, '.photos')
 const BUCKET = 'mypage2026-photos'
-const KINDS = [...readVariants(ROOT).map((v) => v.kind), 'hero']
+const KINDS = readVariants(ROOT).map((v) => v.kind)
 const PARALLEL = 6
 
 const [direction, ...flags] = process.argv.slice(2)
@@ -172,7 +172,6 @@ const manifestChanged = JSON.stringify(source) !== JSON.stringify(target)
 console.log(`  画像を送る: ${toCopy.length}`)
 console.log(`  画像を消す: ${toDelete.length}`)
 console.log(`  一覧: ${manifestChanged ? '置き換える' : '同じ'}`)
-// 最初の移行では hero: false の写真に hero 画像を作っていないので、その分はここに出る
 if (missing.length)
   console.log(`  送り元に画像がないので飛ばす: ${missing.length}（例 ${missing.slice(0, 3).join(', ')}）`)
 for (const key of toCopy) console.log(`    + ${key}`)

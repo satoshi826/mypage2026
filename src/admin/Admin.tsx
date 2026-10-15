@@ -87,11 +87,10 @@ export function Admin() {
       const id = toId(file.name)
       setBusy(`${n + 1}/${files.length} ${file.name}`)
       try {
-        const {variants, hero, w, h, v} = await derive(file)
+        const {variants, w, h, v} = await derive(file)
         const ext = file.name.split('.').pop()?.toLowerCase() ?? 'jpg'
         await putImage(`originals/${id}.${ext}`, file)
         for (const [kind, blob] of variants) await putImage(`${kind}/${id}.webp`, blob)
-        await putImage(`hero/${id}.webp`, hero)
         if (photos.some((p) => p.file === id)) {
           replaced.set(id, {w, h, v})
           say(`${id}: 画像を差し替えた（保存すると反映される）`)
@@ -113,9 +112,7 @@ export function Admin() {
     if (!confirm(`${photo.file} を消す。画像も R2 から消える。`)) return
     setBusy(`${photo.file} を削除中`)
     try {
-      await Promise.all(
-        [...VARIANTS.map((v) => v.kind), 'hero'].map((kind) => deleteImage(`${kind}/${photo.file}.webp`))
-      )
+      await Promise.all(VARIANTS.map((v) => deleteImage(`${v.kind}/${photo.file}.webp`)))
       update(photos.filter((_, j) => j !== i))
       say(`${photo.file}: 消した（原本は残る）`)
     } catch (e) {
@@ -191,7 +188,11 @@ export function Admin() {
                 ))}
               </select>
               <label className="flex items-center gap-1">
-                <input type="checkbox" checked={photo.hero} onChange={(e) => patch(i, {hero: e.currentTarget.checked})} />
+                <input
+                  type="checkbox"
+                  checked={photo.hero}
+                  onChange={(e) => patch(i, {hero: e.currentTarget.checked})}
+                />
                 hero
               </label>
             </div>

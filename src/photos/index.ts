@@ -4,7 +4,7 @@ import {useEffect, useState} from 'preact/hooks'
 // 実行時に読む（写真の追加・入れ替えで再ビルドしない）。画像も /images/ 経由で R2 から。
 // 形と派生画像の段（VARIANTS）は manifest.ts。管理画面（/admin）が書き換える。
 
-export {CATEGORIES, isCategory, type Category, type Photo} from './manifest'
+export {CATEGORIES, heroSrc, isCategory, type Category, type Photo} from './manifest'
 import {
   imageUrl,
   isCategory,
@@ -39,8 +39,6 @@ export function pickSource(photo: Photo, need: number, large: boolean): Source {
   }))
   return sources.find((source) => source.width >= target) ?? sources[sources.length - 1]
 }
-
-export const heroSrc = (photo: Photo) => imageUrl('hero', photo)
 
 function parse(body: unknown): Photo[] {
   const result = parseManifest(body)

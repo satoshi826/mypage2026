@@ -18,10 +18,7 @@ async function start() {
   await navigator.serviceWorker.register('/sw.js')
   const [photos, registration] = await Promise.all([loadPhotos(), navigator.serviceWorker.ready, quiet()])
   // 今の一覧にある版だけを残す。差し替えや削除で古くなった版は消える
-  const keep = photos.flatMap((photo) => [
-    ...VARIANTS.map((variant) => imageUrl(variant.kind, photo)),
-    ...(photo.hero ? [imageUrl('hero', photo)] : [])
-  ])
+  const keep = photos.flatMap((photo) => VARIANTS.map((variant) => imageUrl(variant.kind, photo)))
   const category = toCategory(location.pathname.match(/^\/photos\/([^/]+)/)?.[1])
   const ordered = [...photos.filter((p) => p.category === category), ...photos.filter((p) => p.category !== category)]
   registration.active?.postMessage({type: 'images', keep, fetch: saving() ? [] : listSources(ordered)})

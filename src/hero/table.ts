@@ -1,7 +1,7 @@
-// 配信解像度。hero 用の webp の寸法で、scripts/encode-photos.mjs と src/admin/derive.ts が読む唯一の出典。
-// 全写真がこのアスペクトに揃っている必要がある（粒子集合を共有するため）。
-export const SOURCE_W = 1152
-export const SOURCE_H = 768
+// 読む画像（photos/manifest.ts の heroSrc、長辺 1200 の 3:2）の寸法。粒子グリッドの上限と縦横比になる。
+// 全写真をこの縦横比で扱う（粒子集合を共有するため）。違う縦横比の写真は中央を切り出して使う（loadPixels）。
+export const SOURCE_W = 1200
+export const SOURCE_H = 800
 
 /**
  * 粒子グリッド。粒子の数、写真をサンプリングする解像度、アトラス上の1ブロックの
@@ -9,7 +9,7 @@ export const SOURCE_H = 768
  */
 export type Grid = {width: number; height: number; count: number}
 
-/** 縦横比。全写真がこれに揃っている */
+/** 縦横比。全写真をこれで扱う */
 export const ASPECT = SOURCE_W / SOURCE_H
 /** これ以下に落とすと写真として成立しないという下限 */
 const MIN_HEIGHT = 256
@@ -89,10 +89,18 @@ export function buildTable(src: Uint8ClampedArray, {count}: Grid): Uint8Array {
   return table
 }
 
-/** 写真を粒子グリッドの解像度まで縮小して画素を取り出す */
+/** 写真の中央を粒子グリッドの縦横比（3:2）で切り出し、グリッドの解像度まで縮小して画素を取り出す */
 export async function loadPixels(url: string, {width, height}: Grid) {
-  const blob = await (await fetch(url)).blob()
-  const bitmap = await createImageBitmap(blob, {resizeWidth: width, resizeHeight: height, resizeQuality: 'high'})
+  const source = await createImageBitmap(await (await fetch(url)).blob())
+  const scale = Math.min(source.width / width, source.height / height)
+  const [w, h] = [width * scale, height * scale]
+  const [x, y] = [(source.width - w) / 2, (source.height - h) / 2]
+  const bitmap = await createImageBitmap(source, x, y, w, h, {
+    resizeWidth: width,
+    resizeHeight: height,
+    resizeQuality: 'high'
+  })
+  source.close()
   const ctx = new OffscreenCanvas(width, height).getContext('2d')!
   // createImageBitmap のリサイズ指定を無視するブラウザがあるので、描画側でも縮小先を明示する
   ctx.drawImage(bitmap, 0, 0, width, height)

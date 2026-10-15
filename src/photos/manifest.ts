@@ -46,8 +46,14 @@ export type Photo = {
   v: string
 }
 
-/** 派生画像の URL。kind は VARIANTS の kind か hero */
-export const imageUrl = (kind: string, photo: Photo) => `/images/${kind}/${photo.file}.webp?v=${photo.v}`
+/** 派生画像の URL */
+export const imageUrl = (kind: Variant['kind'], photo: Photo) => `/images/${kind}/${photo.file}.webp?v=${photo.v}`
+
+/**
+ * トップの hero が読む画像。拡大用の段を使い、Photos で広げたときの画像とキャッシュを分け合う。
+ * hero の粒子は 1100×730 前後（src/hero/table.ts）なので、長辺 1200 で足りる
+ */
+export const heroSrc = (photo: Photo) => imageUrl('large-1200', photo)
 
 /** Photos の最初の数枚。Worker が HTML の時点で preload させ、一覧が描いたときにはキャッシュから出せるようにする */
 export const EAGER_THUMBS = 9

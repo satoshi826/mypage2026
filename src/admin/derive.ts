@@ -1,16 +1,12 @@
 // 原本から派生画像をブラウザで作る。Workers には画像ライブラリがないので、
-// 管理画面がアップロード前に縮小・トリミング・グレースケール・WebP 化まで済ませる。
-// 形は scripts/encode-photos.mjs と揃える（段は photos/manifest.ts の VARIANTS、hero は 1152x768 のグレースケール）。
+// 管理画面がアップロード前に縮小・WebP 化まで済ませる。
+// 形は scripts/encode-photos.mjs と揃える（段は photos/manifest.ts の VARIANTS）。
 
 import {VARIANTS, type Variant} from '../photos/manifest'
-import {SOURCE_H, SOURCE_W} from '../hero/table'
-
-const HERO_QUALITY = 0.92
 
 export type Derived = {
   /** 段ごとの派生。キーは R2 の kind */
   variants: [Variant['kind'], Blob][]
-  hero: Blob
   /** 一番大きい派生の寸法（manifest の w / h） */
   w: number
   h: number
@@ -35,25 +31,8 @@ export async function derive(file: File): Promise<Derived> {
       variants.push([variant.kind, await toWebp(canvas, variant.quality / 100)])
     }
 
-    // hero: 中央基準で 3:2 に切り出してから縮小、グレースケール
-    const cropScale = Math.max(SOURCE_W / source.width, SOURCE_H / source.height)
-    const cw = Math.round(SOURCE_W / cropScale)
-    const ch = Math.round(SOURCE_H / cropScale)
-    const cropped = await createImageBitmap(
-      source,
-      Math.round((source.width - cw) / 2),
-      Math.round((source.height - ch) / 2),
-      cw,
-      ch
-    )
-    const heroCanvas = downscale(cropped, SOURCE_W, SOURCE_H)
-    cropped.close()
-    grayscale(heroCanvas)
-    const hero = await toWebp(heroCanvas, HERO_QUALITY)
-
-    // 版は段（VARIANTS の順）と hero をつないだ中身のハッシュ。管理画面は hero を必ず作るので必ず含める
-    // （scripts/encode-photos.mjs は hero: true の写真だけ）。中身が変われば版が変わる、が成り立てばよい
-    return {variants, hero, w, h, v: await versionOf([...variants.map(([, blob]) => blob), hero])}
+    // 版は段（VARIANTS の順）をつないだ中身のハッシュ。中身が変われば版が変わる、が成り立てばよい
+    return {variants, w, h, v: await versionOf(variants.map(([, blob]) => blob))}
   } finally {
     source.close()
   }
@@ -87,18 +66,6 @@ function draw(source: OffscreenCanvas | ImageBitmap, w: number, h: number): Offs
   ctx.imageSmoothingQuality = 'high'
   ctx.drawImage(source, 0, 0, w, h)
   return canvas
-}
-
-/** Rec.709 の輝度でグレースケールにする（ImageMagick の -colorspace Gray と同じ重み） */
-function grayscale(canvas: OffscreenCanvas) {
-  const ctx = canvas.getContext('2d')!
-  const image = ctx.getImageData(0, 0, canvas.width, canvas.height)
-  const d = image.data
-  for (let i = 0; i < d.length; i += 4) {
-    const y = 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2]
-    d[i] = d[i + 1] = d[i + 2] = y
-  }
-  ctx.putImageData(image, 0, 0)
 }
 
 async function toWebp(canvas: OffscreenCanvas, quality: number): Promise<Blob> {
