@@ -80,3 +80,12 @@ export const useEditorTools = () => useExternal(subscribe, () => (editing ? tool
 export const useEditing = () => !!useEditorTools()
 /** 編集の UI を出しているか（描画の外から読むとき） */
 export const isEditing = () => editing && !!tools
+
+// 並べ替えでつかんでいる写真（src/editor/drag.ts）。Gallery はつかんでいるあいだ描き続け、組み替えの動きから外す
+let dragging: string | null = null
+
+export function setDragging(file: string | null) {
+  dragging = file
+  for (const listener of listeners) listener()
+}
+export const useDragging = () => useExternal(subscribe, () => dragging, null)

@@ -3,6 +3,7 @@ import type {ComponentChildren} from 'preact'
 import {useParams} from 'wouter-preact'
 import {CATEGORIES, isCategory, toCategory, type Photo} from '../photos'
 import {useExternal} from '../app/useExternal'
+import {startDrag} from './drag'
 import {select, selected, subscribe} from './selection'
 import {addPhotos, removePhoto, replacePhoto, setCategory, setHero} from './ops'
 
@@ -16,14 +17,20 @@ export function PhotoTools({photo}: {photo: Photo}) {
   const active = useExternal(subscribe, () => selected() === photo.file, false)
   const input = useRef<HTMLInputElement>(null)
   return (
-    <div data-photo-tools className="absolute inset-0" onClick={() => select(photo.file)}>
+    // つかんで並べ替える（drag.ts）。長押しのメニューと文字の選択は出さない
+    <div
+      data-photo-tools
+      className="absolute inset-0 cursor-grab select-none [-webkit-touch-callout:none]"
+      onPointerDown={(event) => startDrag(event, photo)}
+      onClick={() => select(photo.file)}
+    >
       {photo.hero && (
-        <span className="absolute bottom-1.5 left-1.5 border border-white/25 bg-black/70 px-1.5 py-0.5 text-[11px] leading-snug">
+        <span className="absolute bottom-1.5 left-1.5 transition-opacity duration-300 group-data-dragging:opacity-0 border border-white/25 bg-black/70 px-1.5 py-0.5 text-[11px] leading-snug">
           hero
         </span>
       )}
       <div
-        className={`absolute top-1.5 right-1.5 flex flex-col items-end gap-1 transition-opacity duration-300 ${active ? '' : 'pointer-events-none opacity-0 pointer-fine:group-hover:pointer-events-auto pointer-fine:group-hover:opacity-100'}`}
+        className={`absolute top-1.5 right-1.5 flex flex-col items-end gap-1 transition-opacity duration-300 group-data-dragging:!opacity-0 ${active ? '' : 'pointer-events-none opacity-0 pointer-fine:group-hover:pointer-events-auto pointer-fine:group-hover:opacity-100'}`}
       >
         <Chip onClick={() => setHero(photo, !photo.hero)} pressed={photo.hero}>
           hero

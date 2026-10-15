@@ -88,3 +88,18 @@ export function setHero(photo: Photo, hero: boolean) {
 export function setCategory(photo: Photo, category: Category) {
   edit((photos) => photos.map((p) => (p.file === photo.file ? {...p, category} : p)))
 }
+
+/**
+ * 並べ替え。file を over の位置へ移す。下へ動かすときは over の後ろ、上へ動かすときは over の前に入る
+ * （一覧は全カテゴリを通した 1 本の並びで、カテゴリの中の順はその部分列）
+ */
+export function movePhoto(file: string, over: string) {
+  edit((photos) => {
+    const from = photos.findIndex((p) => p.file === file)
+    const to = photos.findIndex((p) => p.file === over)
+    if (from < 0 || to < 0 || from === to) return photos
+    const next = [...photos]
+    next.splice(to, 0, ...next.splice(from, 1))
+    return next
+  })
+}

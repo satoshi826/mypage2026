@@ -6,7 +6,7 @@ import {useReveal} from './reveal'
 import {autoColumns, chosen, maxColumns, setGalleryControls, type Columns} from './controls'
 import {DEFAULT_MOTION, DEFAULT_SPACING, EASINGS, MOTION_PARAMS, SPACING_PARAMS, type Motion} from './tuning'
 import {DevPanel} from '../app/DevPanel'
-import {useEditorTools} from '../app/editing'
+import {useDragging, useEditorTools} from '../app/editing'
 import {onScrollFrame} from '../app/scrollFrame'
 import {useExternal} from '../app/useExternal'
 import {glideTo, jumpTo} from '../app/useSmoothScroll'
@@ -87,6 +87,7 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
   // 編集中（src/editor）に差し込む部品。編集中でなければ null
   const tools = useEditorTools()
   const editing = !!tools
+  const dragging = useDragging()
   // 並べる写真。編集中は先頭に「＋」の枠を足す
   const items = useMemo(() => (tools ? [ADD, ...photos] : photos), [tools, photos])
   // 広げた写真が画面に収まらなければ寄せるか。押して広げたときだけ
@@ -168,7 +169,8 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
     const offset = tools ? 1 : 0
     items.forEach((photo, i) => {
       const at = placed.items.get(photo.file)!
-      if ((at.y + at.h > from && at.y < to) || keep.has(photo.file)) mounted.push({photo, index: i - offset})
+      if ((at.y + at.h > from && at.y < to) || keep.has(photo.file) || photo.file === dragging)
+        mounted.push({photo, index: i - offset})
     })
   }
 
@@ -271,7 +273,22 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
     last.current = placed && {items, layout: placed}
     if (!prev || !placed || !metrics || before || prev.items === items) return
     const scroll = scrollY - metrics.top
-    setBefore({items: prev.layout.items, scroll, top: metrics.top, left: metrics.left, anchor: null, visual: new Map()})
+    // 動いている最中の写真は、見えている位置から次の動きを始める（並べ替えで続けて組み替わるとき）。要素はもう
+    // 新しい位置にあるので、前の位置に今の動きの変形を足して求める（transform-origin は左上）
+    const visual = new Map<string, Box>()
+    for (const el of root.current?.querySelectorAll<HTMLElement>('[data-file]') ?? []) {
+      const from = prev.layout.items.get(el.dataset.file!)
+      if (!from || el.getAnimations().length === 0) continue
+      const m = new DOMMatrix(getComputedStyle(el).transform)
+      const box = toBox(from, scroll, metrics.left)
+      visual.set(el.dataset.file!, {
+        left: box.left + m.e,
+        top: box.top + m.f,
+        width: box.width * m.a,
+        height: box.height * m.d
+      })
+    }
+    setBefore({items: prev.layout.items, scroll, top: metrics.top, left: metrics.left, anchor: null, visual})
     // oxlint-disable-next-line react-hooks/exhaustive-deps
   }, [placed])
 
@@ -302,6 +319,8 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
     const margin = reveal.current ? 1 : 0
     if (!still) {
       for (const figure of el.querySelectorAll<HTMLElement>('[data-file]')) {
+        // 並べ替えでつかんでいる写真は、指（マウス）が動かす
+        if (figure.hasAttribute('data-dragging')) continue
         // 前の動きは止める。続けると、新しい配置の位置を基準に古い差分で動いてしまう
         for (const animation of figure.getAnimations()) animation.cancel()
         const from = before.items.get(figure.dataset.file!)
