@@ -1,6 +1,8 @@
+import {useLocation} from 'wouter-preact'
 import {forget, setEditing, useEditing} from '../app/editing'
 import {useExternal} from '../app/useExternal'
 import {changes, discard, getState, publish, subscribe} from './draft'
+import {setPanelOpen} from './panel'
 
 const useDraft = () => useExternal(subscribe, getState, getState())
 
@@ -14,9 +16,10 @@ const ACTION =
 export function Bar() {
   const {draft, busy, error} = useDraft()
   const editing = useEditing()
+  const [location] = useLocation()
   const count = draft ? changes(draft) : 0
   return (
-    <div className="fixed right-4 bottom-[calc(var(--spacing-footer)+env(safe-area-inset-bottom)+12px)] z-20 flex items-center gap-4 border border-white/25 bg-black/70 px-3 py-2 text-xs backdrop-blur-[20px]">
+    <div className="fixed right-4 max-sm:left-4 bottom-[calc(var(--spacing-footer)+env(safe-area-inset-bottom)+12px)] z-20 flex flex-wrap items-center justify-end gap-x-4 gap-y-1.5 whitespace-nowrap border border-white/25 bg-black/70 px-3 py-2 text-xs backdrop-blur-[20px]">
       <button
         type="button"
         aria-pressed={editing}
@@ -26,6 +29,11 @@ export function Bar() {
         <span className={`size-1.5 rounded-full border border-ink ${editing ? 'bg-ink' : ''}`} />
         編集
       </button>
+      {editing && location === '/' && (
+        <button type="button" onClick={() => setPanelOpen(true)} className={ACTION}>
+          hero を編集
+        </button>
+      )}
       {busy ? (
         <span>{busy}</span>
       ) : error ? (

@@ -107,3 +107,9 @@ export function movePhoto(file: string, over: string) {
     return next
   })
 }
+
+/** hero の並びをまとめて決める（トップの hero のパネル）。files の順に 1 から番号を振り、入っていない写真は外す */
+export function setHeroOrder(files: string[]) {
+  const rank = new Map(files.map((file, i) => [file, i + 1]))
+  edit((photos) => photos.map((p) => (p.hero === rank.get(p.file) ? p : {...p, hero: rank.get(p.file)})))
+}

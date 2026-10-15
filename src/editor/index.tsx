@@ -2,6 +2,7 @@ import {render} from 'preact'
 import {editorReady, isEditing} from '../app/editing'
 import {toCategory} from '../photos'
 import {Bar} from './Bar'
+import {HeroPanel} from './HeroPanel'
 import {start} from './draft'
 import {addPhotos} from './ops'
 import {select} from './selection'
@@ -14,7 +15,13 @@ import {AddTile, PhotoTools} from './Tools'
 export function mount() {
   const host = document.createElement('div')
   document.body.append(host)
-  render(<Bar />, host)
+  render(
+    <>
+      <Bar />
+      <HeroPanel />
+    </>,
+    host
+  )
   editorReady({Photo: PhotoTools, Add: AddTile})
   void start()
 

@@ -1,4 +1,4 @@
-import {renumberHero, showPhotos, type Photo} from '../photos'
+import {heroesOf, renumberHero, showPhotos, type Photo} from '../photos'
 import {VARIANTS} from '../photos/manifest'
 import {deleteImage, fetchManifest, saveManifest} from './api'
 
@@ -143,16 +143,18 @@ export const discard = () =>
   })
 
 /**
- * 未公開の変更の数。足した写真・消す写真・カテゴリや hero を変えた写真の数に、並びの変わったカテゴリの数を
- * 足したもの
+ * 未公開の変更の数。足した写真・消す写真・カテゴリや画像を変えた写真の数に、並びの変わったカテゴリの数と、
+ * hero の並び（足す・外す・並べ替える）が変わっていれば 1 を足したもの
  */
 export function changes(draft: Draft): number {
   const before = new Map(draft.base.map((photo) => [photo.file, photo]))
   const after = new Map(draft.photos.map((photo) => [photo.file, photo]))
   let count = 0
+  // hero の番号は並びの変更でまとめて変わるので、写真ごとには比べず、最後に並び全体で比べる
+  const rest = (photo: Photo) => JSON.stringify({...photo, hero: undefined})
   for (const photo of draft.photos) {
     const was = before.get(photo.file)
-    if (!was || JSON.stringify(was) !== JSON.stringify(photo)) count++
+    if (!was || rest(was) !== rest(photo)) count++
   }
   for (const file of before.keys()) if (!after.has(file)) count++
   // 並びは、前後で同じカテゴリにいる写真だけで比べる（足した・消した・カテゴリを移した写真は上で数えた）
@@ -164,5 +166,10 @@ export function changes(draft: Draft): number {
       .join()
   for (const category of new Set(draft.photos.map((photo) => photo.category)))
     if (order(draft.base, category) !== order(draft.photos, category)) count++
+  const heroes = (list: Photo[]) =>
+    heroesOf(list)
+      .map((photo) => photo.file)
+      .join()
+  if (heroes(draft.base) !== heroes(draft.photos)) count++
   return count
 }

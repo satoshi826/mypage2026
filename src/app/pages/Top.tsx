@@ -31,9 +31,10 @@ export function Top() {
           写真の一覧を読み終えて hero に使う写真が無かったときだけ詰める */}
       {(photos === null || heroPhotos.length > 0) && (
         <div className="h-[100svh]">
-          {/* Hero は読み込んだ 1 つの部品で、描くたびに作り直すものではない */}
+          {/* Hero は読み込んだ 1 つの部品で、描くたびに作り直すものではない。hero は起動時に写真をまとめて
+              読み込むので、並びが変わったら作り直す（編集で hero を選び直したとき。訪問者には起きない） */}
           {/* oxlint-disable-next-line react/static-components */}
-          {Hero && heroPhotos.length > 0 && <Hero photos={heroPhotos} />}
+          {Hero && heroPhotos.length > 0 && <Hero key={heroPhotos.join()} photos={heroPhotos} />}
         </div>
       )}
       <Page title={NAME}>
