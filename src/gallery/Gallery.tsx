@@ -6,6 +6,7 @@ import {useReveal} from './reveal'
 import {autoColumns, chosen, maxColumns, setGalleryControls, type Columns} from './controls'
 import {DEFAULT_MOTION, DEFAULT_SPACING, EASINGS, MOTION_PARAMS, SPACING_PARAMS, type Motion} from './tuning'
 import {DevPanel} from '../app/DevPanel'
+import {useEditing} from '../app/editing'
 import {onScrollFrame} from '../app/scrollFrame'
 import {useExternal} from '../app/useExternal'
 import {glideTo, jumpTo} from '../app/useSmoothScroll'
@@ -80,6 +81,7 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
   const [keep, setKeep] = useState(NONE)
   // 現れる演出を済ませた写真。画面から離れて要素が外れても、戻ってきたときにもう一度演出しない
   const revealed = useRef(new Set<string>())
+  const editing = useEditing()
   // 広げた写真が画面に収まらなければ寄せるか。押して広げたときだけ
   const reveal = useRef(false)
 
@@ -353,9 +355,10 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
               ref={(node) => {
                 if (node && revealed.current.has(photo.file)) node.dataset.revealed = ''
               }}
-              onPointerDown={(event) => preload(event, photo)}
-              onClick={() => toggle(photo.file)}
-              className={`group absolute m-0 overflow-hidden ${wide ? 'cursor-zoom-out' : 'cursor-zoom-in'}`}
+              // 編集中（src/editor）は押しても広げない。写真の操作と並べ替えに使うため
+              onPointerDown={(event) => !editing && preload(event, photo)}
+              onClick={() => !editing && toggle(photo.file)}
+              className={`group absolute m-0 overflow-hidden ${editing ? '' : wide ? 'cursor-zoom-out' : 'cursor-zoom-in'}`}
               // 高さも配置の計算値で与える。画像が届くまでの img は高さを持たず、枠が潰れるため。
               // content-visibility: auto は使わない。中身を飛ばすかどうかの判定がフレームの更新に
               // 乗っていて、スクロールが止まったあと画面内の写真が飛ばされたまま残ることがある（Chrome）

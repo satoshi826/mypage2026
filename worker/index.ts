@@ -5,6 +5,7 @@
 // |----------|---------------------------|------|------|
 // | GET      | /api/manifest             | なし | 写真の一覧 |
 // | PUT      | /api/manifest             | 要   | 一覧を丸ごと置き換える |
+// | GET      | /api/session              | 要   | ログイン中なら 204。サイトの上での編集（src/editor）を出すかを決める |
 // | GET      | /images/{kind}/{name}     | originals のみ要 | 画像。kind は派生の段（manifest.ts の VARIANTS）/ originals |
 // | PUT      | /images/{kind}/{name}     | 要   | 画像を置く。body がそのまま R2 へ |
 // | DELETE   | /images/{kind}/{name}     | 要   | 画像を消す |
@@ -46,6 +47,13 @@ export default {
       // Photos はカテゴリ別の URL。カテゴリの無い /photos は street へ（恒久的な転送）
       if (parts.length === 1) return Response.redirect(new URL(`/photos/street${url.search}`, url).href, 308)
       return pageWithHints(request, env, parts)
+    }
+
+    if (parts[0] === 'api' && parts[1] === 'session' && parts.length === 2) {
+      if (request.method !== 'GET') return error(405, 'method not allowed')
+      return (
+        (await authorize(request, env)) ?? new Response(null, {status: 204, headers: {'cache-control': 'no-store'}})
+      )
     }
 
     if (parts[0] === 'api' && parts[1] === 'manifest' && parts.length === 2) {

@@ -56,7 +56,7 @@ export const ROUTES: RouteDef[] = [
     title: `Contact — ${NAME}`,
     description: '撮影のご依頼とお問い合わせ。ジャンルは問いません。'
   },
-  // 写真の管理画面。Cloudflare Access で保護する。ナビには出さない
+  // 編集のログインの入口（pages/Login.tsx）。Cloudflare Access で保護する。ナビには出さない
   {
     path: '/admin',
     label: null,

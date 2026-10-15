@@ -9,7 +9,7 @@ import {Photos} from './pages/Photos'
 import {Works} from './pages/Works'
 import {About} from './pages/About'
 import {Contact} from './pages/Contact'
-import {Admin} from '../admin/Admin'
+import {Login} from './pages/Login'
 import {useSmoothScroll} from './useSmoothScroll'
 import {Scrollbar} from './Scrollbar'
 import {DEFAULT_PAGE_MOTION, usePageTransition} from './pageMotion'
@@ -42,7 +42,7 @@ export function App() {
           <Route path="/works" component={Works} />
           <Route path="/about" component={About} />
           <Route path="/contact" component={Contact} />
-          <Route path="/admin" component={Admin} />
+          <Route path="/admin" component={Login} />
           <Route>
             <Page title="Not found">{null}</Page>
           </Route>

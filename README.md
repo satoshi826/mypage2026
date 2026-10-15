@@ -144,7 +144,7 @@ src/
   hero/     粒子ギミック（トップ専用）
   photos/   写真の一覧の取得。hero と Photos の両方がここを見る
   gallery/  Photos ページの一覧・拡大表示・現れ方
-  admin/    写真の管理画面
+  editor/   サイトの上での編集（ログイン中だけ動的 import）
 worker/     Cloudflare Worker（写真の API）
 ```
 
@@ -171,7 +171,7 @@ worker/     Cloudflare Worker（写真の API）
 | `gallery/Gallery.tsx` | Photos の一覧。layout.ts の結果を絶対配置で並べ、クリックでその場に広げる（FLIP）。`Img.tsx` が先読みと派生の切り替え |
 | `gallery/reveal.ts` | 視界に入った要素を現す演出（`data-reveal`）。見た目は `styles.css` |
 | `photos/index.ts`   | 写真一覧の取得（`/api/manifest`）と、派生画像の URL |
-| `admin/`            | 写真の管理画面（`/admin`）。派生画像の生成と API の呼び出し |
+| `editor/`           | サイトの上での編集。操作バー、下書きと公開、派生画像の生成、API の呼び出し。ログイン中だけ読み込む |
 | `worker/`           | Cloudflare Worker。写真の API と Access の検証 |
 | `scripts/encode-photos.mjs` | 原本（`.photos/originals/`）から派生画像を `.photos/` に書き出し、manifest.json を更新する（移行と作り直し用） |
 | `scripts/sync-photos.mjs` | 写真を `.photos/` → ローカル、本番 ⇄ ローカルで動かす。作り直しの前に本番の一覧と原本を手元に揃える |
@@ -215,7 +215,7 @@ PC の密度 1 倍の 3 列なら 800 と、表示に見合う段だけを読ん
 最大でも足りないとき（PC の高精細な画面の縦長）は拡大用の 2000 を使う。Photos の HTML は、先頭数枚を `imagesrcset` で先読みさせる（`worker/index.ts`）。
 
 画像の URL には版の印 `?v=<v>` を付ける。`v` はその写真の派生を全部つないだ中身のハッシュで、書き出し直して
-中身が変わったときだけ変わる（`scripts/encode-photos.mjs` と `src/admin/derive.ts` が同じ決め方で付ける）。
+中身が変わったときだけ変わる（`scripts/encode-photos.mjs` と `src/editor/derive.ts` が同じ決め方で付ける）。
 印付きの URL は中身が変わらないので、Worker は 1 年持ってよい（`immutable`）と返す。
 
 **Service Worker（`src/sw/`）。** 本番だけで登録する。ローディングを感じさせないためのもの。
@@ -231,9 +231,13 @@ PC の密度 1 倍の 3 列なら 800 と、表示に見合う段だけを読ん
   入っている Service Worker は残る）。`http://<LAN の IP>` は安全な接続とみなされないので、`dev:lan` や
   `preview:lan` では動かない（localhost では動く）。
 
-**管理画面 `/admin`。** 複数アップロード、カテゴリと hero の切り替え、並び替え、削除。
-派生画像（各段）はブラウザで作る（`src/admin/derive.ts`。段階的な縮小、WebP 書き出し。Safari は WebP を書き出せないので Chrome を使う）。一覧の編集は「保存」で
-manifest.json を丸ごと置き換える。画像のアップロードと削除は即座に反映される。
+**サイトの上での編集（`src/editor/`）。** `/admin`（Access で保護）でログインすると、このブラウザに目印を残して
+元のページへ戻る（`src/app/pages/Login.tsx`）。目印のある人だけ `/api/session` でログイン中かを確かめ、通れば
+編集用のコードを動的 import で読み込む（`src/app/editing.ts`）。訪問者は問い合わせも読み込みもしない。
+右下の操作バーで「編集」を切り替え、変更は下書き（このブラウザの localStorage）にためて「公開」で
+manifest.json を丸ごと置き換える。追加した画像は選んだ時点で R2 に置き（破棄したら消す）、削除した写真の
+画像は公開のときに消す。派生画像はブラウザで作る（`src/editor/derive.ts`。段階的な縮小、WebP 書き出し。
+Safari は WebP を書き出せないので Chrome を使う）。
 
 **最初の移行と作り直し**（段を変えたときなど）は次の順。`.photos/` は作業用で追跡しない。
 
@@ -309,7 +313,7 @@ build では生成しない。生成は workerd を起動し、Cloudflare のビ
 3. Zero Trust > Access で Self-hosted のアプリケーションを作り、パス `/admin` だけを保護する。
    自分のメールだけ許可する。Access はメソッドを区別できないので `/api/*` や `/images/*` は
    入れない（入れると一覧の画像が誰にも見えなくなる）。書き込み API は Worker が
-   Access の Cookie（`CF_Authorization`）の JWT を検証して守る。管理画面の fetch は同一
+   Access の Cookie（`CF_Authorization`）の JWT を検証して守る。編集の fetch は同一
    オリジンなので Cookie が自動で付く。
 4. `ACCESS_TEAM_DOMAIN`（`<team>.cloudflareaccess.com`）と `ACCESS_AUD`（アプリケーションの
    Audience タグ）を Worker の secret に入れる（`wrangler secret put`）。dashboard の

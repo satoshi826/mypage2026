@@ -1,4 +1,5 @@
 import {useEffect, useState} from 'preact/hooks'
+import {useExternal} from '../app/useExternal'
 
 // サイトに載せる写真の一覧。正本は R2 の manifest.json で、Worker の /api/manifest から
 // 実行時に読む（写真の追加・入れ替えで再ビルドしない）。画像も /images/ 経由で R2 から。
@@ -76,8 +77,23 @@ export function loadPhotos(): Promise<Photo[]> {
   return loading
 }
 
+// サイトの上で編集しているあいだの一覧（src/editor）。あるあいだは、取得した一覧の代わりにこれで描く
+let shown: Photo[] | null = null
+const listeners = new Set<() => void>()
+const subscribe = (listener: () => void) => {
+  listeners.add(listener)
+  return () => void listeners.delete(listener)
+}
+
+/** 編集用のコードが、描く一覧（下書き、または公開済みの最新）を渡す */
+export function showPhotos(list: Photo[] | null) {
+  shown = list
+  for (const listener of listeners) listener()
+}
+
 /** 一覧。取得が終わるまで null。失敗したら空配列（写真がないのと同じ扱い） */
 export function usePhotos(): Photo[] | null {
+  const editing = useExternal(subscribe, () => shown, null)
   const [photos, setPhotos] = useState<Photo[] | null>(null)
   useEffect(() => {
     let alive = true
@@ -92,5 +108,5 @@ export function usePhotos(): Photo[] | null {
       alive = false
     }
   }, [])
-  return photos
+  return editing ?? photos
 }
