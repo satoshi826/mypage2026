@@ -167,7 +167,11 @@ function Panel() {
     `cursor-pointer border-0 bg-transparent p-0 text-xs text-inherit transition-opacity duration-300 ${active ? 'opacity-100' : 'opacity-55 hover:opacity-80'}`
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-30 flex max-h-[75svh] flex-col border-t border-white/20 bg-black/85 pb-[env(safe-area-inset-bottom)] text-ink backdrop-blur-[20px]">
+    // ホイールはサイト全体のなめらかなスクロール（useSmoothScroll）に渡さない。渡すと後ろのページが動く
+    <div
+      onWheel={(event) => event.stopPropagation()}
+      className="fixed inset-x-0 bottom-0 z-30 flex max-h-[75svh] flex-col border-t border-white/20 bg-black/85 pb-[env(safe-area-inset-bottom)] text-ink backdrop-blur-[20px]"
+    >
       <div className="flex items-center justify-between px-5 pt-4 pb-2 text-xs">
         <span>
           hero <span className="opacity-55">{order.length} 枚</span>
@@ -177,7 +181,16 @@ function Panel() {
         </button>
       </div>
       {/* hero の並び。小さな画像は hero と同じく中央を 3:2 で切り出して見せる */}
-      <div ref={strip} className="relative flex shrink-0 gap-2 overflow-x-auto px-5 pb-3 [scrollbar-width:none]">
+      {/* 縦のホイールは横のスクロールに変える（スクロールバーは出さない） */}
+      <div
+        ref={strip}
+        onWheel={(event) => {
+          if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return
+          strip.current!.scrollLeft += event.deltaY
+          event.preventDefault()
+        }}
+        className="relative flex shrink-0 gap-2 overflow-x-auto overscroll-contain px-5 pb-3 [scrollbar-width:none]"
+      >
         {order.map((file, i) => {
           const photo = byFile.get(file)
           if (!photo) return null
@@ -216,7 +229,7 @@ function Panel() {
         ))}
       </div>
       {/* 全写真。触ると hero に足す（並びの末尾）・外す */}
-      <div className="grid min-h-0 grid-cols-[repeat(auto-fill,minmax(88px,1fr))] gap-1.5 overflow-y-auto px-5 pb-4">
+      <div className="grid min-h-0 grid-cols-[repeat(auto-fill,minmax(88px,1fr))] gap-1.5 overflow-y-auto overscroll-contain px-5 pb-4">
         {shown.map((photo) => {
           const rank = order.indexOf(photo.file)
           return (
