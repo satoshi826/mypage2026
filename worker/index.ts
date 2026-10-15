@@ -42,8 +42,11 @@ export default {
     const url = new URL(request.url)
     const parts = url.pathname.split('/').filter(Boolean)
 
-    if ((parts.length === 0 || parts[0] === 'photos') && (request.method === 'GET' || request.method === 'HEAD'))
+    if ((parts.length === 0 || parts[0] === 'photos') && (request.method === 'GET' || request.method === 'HEAD')) {
+      // Photos はカテゴリ別の URL。カテゴリの無い /photos は street へ（恒久的な転送）
+      if (parts.length === 1) return Response.redirect(new URL(`/photos/street${url.search}`, url).href, 308)
       return pageWithHints(request, env, parts)
+    }
 
     if (parts[0] === 'api' && parts[1] === 'manifest' && parts.length === 2) {
       if (request.method === 'GET' || request.method === 'HEAD') return getManifest(env)
@@ -84,11 +87,11 @@ function hintsOf(parts: string[], photos: Photo[]): string[] {
     const first = photos.find((photo) => photo.hero)
     return first ? [`<${heroSrc(first)}>; rel=prefetch`] : []
   }
-  // Photos: 既定は street。カテゴリの先頭数枚（/photos/:category）。どの段を読むかは表示幅と画面の
+  // Photos: カテゴリの先頭数枚（/photos/:category）。どの段を読むかは表示幅と画面の
   // 密度で決まるので、一覧用の段を候補に並べてブラウザに選ばせる。幅は列数が Auto のとき
   // （src/gallery/controls.ts の autoColumns）の写真 1 枚ぶん
-  const category = parts[1] ?? 'street'
-  if (parts.length > 2 || !isCategory(category)) return []
+  const category = parts[1]
+  if (parts.length !== 2 || !isCategory(category)) return []
   // 一覧の JS（pickSource）と同じく、一覧用の段に拡大用の最大を足した候補（PC の高精細な画面の縦長が使う）
   const list = [...VARIANTS.filter((v) => v.use === 'list'), VARIANTS[VARIANTS.length - 1]]
   return photos

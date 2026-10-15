@@ -18,13 +18,14 @@ export const ROUTES: RouteDef[] = [
     title: `${NAME} (mu) — Photographer / Web Engineer`,
     description: 'mu / Satoshi Hata。神奈川を拠点に street / architecture を撮る写真家、Web エンジニア。'
   },
+  // Photos はカテゴリ別の URL（/photos/:category）。ナビの Photos は street を指し、ほかはフッターの
+  // 切り替えから辿る。/photos は street へ転送する（worker/index.ts と App.tsx）
   {
-    path: '/photos',
+    path: '/photos/street',
     label: 'Photos',
-    title: `Photos — ${NAME}`,
-    description: `${NAME} の写真作品。`
+    title: `Street — ${NAME}`,
+    description: `${NAME} の写真作品（Street）。`
   },
-  // カテゴリ別の URL。ナビには出さず、Photos 内の切り替えから辿る
   {
     path: '/photos/abstract',
     label: null,

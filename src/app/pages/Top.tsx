@@ -39,7 +39,7 @@ export function Top() {
       <Page title={NAME}>
         <Text>street / architecture を撮っています。Web エンジニアでもあります。</Text>
         <Text>
-          <Link href="/photos">写真を見る</Link>
+          <Link href="/photos/street">写真を見る</Link>
           {' / '}
           <Link href="/works">撮影実績</Link>
           {' / '}

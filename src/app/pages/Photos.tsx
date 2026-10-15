@@ -6,7 +6,7 @@ import {Tabs, Underline} from '../Tabs'
 const LABEL: Record<Category, string> = {street: 'Street', abstract: 'Abstract', color: 'Color'}
 
 /**
- * 作品の一覧。カテゴリは URL（/photos/:category）で持ち、既定は street。
+ * 作品の一覧。カテゴリは URL（/photos/:category）で持つ。/photos は /photos/street へ転送する。
  * カテゴリの切り替えはフッターに置く（PhotoCategories）。
  * モノクロとカラーを同じ流れに混ぜないので「すべて」は置かない（docs/site.md）。
  */
@@ -30,7 +30,7 @@ export function Photos() {
  */
 export function PhotoCategories({current}: {current: Category}) {
   const items = CATEGORIES.map((c) => ({
-    href: c === 'street' ? '/photos' : `/photos/${c}`,
+    href: `/photos/${c}`,
     label: LABEL[c],
     current: c === current
   }))

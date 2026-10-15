@@ -1,5 +1,5 @@
 import {useEffect, useState} from 'preact/hooks'
-import {Route, Switch, useLocation} from 'wouter-preact'
+import {Redirect, Route, Switch, useLocation} from 'wouter-preact'
 import {Nav} from './Nav'
 import {Footer} from './Footer'
 import {Page} from './Page'
@@ -34,7 +34,11 @@ export function App() {
       <main data-page className="font-light">
         <Switch location={displayed}>
           <Route path="/" component={Top} />
-          <Route path="/photos/:category?" component={Photos} />
+          {/* 本番は Worker が転送する。開発中と、サイト内の履歴（戻る・進む）で来たとき用 */}
+          <Route path="/photos">
+            <Redirect to="/photos/street" replace />
+          </Route>
+          <Route path="/photos/:category" component={Photos} />
           <Route path="/works" component={Works} />
           <Route path="/about" component={About} />
           <Route path="/contact" component={Contact} />

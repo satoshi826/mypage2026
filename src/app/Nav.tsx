@@ -10,11 +10,12 @@ import {TabLink, Tabs, Underline} from './Tabs'
  */
 export function Nav() {
   const [location] = useLocation()
-  // Photos はカテゴリ別の URL（/photos/color など）でも選んでいる扱い
+  // 最初の区切りが同じなら選んでいる扱い。Photos はどのカテゴリ（/photos/color など）でも選んでいる
+  const section = (path: string) => path.split('/')[1]
   const items = NAV_ROUTES.map(({path, label}) => ({
     href: path,
     label: label!,
-    current: location === path || location.startsWith(`${path}/`)
+    current: section(location) === section(path)
   }))
 
   return (
