@@ -91,16 +91,12 @@ export function parseManifest(body: unknown): {photos: Photo[]} | {error: string
     if (!Number.isInteger(w) || !Number.isInteger(h) || (w as number) <= 0 || (h as number) <= 0)
       return {error: `${at}: invalid size`}
     if (!isCategory(category)) return {error: `${at}: invalid category`}
-    // 古い形（true / false）も読む。true は番号付きの写真の後ろに一覧の順で並べる。本番の一覧が新しい形に
-    // なったら（公開すると検証済みの形で書かれる）、この読み替えは消す
-    const legacy = hero === true || hero === false
-    if (hero !== undefined && !legacy && !(Number.isInteger(hero) && (hero as number) > 0))
+    if (hero !== undefined && !(Number.isInteger(hero) && (hero as number) > 0))
       return {error: `${at}: hero must be a positive integer`}
     if (typeof v !== 'string' || !VERSION.test(v)) return {error: `${at}: invalid v`}
     seen.add(file)
     const photo: Photo = {file, w: w as number, h: h as number, category, v}
-    if (hero === true) photo.hero = Number.MAX_SAFE_INTEGER - body.length + i
-    else if (!legacy && hero !== undefined) photo.hero = hero as number
+    if (hero !== undefined) photo.hero = hero as number
     photos.push(photo)
   }
   return {photos: renumberHero(photos)}

@@ -13,7 +13,7 @@ async function check(res: Response) {
   throw new Error(message)
 }
 
-/** 公開中の一覧。検証して、サイトが読むときと同じ形にそろえる（古い形の hero も番号になる） */
+/** 公開中の一覧。サイトが読むときと同じく検証する（hero の番号も 1 から詰まった形になる） */
 export async function fetchManifest(): Promise<Photo[]> {
   const res = await check(await fetch('/api/manifest', {cache: 'no-store'}))
   const result = parseManifest(await res.json())
