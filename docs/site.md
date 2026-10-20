@@ -26,7 +26,8 @@ hero の写真の横（狭い画面では下）には番号のカレンダーを
 ## 写真の管理
 
 正本は R2 の manifest.json。hero と Photos の両方がこれを実行時に読む。
-追加・入れ替えは管理画面 `/admin`（Cloudflare Access で保護、本人のメールのみ）。
+追加・入れ替え・並べ替え・カテゴリと hero の選択は、サイトの上で行う。`/admin`（Cloudflare Access で保護、
+本人のメールのみ）でログインすると、Photos とトップに編集の操作が出る。変更は下書きにためて「公開」で反映する。
 本番は R2・Access・Worker の secret まで設定済みで動いている。最初の移行は
 `scripts/encode-photos.mjs` と `scripts/sync-photos.mjs` で済ませた。
 

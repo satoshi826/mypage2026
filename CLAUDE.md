@@ -23,7 +23,8 @@ Vite + Preact 11 + TypeScript + [glaku](https://github.com/satoshi826/glaku)（W
   自動挿入、テクスチャの制約、Worker で使うときの注意など、毎回ハマる点が書いてある。
   glaku を触る前に読む。
 - **Cloudflare Workers に置く**（`wrangler.jsonc`）。静的アセットに加えて、写真の API を
-  `worker/` に持つ。写真の正本は R2 で、管理画面 `/admin` から入れ替える（README）。
+  `worker/` に持つ。写真の正本は R2 で、サイトの上で編集する（`/admin` でログインすると Photos とトップに
+  編集の操作が出る。編集用のコードはログイン中だけ動的 import する。README）。
 
 ## 注意
 
