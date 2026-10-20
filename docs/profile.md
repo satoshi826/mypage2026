@@ -7,6 +7,7 @@ About ページとサイトの meta 情報の元になる事実をまとめた�
 ## 基本
 
 - 名義: mu（Instagram・note）／ Satoshi Hata（1x・500px）
+- 本名の漢字: 端 智士（About の Name に出す）
 - 肩書き: street photographer / web developer（X のプロフィール）
 - Instagram のプロフィール文: "Street Photography / Minimal / Architecture, kanagawa, Japan"
 
@@ -44,11 +45,14 @@ About ページとサイトの meta 情報の元になる事実をまとめた�
     interplay of light and shadow, form and flow created by the city and its people in monochrome."
     About の英文ステートメントの材料になる
 - 2026 Tokyo International Foto Awards: 2026-09-30 応募済み、結果待ち
+- 1X アーティスト展 2026 に出展（グループ展、59 名）。2026-07-29〜08-04、ヒルトピア アートスクエア
+  （ヒルトン東京 B1F、新宿）、主催 1X Japan。https://1xjapan.co.jp/1x-artist-exhibition-2026/
 - 1x.com: PRO 会員（2020年6月〜）。審査通過の掲載作品 277枚、一部プリント販売あり。
   作品タイトル例: hole, spiral, perspective, connection, skyscraper, umbrella, stairs,
   curves, Shinjuku, escalation
-- Web の写真誌でインタビューを受けたことがある（本人談）。媒体名・URL・時期は未確認。
-  **サイトに載せる前に本人に確認する**
+- 2020 Photography Masterclass Magazine Issue 97 でインタビューを受けた（本人に確認済み）。
+  号のページ: https://photographymc.com/issues/issue-97 （"an in-depth interview with Japanese Street
+  photographer, Satoshi Hata" とある）
 
 ## アカウント
 
@@ -58,5 +62,5 @@ About ページとサイトの meta 情報の元になる事実をまとめた�
 | X | https://x.com/stosto826 | フォロワー 1,759 |
 | note | https://note.com/mu826 | 写真論のエッセイ |
 | 1x | https://1x.com/satoshi826 | PRO |
-| 500px | https://500px.com/p/satoshi826 | |
+| 500px | https://500px.com/p/satoshi826 | About には載せない |
 | Threads | 未確認 | |

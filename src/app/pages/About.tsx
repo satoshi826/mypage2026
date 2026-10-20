@@ -9,8 +9,7 @@ const LINKS = [
   ['Instagram', INSTAGRAM],
   ['X', X],
   ['note', 'https://note.com/mu826'],
-  ['1x', 'https://1x.com/satoshi826'],
-  ['500px', 'https://500px.com/p/satoshi826']
+  ['1x', 'https://1x.com/satoshi826']
 ] as const
 
 // 作品名は出さない。賞名のリンク先は代表する1点の公式ページ
@@ -29,6 +28,19 @@ const AWARDS = [
   ]
 ] as const
 
+const EXHIBITIONS = [
+  [
+    '2026',
+    '1X Artist Exhibition 2026',
+    'Group exhibition, Hiltopia Art Square, Tokyo',
+    'https://1xjapan.co.jp/1x-artist-exhibition-2026/'
+  ]
+] as const
+
+const PRESS = [
+  ['2020', 'Photography Masterclass Magazine', 'Issue 97, Interview', 'https://photographymc.com/issues/issue-97']
+] as const
+
 export function About() {
   return (
     <Page title="About">
@@ -41,6 +53,8 @@ export function About() {
 
       <Section label="Profile">
         <Row label="Name">
+          端 智士
+          <br />
           Satoshi Hata <span className="opacity-55">/ mu</span>
         </Row>
         <Row label="Based in">Kanagawa, Japan</Row>
@@ -49,25 +63,15 @@ export function About() {
       </Section>
 
       <Section label="Awards">
-        {AWARDS.map(([year, name, result, href]) => (
-          <Row key={name} label={year}>
-            <a href={href} target="_blank" rel="noreferrer" className="no-underline hover:underline">
-              {name}
-            </a>{' '}
-            <span className="opacity-55">— {result}</span>
-          </Row>
-        ))}
+        <Entries items={AWARDS} />
       </Section>
 
-      <Section label="Equipment">
-        <Row label="Camera">Sony α7R II</Row>
-        <Row label="Lens">
-          Voigtländer NOKTON 50mm F1.5
-          <br />
-          Voigtländer SUPER WIDE-HELIAR 15mm F4.5
-          <br />
-          Minolta M-Rokkor 90mm F4
-        </Row>
+      <Section label="Exhibitions">
+        <Entries items={EXHIBITIONS} />
+      </Section>
+
+      <Section label="Press">
+        <Entries items={PRESS} />
       </Section>
 
       <Section label="Links">
@@ -90,6 +94,18 @@ function Section({label, children}: {label: string; children: ComponentChildren}
       <dl className="m-0 grid grid-cols-[7rem_1fr] gap-x-6 gap-y-3 max-sm:grid-cols-[5.5rem_1fr]">{children}</dl>
     </section>
   )
+}
+
+/** 年・名前（公式ページへのリンク）・結果の並び */
+function Entries({items}: {items: readonly (readonly [string, string, string, string])[]}) {
+  return items.map(([year, name, result, href]) => (
+    <Row key={name} label={year}>
+      <a href={href} target="_blank" rel="noreferrer" className="no-underline hover:underline">
+        {name}
+      </a>{' '}
+      <span className="opacity-55">— {result}</span>
+    </Row>
+  ))
 }
 
 function Row({label, children}: {label: string; children: ComponentChildren}) {
