@@ -21,5 +21,11 @@
   // 写真の置き場。原本・派生画像・manifest.json をすべてここに置く
   // 認証に使う変数は wrangler.jsonc に書かず、dashboard の Variables か wrangler secret で入れる
   // （worker/env.d.ts）。未設定だと localhost からの書き込みだけ通す（wrangler dev 用）。
-  "r2_buckets": [{"binding": "PHOTOS", "bucket_name": "mypage2026-photos"}]
+  "r2_buckets": [{"binding": "PHOTOS", "bucket_name": "mypage2026-photos"}],
+  // サイトの住所。DNS の記録と証明書は Cloudflare が作る。www から mu826.com への転送は dashboard の
+  // Redirect Rules で行う（静的ファイルは Worker を通らないので、Worker では転送しきれない）
+  "routes": [
+    {"pattern": "mu826.com", "custom_domain": true},
+    {"pattern": "www.mu826.com", "custom_domain": true}
+  ]
 }

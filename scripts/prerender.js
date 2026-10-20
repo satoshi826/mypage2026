@@ -22,7 +22,7 @@ const vite = await createServer({root, mode: 'production', appType: 'custom', se
 
 try {
   const {render} = await vite.ssrLoadModule('/src/entry-server.tsx')
-  const {ROUTES, NAME} = await vite.ssrLoadModule('/src/app/routes.ts')
+  const {ROUTES, NAME, ORIGIN} = await vite.ssrLoadModule('/src/app/routes.ts')
   const template = await readFile(join(dist, 'index.html'), 'utf8')
   const hints = await preloadHints()
 
@@ -44,6 +44,8 @@ try {
     const head = [
       `<title>${escapeHtml(title)}</title>`,
       `<meta name="description" content="${escapeHtml(description)}">`,
+      // どこにも当たらないパス（404）には正式な住所がない
+      ...(path === '/404' ? [] : [`<link rel="canonical" href="${ORIGIN}${path}">`]),
       ...fonts,
       ...hints(path)
     ].join('\n    ')

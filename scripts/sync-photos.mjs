@@ -38,7 +38,7 @@ import {fileURLToPath} from 'node:url'
 import {readVariants} from './variants.mjs'
 
 const LOCAL = process.env.LOCAL_API ?? 'http://localhost:8787'
-const SITE = process.env.SITE ?? 'https://mypage2026.stosto826.workers.dev'
+const SITE = process.env.SITE ?? 'https://mu826.com'
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const PHOTOS_DIR = join(ROOT, '.photos')
 const BUCKET = 'mypage2026-photos'

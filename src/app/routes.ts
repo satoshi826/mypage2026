@@ -11,6 +11,12 @@ type RouteDef = {
 
 export const NAME = 'Satoshi Hata'
 
+/**
+ * サイトの正式な住所。各ページの canonical に使う（scripts/prerender.js）。ほかの住所（workers.dev）で
+ * 開かれても、検索ではここにまとめられる
+ */
+export const ORIGIN = 'https://mu826.com'
+
 export const ROUTES: RouteDef[] = [
   {
     path: '/',
