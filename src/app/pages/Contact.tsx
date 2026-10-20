@@ -1,6 +1,6 @@
 import {Heading, Page, Text} from '../Page'
 
-const EMAIL = 'stosto826@gmail.com'
+const EMAIL = 'hello@mu826.com'
 
 // ジャンルは絞らず、作品と撮影実績を見て依頼が来ることを期待する（docs/site.md 参照）。
 // 料金・流れ・フォームは載せない。

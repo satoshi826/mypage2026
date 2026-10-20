@@ -22,7 +22,7 @@
   // 認証に使う変数は wrangler.jsonc に書かず、dashboard の Variables か wrangler secret で入れる
   // （worker/env.d.ts）。未設定だと localhost からの書き込みだけ通す（wrangler dev 用）。
   "r2_buckets": [{"binding": "PHOTOS", "bucket_name": "mypage2026-photos"}],
-  // 住所を割り当てると workers.dev は既定で止まる。古いリンクと、Access の移行が済むまでの /admin のために残す
+  // 住所を割り当てると workers.dev は既定で止まる。workers.dev でも開けるように残す
   // （各ページの canonical は mu826.com なので、検索では mu826.com にまとまる）
   "workers_dev": true,
   // サイトの住所。DNS の記録と証明書は Cloudflare が作る。www から mu826.com への転送は dashboard の
