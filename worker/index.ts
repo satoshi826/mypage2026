@@ -1,4 +1,4 @@
-// 写真の API。R2 に置いた原本・派生画像・manifest.json を読み書きする。
+// サイトの API。R2 に置いた原本・派生画像・manifest.json の読み書きと、問い合わせフォームの受け口。
 // 静的ファイルの配信は wrangler.jsonc の assets が担い、/api と /images だけここへ来る。
 //
 // | メソッド | パス                      | 認証 | 内容 |
@@ -6,6 +6,7 @@
 // | GET      | /api/manifest             | なし | 写真の一覧 |
 // | PUT      | /api/manifest             | 要   | 一覧を丸ごと置き換える |
 // | GET      | /api/session              | 要   | ログイン中なら 204。サイトの上での編集（src/editor）を出すかを決める |
+// | POST     | /api/contact              | Turnstile | 問い合わせフォームの内容をメールで送る（contact.ts） |
 // | GET      | /images/{kind}/{name}     | originals のみ要 | 画像。kind は派生の段（manifest.ts の VARIANTS）/ originals |
 // | PUT      | /images/{kind}/{name}     | 要   | 画像を置く。body がそのまま R2 へ |
 // | DELETE   | /images/{kind}/{name}     | 要   | 画像を消す |
@@ -17,6 +18,7 @@
 // 取り始めさせる。どの写真かは一覧（R2）で決まるので、ビルド時には出せない。
 
 import {authorize} from './access'
+import {contact} from './contact'
 import {
   EAGER_THUMBS,
   heroesOf,
@@ -55,6 +57,11 @@ export default {
       return (
         (await authorize(request, env)) ?? new Response(null, {status: 204, headers: {'cache-control': 'no-store'}})
       )
+    }
+
+    if (parts[0] === 'api' && parts[1] === 'contact' && parts.length === 2) {
+      if (request.method !== 'POST') return error(405, 'method not allowed')
+      return contact(request, env)
     }
 
     if (parts[0] === 'api' && parts[1] === 'manifest' && parts.length === 2) {

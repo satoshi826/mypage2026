@@ -22,6 +22,11 @@
   // 認証に使う変数は wrangler.jsonc に書かず、dashboard の Variables か wrangler secret で入れる
   // （worker/env.d.ts）。未設定だと localhost からの書き込みだけ通す（wrangler dev 用）。
   "r2_buckets": [{"binding": "PHOTOS", "bucket_name": "mypage2026-photos"}],
+  // 問い合わせフォーム（worker/contact.ts）のメール。送れるのは Email Routing で確認済みの送り先だけで、
+  // そこへは無料で送れる。wrangler dev では送らずに中身をファイルへ書き出す
+  "send_email": [{"name": "MAIL"}],
+  // フォームを同じ IP から送れる回数（60 秒に 3 回）
+  "ratelimits": [{"name": "CONTACT_LIMIT", "namespace_id": "1001", "simple": {"limit": 3, "period": 60}}],
   // 住所を割り当てると workers.dev は既定で止まる。workers.dev でも開けるように残す
   // （各ページの canonical は mu826.com なので、検索では mu826.com にまとまる）
   "workers_dev": true,
@@ -30,5 +35,8 @@
   "routes": [
     {"pattern": "mu826.com", "custom_domain": true},
     {"pattern": "www.mu826.com", "custom_domain": true}
-  ]
+  ],
+  // wrangler dev は既定で、要求の URL を最初の住所（mu826.com）に書き換える。localhost のままにして、
+  // 認証の変数が無いときに localhost だけ通す判定（worker/access.ts・worker/contact.ts）を効かせる
+  "dev": {"host": "localhost"}
 }

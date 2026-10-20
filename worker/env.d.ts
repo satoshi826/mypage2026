@@ -5,4 +5,6 @@ interface Env {
   ACCESS_TEAM_DOMAIN?: string
   /** Access アプリケーションの Audience タグ */
   ACCESS_AUD?: string
+  /** Turnstile（問い合わせフォームの自動送信対策）の secret key */
+  TURNSTILE_SECRET?: string
 }

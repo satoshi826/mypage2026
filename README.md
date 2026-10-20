@@ -172,7 +172,7 @@ worker/     Cloudflare Worker（写真の API）
 | `gallery/reveal.ts` | 視界に入った要素を現す演出（`data-reveal`）。見た目は `styles.css` |
 | `photos/index.ts`   | 写真一覧の取得（`/api/manifest`）と、派生画像の URL |
 | `editor/`           | サイトの上での編集。操作バー、下書きと公開、派生画像の生成、API の呼び出し。ログイン中だけ読み込む |
-| `worker/`           | Cloudflare Worker。写真の API と Access の検証 |
+| `worker/`           | Cloudflare Worker。写真の API と Access の検証、問い合わせフォームの受け口（`contact.ts`） |
 | `scripts/encode-photos.mjs` | 原本（`.photos/originals/`）から派生画像を `.photos/` に書き出し、manifest.json を更新する（移行と作り直し用） |
 | `scripts/sync-photos.mjs` | 写真を `.photos/` → ローカル、本番 ⇄ ローカルで動かす。作り直しの前に本番の一覧と原本を手元に揃える |
 | `scripts/prerender.js` | ビルド後に各ルートを HTML 化する |
@@ -206,6 +206,11 @@ Worker には `requestAnimationFrame` がないため、駆動はメインスレ
 API は `worker/index.ts`。読み取りは誰でも、書き込みと原本の取得は Cloudflare Access の
 JWT を検証する（`worker/access.ts`）。`ACCESS_TEAM_DOMAIN` と `ACCESS_AUD` が未設定なら
 localhost からの書き込みだけ通す（wrangler dev 用）。
+
+問い合わせフォーム（`src/app/pages/ContactForm.tsx`）は `POST /api/contact` へ送り、Worker が Turnstile の
+答えを確かめてから本人の Gmail へメールで送る（`worker/contact.ts`、送信は `send_email` の binding）。
+`TURNSTILE_SECRET` が未設定なら localhost からだけ確かめずに通す。wrangler dev ではメールを送らず、
+中身を一時ファイルに書き出す。
 
 派生の段（長辺と画質）は `src/photos/manifest.ts` の `VARIANTS` が唯一の定義で、表示・Worker・管理画面・
 スクリプトがここを読む。写真ごとに、一覧は「表示幅 × 画面の密度 × 1.5」、拡大は「表示幅 × 画面の密度」以上で
@@ -327,4 +332,8 @@ build では生成しない。生成は workerd を起動し、Cloudflare のビ
    Audience タグ）を Worker の secret に入れる（`wrangler secret put`）。dashboard の
    plain-text 変数は `wrangler deploy` で消えるので secret にする。
    未設定のままだと本番の書き込みはすべて 503 になる。
-5. `npm run deploy`。
+5. Email Routing を mu826.com で有効にし、`hello@mu826.com` を Gmail へ転送するルールを作る。
+   Gmail は転送先として確認済みにしておく（問い合わせフォームもこのアドレスにしか送れない）。
+6. Turnstile のウィジェットを作り（住所は mu826.com と workers.dev）、Site Key を
+   `src/app/pages/ContactForm.tsx` に、Secret Key を Worker の secret `TURNSTILE_SECRET` に入れる。
+7. `npm run deploy`。
