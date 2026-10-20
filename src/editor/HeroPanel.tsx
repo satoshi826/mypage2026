@@ -203,7 +203,7 @@ function Panel() {
               style={{width: `${THUMB}px`}}
             >
               <img src={thumb(photo)} alt="" draggable={false} className="block aspect-3/2 w-full object-cover" />
-              <span className="absolute top-1 left-1 bg-black/70 px-1 font-number text-[10px]">
+              <span className="absolute top-1 left-1 bg-black/70 px-1 text-[10px]">
                 {String(i + 1).padStart(2, '0')}
               </span>
               <button
@@ -241,7 +241,7 @@ function Panel() {
             >
               <img src={thumb(photo)} alt="" loading="lazy" className="block aspect-3/2 w-full object-cover" />
               {rank >= 0 && (
-                <span className="absolute top-1 left-1 bg-black/70 px-1 font-number text-[10px]">
+                <span className="absolute top-1 left-1 bg-black/70 px-1 text-[10px]">
                   {String(rank + 1).padStart(2, '0')}
                 </span>
               )}

@@ -16,20 +16,9 @@
   /* 固定フッターの高さ（iPhone のホームインジケータのぶんは含まない）。hero と Photos が重なりを避ける */
   --spacing-footer: 3.25rem;
 
-  /* サイトの書体。名前（ナビの mu）以外はすべてこれ。太さは 300 と 400 だけ使う。
+  /* サイトの書体。太さは 300 と 400 だけ使う。
      本番は出てくる文字だけに絞ったものをビルドが差し込み（scripts/fonts.js）、開発中は src/dev-fonts.css */
   --font-sans: 'Zen Kaku Gothic New', system-ui, sans-serif;
-  /* ナビの名前（mu）に使う書体 */
-  --font-number: 'F1.8', var(--font-sans);
-}
-
-/* 絞り値を模した数字が特徴の書体（Sora Sagano, 2021）。ナビの名前（mu）に使う */
-@font-face {
-  font-family: 'F1.8';
-  src: url('./assets/F1.8-Regular.otf') format('opentype');
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
 }
 
 /* 画面が狭いときのトークン上書き。utility 側は var を参照しているのでこれだけで効く */

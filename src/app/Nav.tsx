@@ -1,9 +1,10 @@
-import {useLocation} from 'wouter-preact'
+import {Link, useLocation} from 'wouter-preact'
+import {Logo} from './Logo'
 import {NAV_ROUTES} from './routes'
-import {TabLink, Tabs, Underline} from './Tabs'
+import {Tabs, Underline} from './Tabs'
 
 /**
- * 固定ナビ。左に名前（mu、トップへのリンク）、右にページのリンク。選んでいるページの下に線を引き、
+ * 固定ナビ。左にロゴ（トップへのリンク）、右にページのリンク。選んでいるページの下に線を引き、
  * ページを移ると線が滑って移る（Tabs.tsx の Underline）。トップでは線を出さない。hero が主役で、
  * どのページにいるかを示す必要が薄いため。トップと他のページのあいだでは、線がその場で点へ縮んで
  * 消え、点から伸びて現れる
@@ -20,14 +21,16 @@ export function Nav() {
 
   return (
     <nav className="fixed top-0 right-[env(safe-area-inset-right)] left-[env(safe-area-inset-left)] z-10 box-border flex h-(--spacing-nav) items-stretch justify-between gap-4 border-b border-white/10 bg-black/60 px-8 backdrop-blur-[12px] max-sm:px-5">
-      <TabLink
+      <Link
         href="/"
-        label="mu"
-        current={false}
-        // pt は F1.8 の字面がリンクより高く見えるぶん、名前だけ少し下げるため
-        className="pt-1 font-number text-sm tracking-[0.12em] max-sm:text-xs"
-      />
-      {/* 狭い画面では名前とリンクが1行に収まらず、ナビが2行に伸びて
+        aria-label="mu"
+        // pt-px で中身の高さを偶数にし、ロゴを画素にそろえる（ナビの下の線 1px のぶん奇数になり、半画素に
+        // かかってにじむ）。上に足して、ロゴの中心を下の線まで含めたナビの高さの中央に置く
+        className="flex items-center pt-px opacity-90 transition-opacity duration-300 hover:opacity-100 focus-visible:opacity-100"
+      >
+        <Logo />
+      </Link>
+      {/* 狭い画面ではロゴとリンクが1行に収まらず、ナビが2行に伸びて
           --spacing-nav とずれる。360px で収まるところまで詰める */}
       <Tabs items={items} className="font-light" />
       <Underline current={location} />
