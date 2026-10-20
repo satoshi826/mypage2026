@@ -36,5 +36,5 @@ hero の写真の横（狭い画面では下）には番号のカレンダーを
 - abstract の振り分け（manifest.json を編集）
 - works に載せる写真
 - about のステートメント、インタビュー掲載の媒体名
-- 独自ドメインは mu.photo。購入と切り替え（DNS を Cloudflare へ、Worker・Access・メールの転送）が残り
+- 独自ドメインは mu826.com（Cloudflare で登録）。購入と切り替え（Worker・Access・メールの転送）が残り
 - ファビコンの本番版
