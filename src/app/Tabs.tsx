@@ -9,7 +9,7 @@ const OVERHANG = 4
 export type Tab = {href: string; label: string; current: boolean}
 
 /**
- * Tabs のリンク 1 つ。押せる範囲はバーの高さいっぱい。文字の濃さは 90%、
+ * Tabs のリンク 1 つ。押せる範囲はバーの高さいっぱい。文字の濃さは 75%、
  * ホバーで 100%。選んでいるかどうかは文字では示さず、入れ物の Underline が下線で示す
  */
 function TabLink({href, label, current}: Tab) {
@@ -17,7 +17,7 @@ function TabLink({href, label, current}: Tab) {
     <Link
       href={href}
       aria-current={current ? 'page' : undefined}
-      className="flex items-center justify-center no-underline opacity-90 transition-opacity duration-300 hover:opacity-100 focus-visible:opacity-100"
+      className="flex items-center justify-center no-underline opacity-75 transition-opacity duration-300 hover:opacity-100 focus-visible:opacity-100"
     >
       {/* バーの中央からわずかに上げる。下線は文字の実寸から測るので一緒に上がる */}
       <span className="-translate-y-0.5">{label}</span>
