@@ -44,11 +44,8 @@ const PRESS = [
 export function About() {
   return (
     <Page title="About">
-      <p className="mb-4 max-w-3xl text-[1.5rem]/[1.6] tracking-[0.02em] max-sm:text-xl">
+      <p className="mb-24 max-w-3xl text-[1.5rem]/[1.6] tracking-[0.02em] max-sm:text-xl">
         目に見えている景色と、脳が見ているつもりの景色の差を探して、街を撮っています。光そのものは写らないので、影と明暗と質感を通して撮ります。
-      </p>
-      <p className="mb-24 max-w-3xl text-sm opacity-55">
-        Looking for the gap between what the eye sees and what the mind thinks it sees.
       </p>
 
       <Section label="Profile">
