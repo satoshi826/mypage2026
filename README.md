@@ -91,6 +91,8 @@ local    = easeInOut((u_phase - delay) / (1 - u_staggerTotal), u_easePower)
 トップの HTML には hero のチャンクと一覧の先読み、worker のスクリプトと最初の写真の
 prefetch が入る（`scripts/prerender.js`、`worker/index.ts`）。JS の起動と並行して
 後ろの段を取り始めるため。Photos も同じく、一覧の先読みと最初の数枚の preload が入る。
+HTML に埋め込む写真の一覧は、R2 ではなく Cloudflare のキャッシュ（データセンターごとに 60 秒）から読む。
+公開するとそのデータセンターの分を消す。
 
 ## 自動再生
 
@@ -175,7 +177,8 @@ worker/     Cloudflare Worker（写真の API）
 | `worker/`           | Cloudflare Worker。写真の API と Access の検証、問い合わせフォームの受け口（`contact.ts`） |
 | `scripts/encode-photos.mjs` | 原本（`.photos/originals/`）から派生画像を `.photos/` に書き出し、manifest.json を更新する（移行と作り直し用） |
 | `scripts/sync-photos.mjs` | 写真を `.photos/` → ローカル、本番 ⇄ ローカルで動かす。作り直しの前に本番の一覧と原本を手元に揃える |
-| `scripts/prerender.js` | ビルド後に各ルートを HTML 化する |
+| `scripts/prerender.js` | ビルド後に各ルートを HTML 化する。CSS は読み込みの往復を減らすため `<style>` で埋め込む |
+| `index.html` | ページの雛形。初めて開いたとき（タブごとに 1 回）のスプラッシュを HTML と CSS だけで持つ。JS を待たずに動き、ロゴが組み上がってナビのロゴへ移る |
 | `scripts/fonts.js` | 本文の書体（Zen Kaku Gothic New）を、プリレンダした全ページに出てくる文字と英数字だけに絞って woff2 にし、各ページの先頭で先読みさせる。元のフォントは `fonts/`（OFL）。開発中は絞らずに `src/dev-fonts.css` で読む |
 
 Worker には `requestAnimationFrame` がないため、駆動はメインスレッドの rAF から。
