@@ -1,4 +1,4 @@
-import {useCallback, useEffect, useMemo, useRef, useState} from 'preact/hooks'
+import {useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState} from 'preact/hooks'
 import {useCanvas, useCanvasResize, useAnimationFrame} from './useCanvas'
 import {
   advance,
@@ -334,12 +334,20 @@ function fitPhoto({width, height}: {width: number; height: number}, takenX: numb
   return {width: fitted, height: Math.round(fitted / ASPECT)}
 }
 
-/** 要素のコンテンツ領域（padding を除いた大きさ）を測る */
+/**
+ * 要素のコンテンツ領域（padding を除いた大きさ）を測る。最初の 1 回は描く前に測る。描いたあとに測ると、
+ * 最初の 1 枚だけ写真の枠が大きさ 0 で描かれ、縦並びではカレンダーが中央から写真の下へずれる（レイアウトのずれ）
+ */
 function useContentRect(ref: {current: HTMLElement | null}) {
   const [size, setSize] = useState({width: 0, height: 0})
-  useEffect(() => {
+  useLayoutEffect(() => {
     const el = ref.current
     if (!el) return
+    const style = getComputedStyle(el)
+    setSize({
+      width: el.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight),
+      height: el.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom)
+    })
     const observer = new ResizeObserver(([entry]) => {
       const {width, height} = entry.contentRect
       setSize({width, height})

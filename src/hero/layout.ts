@@ -67,7 +67,10 @@ export const LAYOUT_PRESETS: Record<Direction, Layout> = {stacked: STACKED_LAYOU
 export type Tone = {
   /** 選択中の数字の濃さ % */
   activeOpacity: number
-  /** 非選択の数字の濃さ %。読み込み前の番号はこの 3 割 */
+  /**
+   * 非選択の数字の濃さ %。読み込み前の番号はこの 3 割。45 未満にすると、地との明るさの比が文字の基準（4.5）を
+   * 下回る（Lighthouse のアクセシビリティで減点される）
+   */
   idleOpacity: number
   /** 選択中を囲む丸の線の濃さ % */
   markerOpacity: number
@@ -75,7 +78,7 @@ export type Tone = {
 
 export const TONE: Tone = {
   activeOpacity: 100,
-  idleOpacity: 40,
+  idleOpacity: 50,
   markerOpacity: 60
 }
 

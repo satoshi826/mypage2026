@@ -23,7 +23,7 @@ const vite = await createServer({root, mode: 'production', appType: 'custom', se
 try {
   const {render} = await vite.ssrLoadModule('/src/entry-server.tsx')
   const {ROUTES, NAME, ORIGIN} = await vite.ssrLoadModule('/src/app/routes.ts')
-  const template = await readFile(join(dist, 'index.html'), 'utf8')
+  const template = await inlineStyles(await readFile(join(dist, 'index.html'), 'utf8'))
   const hints = await preloadHints()
 
   // どのルートにも当たらないパス用は 404.html。Cloudflare の not_found_handling がこれを返す
@@ -59,6 +59,20 @@ try {
   }
 } finally {
   await vite.close()
+}
+
+/**
+ * Vite が書き出した CSS の読み込み（<link rel="stylesheet">）を、中身の <style> に置き換える。外部ファイルのままだと、
+ * HTML が届いたあとにもう 1 往復待ってから描き始めることになり、遅い回線では最初の描画が 0.4 秒ほど遅れる。
+ * CSS は gzip 後 7KB ほどなので、ページごとに持たせても重くない
+ */
+async function inlineStyles(html) {
+  const links = [...html.matchAll(/<link rel="stylesheet"[^>]*href="([^"]+)"[^>]*>/g)]
+  for (const [tag, href] of links) {
+    const css = await readFile(join(dist, href), 'utf8')
+    html = html.replace(tag, () => `<style>${css}</style>`)
+  }
+  return html
 }
 
 /**
