@@ -5,9 +5,105 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <style>html,body {margin: 0; padding: 0; background: #101010;}</style>
+    <!-- 初めて開いたときのスプラッシュ。ロゴ（src/app/Logo.tsx）が 12 の格子から組み上がり、ナビの位置へ移る。
+         JS を待たずに最初の描画から動かすため、HTML と CSS だけで書いてここに置く。そのあいだに裏で JS と写真を読む。
+         訪問ごと（タブごと）に 1 回だけ出し、同じタブの再読み込みでは出さない。動きを減らす設定の人には出さない。
+         画面を触ると飛ばす -->
+    <script>
+      try {
+        if (!sessionStorage.getItem('mypage2026.splash') && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+          sessionStorage.setItem('mypage2026.splash', '1')
+          document.documentElement.classList.add('splash')
+        }
+      } catch {
+        // 残せない環境では毎回出てしまうので、出さない
+      }
+    </script>
+    <style>
+      html:not(.splash) #splash {display: none;}
+      /* 時間はすべて、試作で決めた長さを 0.6 倍の速さに延ばしたもの */
+      #splash {
+        --slow: calc(1 / 0.6);
+        --ease: cubic-bezier(0.33, 1, 0.68, 1);
+        /* 移る先。ナビのロゴの位置（ナビの左の余白と、ナビの高さの中央）。src/app/Nav.tsx */
+        --to-x: calc(32px + env(safe-area-inset-left));
+        --to-y: 15px;
+        position: fixed;
+        inset: 0;
+        z-index: 100;
+        animation: splash-end 0s calc(2140ms * var(--slow)) forwards;
+      }
+      @media (max-width: 640px) {#splash {--to-y: 11px;}}
+      @media (max-width: 639.98px) {#splash {--to-x: calc(20px + env(safe-area-inset-left));}}
+      #splash .veil {position: absolute; inset: 0; background: #101010; animation: splash-veil calc(480ms * var(--slow)) linear calc(1660ms * var(--slow)) both;}
+      #splash svg {position: absolute; top: 0; left: 0; transform-origin: 0 0; animation: splash-move calc(520ms * var(--slow)) var(--ease) calc(1560ms * var(--slow)) both;}
+      #splash rect {transform-box: fill-box;}
+      #splash .face {fill: #fdfdfd; transform-origin: center; animation: splash-grow calc(380ms * var(--slow)) var(--ease) both;}
+      #splash .cut {fill: #101010; transform-origin: bottom; animation: splash-cut calc(320ms * var(--slow)) var(--ease) calc(var(--t) * var(--slow)) both;}
+      #splash .groove {transform-origin: top;}
+      /* 区切り線。入るときと同じ向きに走り抜けて消える */
+      #splash .v, #splash .h {fill: #101010;}
+      #splash .v {animation: splash-v-in calc(280ms * var(--slow)) var(--ease) calc((300ms + var(--i) * 20ms) * var(--slow)) both, splash-v-out calc(260ms * var(--slow)) var(--ease) calc((1150ms + var(--i) * 20ms) * var(--slow)) forwards;}
+      #splash .h {animation: splash-h-in calc(280ms * var(--slow)) var(--ease) calc((480ms + var(--i) * 60ms) * var(--slow)) both, splash-h-out calc(260ms * var(--slow)) var(--ease) calc((1210ms + var(--i) * 60ms) * var(--slow)) forwards;}
+      /* 移ってきたロゴと入れ替わるまで、ナビのロゴは隠しておく */
+      .splash [data-logo] svg {animation: splash-show 0s calc(2080ms * var(--slow, 1.6667)) both;}
+      .splash-skip #splash {opacity: 0; transition: opacity 300ms linear;}
+      .splash-skip [data-logo] svg {animation: none;}
+      @keyframes splash-grow {from {transform: scale(0);} to {transform: scale(1);}}
+      @keyframes splash-cut {from {transform: scaleY(0);} to {transform: scaleY(1);}}
+      @keyframes splash-v-in {from {transform: scaleY(0); transform-origin: top;} to {transform: scaleY(1); transform-origin: top;}}
+      @keyframes splash-v-out {from {transform: scaleY(1); transform-origin: bottom;} to {transform: scaleY(0); transform-origin: bottom;}}
+      @keyframes splash-h-in {from {transform: scaleX(0); transform-origin: left;} to {transform: scaleX(1); transform-origin: left;}}
+      @keyframes splash-h-out {from {transform: scaleX(1); transform-origin: right;} to {transform: scaleX(0); transform-origin: right;}}
+      @keyframes splash-move {
+        from {transform: translate(calc(50vw - 84px), calc(50svh - 77px)) scale(1); opacity: 1;}
+        to {transform: translate(var(--to-x), var(--to-y)) scale(calc(1 / 7)); opacity: 0.8;}
+      }
+      @keyframes splash-veil {from {opacity: 1;} to {opacity: 0;}}
+      @keyframes splash-end {to {visibility: hidden;}}
+      @keyframes splash-show {from {opacity: 0;} to {opacity: 1;}}
+    </style>
     <title>mypage2026</title>
   </head>
   <body>
+    <div id="splash" aria-hidden="true">
+      <div class="veil"></div>
+      <!-- 横を 12 等分した格子の 1 マスが 14px。ナビの 24×22（1 マス 2px）へ 1/7 に縮んで重なる -->
+      <svg viewBox="0 0 168 154" width="168" height="154">
+        <rect class="face" width="168" height="154" />
+        <rect class="cut" style="--t: 640ms" x="28" y="28" width="14" height="126" />
+        <rect class="cut" style="--t: 760ms" x="70" y="28" width="14" height="126" />
+        <rect class="cut groove" style="--t: 880ms" x="112" y="0" width="28" height="126" />
+        <rect class="v" style="--i: 0" x="13.5" width="1" height="154" />
+        <rect class="v" style="--i: 1" x="27.5" width="1" height="154" />
+        <rect class="v" style="--i: 2" x="41.5" width="1" height="154" />
+        <rect class="v" style="--i: 3" x="55.5" width="1" height="154" />
+        <rect class="v" style="--i: 4" x="69.5" width="1" height="154" />
+        <rect class="v" style="--i: 5" x="83.5" width="1" height="154" />
+        <rect class="v" style="--i: 6" x="97.5" width="1" height="154" />
+        <rect class="v" style="--i: 7" x="111.5" width="1" height="154" />
+        <rect class="v" style="--i: 8" x="125.5" width="1" height="154" />
+        <rect class="v" style="--i: 9" x="139.5" width="1" height="154" />
+        <rect class="v" style="--i: 10" x="153.5" width="1" height="154" />
+        <rect class="h" style="--i: 0" y="27.5" width="168" height="1" />
+        <rect class="h" style="--i: 1" y="125.5" width="168" height="1" />
+      </svg>
+    </div>
+    <script>
+      // 終わったら片付ける。画面を触ったら、その場で薄くして飛ばす
+      if (document.documentElement.classList.contains('splash')) {
+        const root = document.documentElement
+        const done = () => root.classList.remove('splash', 'splash-skip')
+        const timer = setTimeout(done, 2140 / 0.6)
+        const skip = () => {
+          clearTimeout(timer)
+          root.classList.add('splash-skip')
+          setTimeout(done, 300)
+        }
+        addEventListener('pointerdown', skip, {once: true})
+        addEventListener('keydown', skip, {once: true})
+      }
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

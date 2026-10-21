@@ -24,6 +24,8 @@ export function Nav() {
       <Link
         href="/"
         aria-label="mu"
+        // 初めて開いたときのスプラッシュ（index.html）が、ロゴを移し終えるまでここを隠す
+        data-logo
         // pt-px で中身の高さを偶数にし、ロゴを画素にそろえる（ナビの下の線 1px のぶん奇数になり、半画素に
         // かかってにじむ）。上に足して、ロゴの中心を下の線まで含めたナビの高さの中央に置く
         className="flex items-center pt-px opacity-80 transition-opacity duration-300 hover:opacity-100 focus-visible:opacity-100"
