@@ -42,14 +42,14 @@ const json = (body: unknown, init: ResponseInit = {}) =>
 const error = (status: number, message: string) => json({error: message}, {status})
 
 export default {
-  async fetch(request, env): Promise<Response> {
+  async fetch(request, env, ctx): Promise<Response> {
     const url = new URL(request.url)
     const parts = url.pathname.split('/').filter(Boolean)
 
     if ((parts.length === 0 || parts[0] === 'photos') && (request.method === 'GET' || request.method === 'HEAD')) {
       // Photos はカテゴリ別の URL。カテゴリの無い /photos は street へ（恒久的な転送）
       if (parts.length === 1) return Response.redirect(new URL(`/photos/street${url.search}`, url).href, 308)
-      return pageWithHints(request, env, parts)
+      return pageWithHints(request, env, ctx, parts)
     }
 
     if (parts[0] === 'api' && parts[1] === 'session' && parts.length === 2) {
@@ -88,10 +88,25 @@ export default {
   }
 } satisfies ExportedHandler<Env>
 
-async function photosOf(env: Env): Promise<Photo[]> {
-  const object = await env.PHOTOS.get('manifest.json')
-  if (!object) return []
-  const result = parseManifest(await object.json())
+/**
+ * ページに埋め込む写真の一覧を置いておくキャッシュ（Cloudflare のデータセンターごと）のキー。R2 から読むと
+ * 応答が 0.1 秒ほど遅れるので、トップと Photos の HTML はここから読む。公開したら消す（putManifest）。
+ * ほかのデータセンターには最大 MANIFEST_TTL 秒だけ古い一覧が残る。編集画面が読む /api/manifest は毎回 R2 から読む
+ */
+const MANIFEST_KEY = 'https://mu826.com/cache/manifest.json'
+const MANIFEST_TTL = 60
+
+async function photosOf(env: Env, ctx: ExecutionContext): Promise<Photo[]> {
+  const cache = caches.default
+  let response = await cache.match(MANIFEST_KEY)
+  if (!response) {
+    const object = await env.PHOTOS.get('manifest.json')
+    response = new Response(object ? await object.text() : '[]', {
+      headers: {'content-type': 'application/json', 'cache-control': `max-age=${MANIFEST_TTL}`}
+    })
+    ctx.waitUntil(cache.put(MANIFEST_KEY, response.clone()))
+  }
+  const result = parseManifest(await response.json())
   return 'error' in result ? [] : result.photos
 }
 
@@ -149,11 +164,11 @@ const SIZES = [
  * 中身が一覧ごとに変わるので、静的ファイルの ETag は外し、条件付きの取得（304）で古い一覧のまま
  * 使い回されないようにする
  */
-async function pageWithHints(request: Request, env: Env, parts: string[]) {
+async function pageWithHints(request: Request, env: Env, ctx: ExecutionContext, parts: string[]) {
   const headers = new Headers(request.headers)
   headers.delete('if-none-match')
   headers.delete('if-modified-since')
-  const [page, photos] = await Promise.all([env.ASSETS.fetch(new Request(request, {headers})), photosOf(env)])
+  const [page, photos] = await Promise.all([env.ASSETS.fetch(new Request(request, {headers})), photosOf(env, ctx)])
   if (!page.ok) return page
   // </script> で閉じられないよう、< を逃がす
   const json = JSON.stringify(photos).replace(/</g, '\\u003c')
@@ -197,6 +212,8 @@ async function putManifest(request: Request, env: Env) {
   await env.PHOTOS.put('manifest.json', JSON.stringify(result.photos), {
     httpMetadata: {contentType: 'application/json'}
   })
+  // 公開した人がすぐ確かめられるよう、このデータセンターのキャッシュは消す
+  await caches.default.delete(MANIFEST_KEY)
   return json({count: result.photos.length})
 }
 
