@@ -4,8 +4,6 @@ import {
   advance,
   cycleProgress,
   frameOf,
-  goBack,
-  goNext,
   initialState,
   jumpTo,
   morphRatio,
@@ -223,8 +221,7 @@ export function Hero({photos: PHOTOS}: {photos: string[]}) {
     }, [autoplay, order, post, reduced, takePointer])
   )
 
-  // 行き先が変わったフレームは worker 側で位置の飛びを打ち消す。
-  // 番号のクリックも前後送りも同じ扱い
+  // 行き先が変わったフレームは worker 側で位置の飛びを打ち消す（番号のクリック）
   const go = useCallback((next: SequenceState) => {
     if (next === stateRef.current) return
     stateRef.current = next
@@ -241,11 +238,9 @@ export function Hero({photos: PHOTOS}: {photos: string[]}) {
         // 飛ぶので、内部を途中に残すと再生でバーが飛ぶ
         if (autoplay) stateRef.current = pause(stateRef.current, timingRef.current)
         setAutoplay(!autoplay)
-      },
-      prev: () => go(goBack(stateRef.current, order, timingRef.current)),
-      next: () => go(goNext(stateRef.current, order, timingRef.current))
+      }
     })
-  }, [autoplay, visible, order, go])
+  }, [autoplay, visible])
   useEffect(() => () => setPlayer(null), [])
 
   // 写真の枠は JS で寸法を決める。canvas を写真ぴったりにすると、

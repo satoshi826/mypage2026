@@ -17,17 +17,11 @@ export function HeroPlayer() {
       aria-hidden={!player.visible}
       className={`flex items-center gap-6 transition-opacity duration-700 ${player.visible ? '' : 'pointer-events-none opacity-0'}`}
     >
-      <Transport label="Previous" onClick={player.prev}>
-        <path d="M7 5h2v14H7zM19 5 10 12l9 7z" />
-      </Transport>
       <Transport label={player.autoplay ? 'Pause' : 'Play'} onClick={player.toggle} size="size-5">
         {player.autoplay ? <path d="M8 5h3v14H8zM14 5h3v14h-3z" /> : <path d="M8 5 19 12 8 19z" />}
       </Transport>
-      <Transport label="Next" onClick={player.next}>
-        <path d="M5 5 14 12 5 19zM15 5h2v14h-2z" />
-      </Transport>
       {/* 広い画面のプログレス。狭い画面ではフッターの上の線を使う（Footer.tsx） */}
-      <HeroProgress className="h-px w-52 max-sm:hidden" />
+      <HeroProgress className="h-px w-64 max-sm:hidden" />
     </div>
   )
 }

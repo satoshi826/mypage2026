@@ -8,8 +8,6 @@ export type Player = {
   /** hero の写真が 4 割以上見えているか。それより隠れたらフッターは操作を隠す */
   visible: boolean
   toggle: () => void
-  prev: () => void
-  next: () => void
 }
 
 let current: Player | null = null
