@@ -2,6 +2,7 @@ import {hydrate, render} from 'preact'
 import {App} from './app/App'
 import {hydrated} from './app/useExternal'
 import {startEditing} from './app/editing'
+import {startCursor} from './app/cursor'
 import {registerServiceWorker} from './sw/register'
 import './styles.css'
 
@@ -16,6 +17,9 @@ hydrated()
 
 // ログインしている人にだけ、サイトの上で編集する UI を読み込む（訪問者は何もしない）
 startEditing()
+
+// マウスのある環境では、カーソルをピントを合わせる枠にする
+startCursor()
 
 // 2 回目以降の訪問と、列数の切り替えで読み込みを待たせない（src/sw/）。開発中は古いファイルが残るので使わない
 if (import.meta.env.PROD) registerServiceWorker()

@@ -402,6 +402,8 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
             <figure
               key={photo.file}
               data-file={photo.file}
+              // 広げている写真。マウスのカーソル（src/app/cursor.ts）が「小さくする」形になる
+              data-expanded={wide || undefined}
               data-reveal
               // 現れる演出を済ませた写真は、描き直しても覆いを付けない
               ref={(node) => {

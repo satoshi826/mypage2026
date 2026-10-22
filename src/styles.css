@@ -132,3 +132,121 @@ input[data-slider]::-moz-range-thumb {
     display: none;
   }
 }
+
+/* マウスのカーソル（src/app/cursor.ts）。OS のカーソルは隠し、ふだんは小さな丸（線）、リンクの上では上向きの
+   正三角形（線）、スライダーの上では横長の塗り、写真の上ではピントを合わせる枠（四隅だけ）にする。
+   大きさ・塗り・角の丸み・切り抜きの形を変えて移り変わる。
+   入力欄では文字を打つための OS のカーソルに戻す */
+html.custom-cursor,
+html.custom-cursor * {
+  cursor: none !important;
+}
+html.custom-cursor :is(input:not([type='range']), textarea, select, [contenteditable]) {
+  cursor: auto !important;
+}
+#cursor {
+  position: fixed;
+  top: 0;
+  left: 0;
+  /* 初めて開いたときのスプラッシュ（index.html、z-index 100）より上 */
+  z-index: 200;
+  box-sizing: border-box;
+  /* ふだんの丸の線。リンクの三角や写真の枠より少しだけ薄くして、控えめにする */
+  border: 1px solid color-mix(in srgb, var(--color-ink) 75%, transparent);
+  border-radius: 50%;
+  /* 切り抜きの形。外側の 4 点と、くり抜く内側の 4 点（evenodd）。外側と内側は、外側の始点と内側の始点を
+     結ぶ同じ線を行って戻ってつなぐ（別の線でつなぐと、そのあいだもくり抜かれる）。ふだんは外側が四角で何も
+     切らず、内側は中心の 1 点に潰してある。リンクの上では外側の上の 2 つの角を上辺の中点へ寄せて三角にし、
+     内側を 1px 内側の三角に広げて、線だけを残す。頂点の数を揃えておくと、角が滑って形が移り変わる */
+  clip-path: polygon(evenodd, 0 0, 100% 0, 100% 100%, 0 100%, 0 0, 50% 50%, 50% 50%, 50% 50%, 50% 50%, 50% 50%);
+  pointer-events: none;
+  opacity: 0;
+  will-change: transform;
+  transition:
+    width 500ms cubic-bezier(0.22, 1, 0.36, 1),
+    height 500ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-radius 500ms cubic-bezier(0.22, 1, 0.36, 1),
+    clip-path 500ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 500ms,
+    background-color 500ms,
+    opacity 200ms;
+}
+/* 正三角形の線は、塗った三角から 1px 内側の三角をくり抜いて描く。くり抜く三角の頂点は、上が 2px、下の角が
+   横に 1.7px 内側（辺から 1px 離すと、30° と 60° の角ではこれだけ頂点が動く） */
+#cursor[data-state='link'] {
+  border-radius: 0;
+  clip-path: polygon(
+    evenodd,
+    50% 0,
+    50% 0,
+    100% 100%,
+    0 100%,
+    50% 0,
+    50% 2px,
+    50% 2px,
+    calc(100% - 1.7px) calc(100% - 1px),
+    1.7px calc(100% - 1px),
+    50% 2px
+  );
+}
+/* 塗りで描く形では、枠の線を消す。線と塗りが重なる縁だけ濃く見えるため */
+#cursor[data-state='link'],
+#cursor[data-state='slider'] {
+  border-color: transparent;
+  background-color: color-mix(in srgb, var(--color-ink) 90%, transparent);
+}
+/* 左右に動かせることを示す横長。端は丸める */
+#cursor[data-state='slider'] {
+  border-radius: 3px;
+}
+/* 写真の上では四隅だけの枠（ピントを合わせる枠）。広げた写真の上では、四隅の L を中心へ向けた「小さくする」形。
+   8 本の線を同じ順に並べ、位置だけを変えるので、線が滑って向きを変える。大きさは 28px（cursor.ts の SIZES） */
+#cursor:is([data-state='photo'], [data-state='photo-out']) {
+  --corner: linear-gradient(var(--color-ink), var(--color-ink));
+  border-color: transparent;
+  border-radius: 0;
+  background-image:
+    var(--corner), var(--corner), var(--corner), var(--corner), var(--corner), var(--corner), var(--corner),
+    var(--corner);
+  background-size:
+    8px 1px,
+    1px 8px,
+    8px 1px,
+    1px 8px,
+    8px 1px,
+    1px 8px,
+    8px 1px,
+    1px 8px;
+  background-repeat: no-repeat;
+  /* 位置は枠の外側（線を含む 28px）から測る。既定の内側（線の内側の 26px）から測ると、端の線がはみ出して欠ける */
+  background-origin: border-box;
+  /* 左上・右上・左下・右下の、横の線と縦の線 */
+  background-position:
+    0 0,
+    0 0,
+    20px 0,
+    27px 0,
+    0 27px,
+    0 20px,
+    20px 27px,
+    27px 20px;
+  transition:
+    width 500ms cubic-bezier(0.22, 1, 0.36, 1),
+    height 500ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-radius 500ms cubic-bezier(0.22, 1, 0.36, 1),
+    clip-path 500ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 500ms,
+    background-position 500ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 200ms;
+}
+#cursor[data-state='photo-out'] {
+  background-position:
+    2px 9px,
+    9px 2px,
+    18px 9px,
+    18px 2px,
+    2px 18px,
+    9px 18px,
+    18px 18px,
+    18px 18px;
+}
