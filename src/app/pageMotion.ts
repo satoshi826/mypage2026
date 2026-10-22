@@ -2,7 +2,7 @@ import {useEffect, useLayoutEffect, useRef, useState} from 'preact/hooks'
 import {matchRoute, useLocation, useRouter} from 'wouter-preact'
 import type {Param} from './DevPanel'
 import {jumpTo} from './useSmoothScroll'
-import {basePath} from './lang'
+import {basePath, isBilingual} from './lang'
 import {EASINGS, type Easing} from '../gallery/tuning'
 
 /*
@@ -17,6 +17,7 @@ import {EASINGS, type Easing} from '../gallery/tuning'
  *   フッターの細い線（[data-page-grow]）は、ぼかさずに点から伸び縮みさせる
  * 差し替えは 1 回なので、両方が消えきるのを待ってから差し替え、それぞれの設定で現れる。
  * Photos のカテゴリの切り替えでは、フッターは残す（カテゴリの下線が滑り、スクロールの線も続く）。
+ * About と Contact のあいだも、フッターの言語の切り替えが同じなので残す。
  *
  * 演出は開発用パネル（PageTransition.tsx）で切り替えて詰める。決まったら既定値に書き戻す。
  */
@@ -215,6 +216,10 @@ const samePage = (parser: Parameters<typeof matchRoute>[0], a: string, b: string
   basePath(a) === basePath(b) ||
   (matchRoute(parser, '/photos/:category?', a)[0] && matchRoute(parser, '/photos/:category?', b)[0])
 
+/** フッターの操作が同じままか。同じページの中の移動と、About と Contact のあいだ（どちらも言語の切り替え） */
+const sameFooter = (parser: Parameters<typeof matchRoute>[0], a: string, b: string) =>
+  samePage(parser, a, b) || (isBilingual(a) && isBilingual(b))
+
 /**
  * 表示中の場所を返す。App はこれで中身（Switch とフッター）を描き、ナビだけ実際の URL を使う
  */
@@ -240,7 +245,7 @@ export function usePageTransition(motion: PageMotion) {
     const m = motionRef.current
     const inPage = samePage(parser, location, displayed)
     const page = m.variant !== 'none' && !(inPage && m.categories === 'no')
-    const footer = m.footerVariant !== 'none' && !inPage
+    const footer = m.footerVariant !== 'none' && !sameFooter(parser, location, displayed)
     if (matchMedia('(prefers-reduced-motion: reduce)').matches || (!page && !footer)) {
       jumpTo(0)
       setDisplayed(location)
