@@ -72,8 +72,21 @@ const ADD: Photo = {file: '+', w: 3, h: 2, category: 'street', v: ''}
  *
  * 編集中は先頭に写真を足す「＋」の枠を置く。add を false にすると置かない（Works のように 1 ページに一覧が
  * いくつも並ぶとき、先頭の一覧にだけ置くため）。
+ *
+ * expandable を false にすると、押しても広げず、マウスを載せたときのズームもしない（Works。数枚の案件で 1 枚を
+ * 広げると、残りが押し出されてまとまりが崩れるため）。
  */
-export function Gallery({photos, label, add = true}: {photos: Photo[]; label: string; add?: boolean}) {
+export function Gallery({
+  photos,
+  label,
+  add = true,
+  expandable = true
+}: {
+  photos: Photo[]
+  label: string
+  add?: boolean
+  expandable?: boolean
+}) {
   const root = useRef<HTMLDivElement>(null)
   const [metrics, setMetrics] = useState<Metrics | null>(null)
   // 広げている写真
@@ -415,9 +428,11 @@ export function Gallery({photos, label, add = true}: {photos: Photo[]; label: st
                 if (node && revealed.current.has(photo.file)) node.dataset.revealed = ''
               }}
               // 編集中（src/editor）は押しても広げない。写真の操作と並べ替えに使うため
-              onPointerDown={(event) => !editing && preload(event, photo)}
-              onClick={() => !editing && toggle(photo.file)}
-              className={`group absolute m-0 overflow-hidden select-none ${editing ? '' : wide ? 'cursor-zoom-out' : 'cursor-zoom-in'}`}
+              // 押しても広げない一覧は、マウスのカーソル（src/app/cursor.ts）もピントの枠にしない
+              data-still={expandable ? undefined : ''}
+              onPointerDown={(event) => expandable && !editing && preload(event, photo)}
+              onClick={() => expandable && !editing && toggle(photo.file)}
+              className={`group absolute m-0 overflow-hidden select-none ${editing || !expandable ? '' : wide ? 'cursor-zoom-out' : 'cursor-zoom-in'}`}
               // 高さも配置の計算値で与える。画像が届くまでの img は高さを持たず、枠が潰れるため。
               // content-visibility: auto は使わない。中身を飛ばすかどうかの判定がフレームの更新に
               // 乗っていて、スクロールが止まったあと画面内の写真が飛ばされたまま残ることがある（Chrome）
@@ -431,7 +446,7 @@ export function Gallery({photos, label, add = true}: {photos: Photo[]; label: st
                 large={wide}
                 // 広げる写真は待たずに拡大用へ替える。1 枚なので重くなく、待つと小さい段が全幅に引き伸ばされて荒れる
                 hold={keep.size > 0 && !wide}
-                zoom={!wide}
+                zoom={expandable && !wide}
               />
               {/* ワイプ用の覆い。styles.css の [data-reveal] を参照 */}
               <div data-reveal-cover aria-hidden />

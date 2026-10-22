@@ -21,7 +21,7 @@ export function Works() {
               <p className="m-0 text-sm">{project[0].caption}</p>
             </div>
             {/* 編集中の「＋」は先頭の案件にだけ置く。足した写真は Works の先頭に入る */}
-            <Gallery photos={project} label="Works" add={i === 0} />
+            <Gallery photos={project} label="Works" add={i === 0} expandable={false} />
           </section>
         ))}
       </div>

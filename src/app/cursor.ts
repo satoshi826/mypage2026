@@ -20,7 +20,7 @@ const SIZES = {
 
 const LINK_TARGET = 'a, button:not(:disabled), [role="button"], summary'
 const SLIDER_TARGET = 'input[type="range"]'
-const PHOTO_TARGET = 'figure[data-file]'
+const PHOTO_TARGET = 'figure[data-file]:not([data-still])'
 const TEXT = 'input:not([type="range"]), textarea, select, [contenteditable]'
 
 export function startCursor() {
