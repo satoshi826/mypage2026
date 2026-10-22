@@ -1,4 +1,4 @@
-import type {Category, Photo} from '../photos'
+import {toCategory, type Category, type Photo} from '../photos'
 import {putImage} from './api'
 import {derive} from './derive'
 import {edit, getState, report, run} from './draft'
@@ -87,6 +87,19 @@ export function setHero(photo: Photo, on: boolean) {
     return
   const hero = on ? Number.MAX_SAFE_INTEGER : undefined
   edit((photos) => photos.map((p) => (p.file === photo.file ? {...p, hero} : p)))
+}
+
+/** Works の写真の種類か説明の 1 行を変える。空にすると外す */
+export function setWorkText(photo: Photo, key: 'tag' | 'caption', value: string) {
+  const text = value.trim() || undefined
+  edit((photos) => photos.map((p) => (p.file === photo.file ? {...p, [key]: text} : p)))
+}
+
+/** 今見ているページの写真の置き場所。Photos はカテゴリ、Works は works。写真を並べないページは null */
+export function pageCategory(): Category | null {
+  if (location.pathname === '/works') return 'works'
+  const match = location.pathname.match(/^\/photos\/([^/]+)/)
+  return match ? toCategory(match[1]) : null
 }
 
 export function setCategory(photo: Photo, category: Category) {

@@ -1,10 +1,9 @@
 import {render} from 'preact'
 import {editorReady, isEditing} from '../app/editing'
-import {toCategory} from '../photos'
 import {Bar} from './Bar'
 import {HeroPanel} from './HeroPanel'
 import {start} from './draft'
-import {addPhotos} from './ops'
+import {addPhotos, pageCategory} from './ops'
 import {select} from './selection'
 import {AddTile, PhotoTools} from './Tools'
 
@@ -30,11 +29,8 @@ export function mount() {
     if (!(event.target as Element).closest('[data-photo-tools]')) select(null)
   })
 
-  // Photos では、ファイルを一覧の上へ落としても足せる（今見ているカテゴリの先頭に入る）
-  const category = () => {
-    const match = location.pathname.match(/^\/photos\/([^/]+)/)
-    return match ? toCategory(match[1]) : null
-  }
+  // Photos と Works では、ファイルを一覧の上へ落としても足せる（今見ているカテゴリの先頭に入る）
+  const category = pageCategory
   const files = (event: DragEvent) => !!event.dataTransfer?.types.includes('Files')
   addEventListener('dragover', (event) => {
     if (isEditing() && category() && files(event)) event.preventDefault()

@@ -204,7 +204,7 @@ Worker には `requestAnimationFrame` がないため、駆動はメインスレ
 
 | キー | 内容 |
 |---|---|
-| `manifest.json` | 一覧。`file / w / h / category / hero / v` の配列。形は `src/photos/manifest.ts` が検証する。`hero` はトップの hero での順番（1 から。使わない写真は持たない）、`v` は派生画像の版（下記） |
+| `manifest.json` | 一覧。`file / w / h / category / hero / tag / caption / v` の配列。形は `src/photos/manifest.ts` が検証する。`category` は Photos の street / abstract / color と、Works に並ぶ works。`hero` はトップの hero での順番（1 から。使わない写真は持たない）、`tag` と `caption` は Works の案件の種類と説明の 1 行（案件の最初の写真だけが持つ）、`v` は派生画像の版（下記） |
 | `list-<長辺>/<file>.webp` | 一覧用。長辺 200 / 400 / 800 / 1200px、画質 60 |
 | `large-<長辺>/<file>.webp` | 拡大用。長辺 1200 / 2000px、画質 80、カラー、トリミングなし。一覧で広げたときと、トップの hero（1200、`hero: true` のもの）が読む |
 | `originals/<file>.<ext>` | 原本。再派生のために置く。認証なしでは取れない |

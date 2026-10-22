@@ -1,9 +1,9 @@
 import {useParams} from 'wouter-preact'
-import {CATEGORIES, toCategory, usePhotos, type Category} from '../../photos'
+import {PHOTO_CATEGORIES, toCategory, usePhotos, type PhotoCategory} from '../../photos'
 import {Gallery} from '../../gallery/Gallery'
 import {Tabs, Underline} from '../Tabs'
 
-const LABEL: Record<Category, string> = {street: 'Street', abstract: 'Abstract', color: 'Color'}
+const LABEL: Record<PhotoCategory, string> = {street: 'Street', abstract: 'Abstract', color: 'Color'}
 
 /**
  * 作品の一覧。カテゴリは URL（/photos/:category）で持つ。/photos は /photos/street へ転送する。
@@ -28,8 +28,8 @@ export function Photos() {
 /**
  * カテゴリの切り替え。フッターの左に置く。見た目と下線の動きはナビのページのリンクと同じ（Tabs.tsx）
  */
-export function PhotoCategories({current}: {current: Category}) {
-  const items = CATEGORIES.map((c) => ({
+export function PhotoCategories({current}: {current: PhotoCategory}) {
+  const items = PHOTO_CATEGORIES.map((c) => ({
     href: `/photos/${c}`,
     label: LABEL[c],
     current: c === current

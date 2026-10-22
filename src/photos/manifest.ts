@@ -1,7 +1,11 @@
 // 写真の一覧（manifest.json）の形と検証。サイト（src/photos/index.ts）と Worker（worker/）の
 // 両方が使う。Preact も DOM も使わない純粋なモジュールにしておく。
 
-export const CATEGORIES = ['street', 'abstract', 'color'] as const
+/** Photos に並べる作品のカテゴリ。URL（/photos/:category）とフッターの切り替えになる */
+export const PHOTO_CATEGORIES = ['street', 'abstract', 'color'] as const
+export type PhotoCategory = (typeof PHOTO_CATEGORIES)[number]
+/** 写真の置き場所すべて。works は依頼の仕事で、Works のページに並ぶ */
+export const CATEGORIES = [...PHOTO_CATEGORIES, 'works'] as const
 export type Category = (typeof CATEGORIES)[number]
 
 /**
@@ -39,6 +43,13 @@ export type Photo = {
   category: Category
   /** トップの hero での順番（1 から）。カレンダーの番号。hero に使わない写真は持たない */
   hero?: number
+  /** Works の写真の種類（Performance / Talk / Portrait など）。案件の最初の写真に添える */
+  tag?: string
+  /**
+   * Works の案件の説明の 1 行（被写体 / 場 / 年）。案件の最初の写真にだけ持たせ、続く写真は持たない。
+   * 書体は HTML に出る文字だけに絞っているので（scripts/fonts.js）、英数字で書くとサイトの書体で出る
+   */
+  caption?: string
   /**
    * 派生画像の版。その写真の派生を全部つないだ中身のハッシュ（先頭 10 桁）で、書き出し直して中身が
    * 変わったときだけ変わる。画像の URL に付け、URL が同じなら中身も同じ、としてずっと手元に持てるようにする
@@ -73,6 +84,11 @@ export const EAGER_THUMBS = 9
 
 export const isCategory = (value: unknown): value is Category =>
   typeof value === 'string' && (CATEGORIES as readonly string[]).includes(value)
+export const isPhotoCategory = (value: unknown): value is PhotoCategory =>
+  typeof value === 'string' && (PHOTO_CATEGORIES as readonly string[]).includes(value)
+
+/** 種類と説明の 1 行の長さの上限 */
+const TEXT_LIMIT = {tag: 40, caption: 160}
 
 const FILE = /^[A-Za-z0-9_-]+$/
 const VERSION = /^[0-9a-f]{10}$/
@@ -85,7 +101,7 @@ export function parseManifest(body: unknown): {photos: Photo[]} | {error: string
   for (const [i, entry] of body.entries()) {
     const at = `entry ${i}`
     if (typeof entry !== 'object' || entry === null) return {error: `${at}: not an object`}
-    const {file, w, h, category, hero, v} = entry as Record<string, unknown>
+    const {file, w, h, category, hero, v, tag, caption} = entry as Record<string, unknown>
     if (typeof file !== 'string' || !FILE.test(file)) return {error: `${at}: invalid file`}
     if (seen.has(file)) return {error: `${at}: duplicate file ${file}`}
     if (!Number.isInteger(w) || !Number.isInteger(h) || (w as number) <= 0 || (h as number) <= 0)
@@ -94,9 +110,17 @@ export function parseManifest(body: unknown): {photos: Photo[]} | {error: string
     if (hero !== undefined && !(Number.isInteger(hero) && (hero as number) > 0))
       return {error: `${at}: hero must be a positive integer`}
     if (typeof v !== 'string' || !VERSION.test(v)) return {error: `${at}: invalid v`}
+    for (const [key, value] of [
+      ['tag', tag],
+      ['caption', caption]
+    ] as const)
+      if (value !== undefined && (typeof value !== 'string' || !value.trim() || value.length > TEXT_LIMIT[key]))
+        return {error: `${at}: invalid ${key}`}
     seen.add(file)
     const photo: Photo = {file, w: w as number, h: h as number, category, v}
     if (hero !== undefined) photo.hero = hero as number
+    if (typeof tag === 'string') photo.tag = tag
+    if (typeof caption === 'string') photo.caption = caption
     photos.push(photo)
   }
   return {photos: renumberHero(photos)}

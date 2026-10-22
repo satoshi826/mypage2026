@@ -69,8 +69,18 @@ const ADD: Photo = {file: '+', w: 3, h: 2, category: 'street', v: ''}
  * スクロールを即座にずらして固定する（docs/design.md の連続性）。
  *
  * マウスを載せた写真は、枠を動かさずに中の画像だけ少しズームする（Img の zoom）。広げている写真は除く。
+ *
+ * caption を渡すと、その写真の左下に小さな説明を重ねる（Works の案件の 1 行）。返さない写真には出さない。
  */
-export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
+export function Gallery({
+  photos,
+  label,
+  caption
+}: {
+  photos: Photo[]
+  label: string
+  caption?: (photo: Photo) => string | undefined
+}) {
   const root = useRef<HTMLDivElement>(null)
   const [metrics, setMetrics] = useState<Metrics | null>(null)
   // 広げている写真
@@ -429,6 +439,11 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
                 hold={keep.size > 0 && !wide}
                 zoom={!wide}
               />
+              {caption?.(photo) && (
+                <figcaption className="pointer-events-none absolute bottom-0 left-0 m-2 bg-black/60 px-2 py-1 text-xs leading-snug tracking-[0.04em] backdrop-blur-[12px]">
+                  {caption(photo)}
+                </figcaption>
+              )}
               {/* ワイプ用の覆い。styles.css の [data-reveal] を参照 */}
               <div data-reveal-cover aria-hidden />
               {tools && <tools.Photo photo={photo} />}

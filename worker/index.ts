@@ -24,7 +24,7 @@ import {
   heroesOf,
   heroSrc,
   imageUrl,
-  isCategory,
+  isPhotoCategory,
   HOVER,
   LIST_HEADROOM,
   parseManifest,
@@ -122,7 +122,7 @@ function hintsOf(parts: string[], photos: Photo[]): string[] {
   // 密度で決まるので、一覧用の段を候補に並べてブラウザに選ばせる。幅は列数が Auto のとき
   // （src/gallery/controls.ts の autoColumns）の写真 1 枚ぶん
   const category = parts[1]
-  if (parts.length !== 2 || !isCategory(category)) return []
+  if (parts.length !== 2 || !isPhotoCategory(category)) return []
   // 一覧の JS（pickSource）と同じく、一覧用の段に拡大用の最大を足した候補（PC の高精細な画面の縦長が使う）
   const list = [...VARIANTS.filter((v) => v.use === 'list'), VARIANTS[VARIANTS.length - 1]]
   return photos

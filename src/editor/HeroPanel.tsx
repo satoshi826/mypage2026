@@ -9,7 +9,7 @@ import {isPanelOpen, setPanelOpen, subscribePanel} from './panel'
 // 下段が全写真（触ると hero に足す・外す）。開いているあいだはパネルの中の並びで作業し、閉じたときにまとめて
 // 下書きへ入れる（hero はそこで 1 回だけ作り直す。src/app/pages/Top.tsx）
 
-const LABEL: Record<Category, string> = {street: 'Street', abstract: 'Abstract', color: 'Color'}
+const LABEL: Record<Category, string> = {street: 'Street', abstract: 'Abstract', color: 'Color', works: 'Works'}
 const HOLD = 350
 const SLOP = 6
 const STEP = 24

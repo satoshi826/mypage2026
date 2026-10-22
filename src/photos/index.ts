@@ -5,21 +5,31 @@ import {useExternal} from '../app/useExternal'
 // 実行時に読む（写真の追加・入れ替えで再ビルドしない）。画像も /images/ 経由で R2 から。
 // 形と派生画像の段（VARIANTS）は manifest.ts。管理画面（/admin）が書き換える。
 
-export {CATEGORIES, heroesOf, heroSrc, isCategory, renumberHero, type Category, type Photo} from './manifest'
+export {
+  CATEGORIES,
+  heroesOf,
+  heroSrc,
+  isCategory,
+  PHOTO_CATEGORIES,
+  renumberHero,
+  type Category,
+  type Photo,
+  type PhotoCategory
+} from './manifest'
 import {
   imageUrl,
-  isCategory,
+  isPhotoCategory,
   HOVER,
   LIST_HEADROOM,
   parseManifest,
   VARIANTS,
-  type Category,
   type Photo,
+  type PhotoCategory,
   type Variant
 } from './manifest'
 
 /** URL（/photos/:category）のカテゴリ。省略や知らない値は street */
-export const toCategory = (value: string | undefined): Category => (isCategory(value) ? value : 'street')
+export const toCategory = (value: string | undefined): PhotoCategory => (isPhotoCategory(value) ? value : 'street')
 
 /** 表示に使う派生画像。width はその段での写真の幅（画素） */
 export type Source = {src: string; width: number; use: Variant['use']}

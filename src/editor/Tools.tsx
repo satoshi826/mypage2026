@@ -1,18 +1,20 @@
 import {useRef} from 'preact/hooks'
 import type {ComponentChildren} from 'preact'
-import {useParams} from 'wouter-preact'
-import {CATEGORIES, isCategory, toCategory, type Photo} from '../photos'
+import {CATEGORIES, isCategory, type Photo} from '../photos'
 import {useExternal} from '../app/useExternal'
 import {startDrag} from './drag'
 import {select, selected, subscribe} from './selection'
-import {addPhotos, removePhoto, replacePhoto, setCategory, setHero} from './ops'
+import {addPhotos, pageCategory, removePhoto, replacePhoto, setCategory, setHero, setWorkText} from './ops'
 
 // Gallery に差し込む編集の部品（src/app/editing.ts の EditorTools）
 
 const CHIP =
   'cursor-pointer border border-white/25 bg-black/70 px-1.5 py-0.5 text-[11px] leading-snug text-ink backdrop-blur-[12px] transition-colors duration-300 hover:border-white/60'
 
-/** 写真の上に重ねる操作。右上に hero・カテゴリ・差し替え・削除。hero に使う写真には左下に印を出す */
+/**
+ * 写真の上に重ねる操作。右上に hero・カテゴリ・差し替え・削除（Works の写真は種類と説明も）。hero に使う写真には
+ * 左下に印を出す
+ */
 export function PhotoTools({photo}: {photo: Photo}) {
   const active = useExternal(subscribe, () => selected() === photo.file, false)
   const input = useRef<HTMLInputElement>(null)
@@ -48,6 +50,20 @@ export function PhotoTools({photo}: {photo: Photo}) {
             </option>
           ))}
         </select>
+        {photo.category === 'works' && (
+          <>
+            <Chip onClick={() => ask(photo, 'tag', '種類（Performance / Talk / Portrait など）。空にすると外す')}>
+              種類{photo.tag ? `: ${photo.tag}` : ''}
+            </Chip>
+            <Chip
+              onClick={() =>
+                ask(photo, 'caption', '説明の 1 行（被写体 / 場 / 年）。案件の最初の写真にだけ。空にすると外す')
+              }
+            >
+              説明{photo.caption ? ' ✓' : ''}
+            </Chip>
+          </>
+        )}
         <Chip onClick={() => input.current?.click()}>差し替え</Chip>
         <Chip onClick={() => removePhoto(photo)}>削除</Chip>
         <input
@@ -64,6 +80,12 @@ export function PhotoTools({photo}: {photo: Photo}) {
       </div>
     </div>
   )
+}
+
+/** Works の写真の種類か説明を、入力の窓で尋ねて入れる。取り消したら何もしない */
+function ask(photo: Photo, key: 'tag' | 'caption', message: string) {
+  const value = prompt(message, photo[key] ?? '')
+  if (value !== null) setWorkText(photo, key, value)
 }
 
 function Chip({onClick, pressed, children}: {onClick: () => void; pressed?: boolean; children: ComponentChildren}) {
@@ -84,7 +106,6 @@ function Chip({onClick, pressed, children}: {onClick: () => void; pressed?: bool
 
 /** 一覧の先頭の「＋」の枠。押すと写真を選べ（複数可）、今見ているカテゴリの先頭に足す */
 export function AddTile() {
-  const params = useParams<{category?: string}>()
   const input = useRef<HTMLInputElement>(null)
   return (
     <button
@@ -102,7 +123,8 @@ export function AddTile() {
         hidden
         onChange={(event) => {
           const files = [...(event.currentTarget.files ?? [])]
-          if (files.length) void addPhotos(files, toCategory(params.category))
+          const category = pageCategory()
+          if (files.length && category) void addPhotos(files, category)
           event.currentTarget.value = ''
         }}
       />
