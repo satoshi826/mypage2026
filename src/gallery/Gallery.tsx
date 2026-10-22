@@ -412,7 +412,7 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
               // 編集中（src/editor）は押しても広げない。写真の操作と並べ替えに使うため
               onPointerDown={(event) => !editing && preload(event, photo)}
               onClick={() => !editing && toggle(photo.file)}
-              className={`group absolute m-0 overflow-hidden ${editing ? '' : wide ? 'cursor-zoom-out' : 'cursor-zoom-in'}`}
+              className={`group absolute m-0 overflow-hidden select-none ${editing ? '' : wide ? 'cursor-zoom-out' : 'cursor-zoom-in'}`}
               // 高さも配置の計算値で与える。画像が届くまでの img は高さを持たず、枠が潰れるため。
               // content-visibility: auto は使わない。中身を飛ばすかどうかの判定がフレームの更新に
               // 乗っていて、スクロールが止まったあと画面内の写真が飛ばされたまま残ることがある（Chrome）

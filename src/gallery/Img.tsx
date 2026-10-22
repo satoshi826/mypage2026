@@ -97,6 +97,8 @@ export function Img({
       alt={alt}
       width={photo.w}
       height={photo.h}
+      // つかんで引っぱれないようにする（Firefox は CSS の -webkit-user-drag を知らないので属性でも止める）
+      draggable={false}
       className={`block h-auto w-full ${zoom ? 'transition-[scale] duration-(--hover-seconds) ease-(--hover-ease) motion-safe:group-hover:scale-(--hover-zoom)' : ''}`}
     />
   )

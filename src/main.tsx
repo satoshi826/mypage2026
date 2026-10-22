@@ -18,8 +18,13 @@ hydrated()
 // ログインしている人にだけ、サイトの上で編集する UI を読み込む（訪問者は何もしない）
 startEditing()
 
-// マウスのある環境では、カーソルをピントを合わせる枠にする
+// マウスのある環境では、カーソルを場面ごとに形の変わる自前のものにする（src/app/cursor.ts）
 startCursor()
+
+// 写真（img と hero の canvas）の上では右クリックのメニュー（画像を保存）を出さない。styles.css の誤操作の手当てと対
+addEventListener('contextmenu', (event) => {
+  if ((event.target as Element).closest('img, canvas')) event.preventDefault()
+})
 
 // 2 回目以降の訪問と、列数の切り替えで読み込みを待たせない（src/sw/）。開発中は古いファイルが残るので使わない
 if (import.meta.env.PROD) registerServiceWorker()

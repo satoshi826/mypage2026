@@ -40,6 +40,38 @@ body {
   font: 400 16px/1.7 var(--font-sans);
 }
 
+/* 誤操作を減らす。
+   - スマホで押した瞬間にリンクやボタンが灰色に光るのを消す（モノトーンの見た目から浮くため）
+   - リンクやボタンを素早く 2 回押したときの拡大を止める。指 2 本で広げる拡大は残す
+   - ナビとフッターは操作のための部品なので、文字を選べず、つかんで引っぱれず、長押しのメニューも出さない
+   - 写真（img、hero の canvas）は、つかんで引っぱれず、長押しのメニュー（画像を保存）も出さない。右クリックの
+     メニューは main.tsx で止める。どれも保存を完全に防ぐものではなく、気軽に持っていけなくするだけ
+   ページの本文（About の名前、Contact のメールアドレスなど）は、コピーできるよう選べるまま残す */
+html {
+  -webkit-tap-highlight-color: transparent;
+}
+:is(a, button, input, label, summary, figure) {
+  touch-action: manipulation;
+}
+:is(nav, footer) {
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+:is(nav, footer) a,
+img {
+  -webkit-user-drag: none;
+}
+img,
+canvas {
+  -webkit-touch-callout: none;
+}
+
+/* 本文の文字を選んだときの色。ブラウザ既定の青ではなく、白の濃さだけで示す */
+::selection {
+  background: color-mix(in srgb, var(--color-ink) 25%, transparent);
+  color: var(--color-ink);
+}
+
 /* index.html の viewport-fit=cover で画面の端（iPhone の切り欠きやホームインジケータの下）まで描く。
    横向きの切り欠きは中身が避ける。固定のナビとフッターは left / right で、フッターは下の余白でも避ける */
 body {

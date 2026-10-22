@@ -52,7 +52,7 @@ export function ControlPanel({
   }, [index, layout.markerGrow])
 
   return (
-    <div className="shrink-0" style={{...layoutVars(layout, tone), width: `${width}px`}}>
+    <div className="shrink-0 select-none" style={{...layoutVars(layout, tone), width: `${width}px`}}>
       <div className="relative">
         <div
           ref={markerRef}
