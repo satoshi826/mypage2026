@@ -5,11 +5,9 @@ import {useExternal} from '../app/useExternal'
 
 export type Player = {
   autoplay: boolean
-  shuffle: boolean
   /** hero の写真が 4 割以上見えているか。それより隠れたらフッターは操作を隠す */
   visible: boolean
   toggle: () => void
-  toggleShuffle: () => void
   prev: () => void
   next: () => void
 }

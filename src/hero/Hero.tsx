@@ -61,7 +61,6 @@ export function Hero({photos: PHOTOS}: {photos: string[]}) {
   const jumped = useRef(false)
 
   const [index, setIndex] = useState(0)
-  const [shuffle, setShuffle] = useState(true)
   // 読み込みが済んだ写真の番号。worker が1枚上げるごとに増える。抽選はこの中から
   const [available, setAvailable] = useState<number[]>([])
   // この巡で表示した写真の番号。丸がその番号へ移った時点で数える。全部を表示し終えたら、今の1枚から数え直す
@@ -75,7 +74,7 @@ export function Hero({photos: PHOTOS}: {photos: string[]}) {
       }),
     [index, PHOTOS.length]
   )
-  const order = useMemo<Order>(() => ({shuffle, available, seen}), [shuffle, available, seen])
+  const order = useMemo<Order>(() => ({available, seen}), [available, seen])
   // 並べ方は画面の形で決める。写真が大きくなるほうを選ぶ
   const viewport = useViewport()
   const direction = chooseDirection(viewport.width, viewport.height, PHOTOS.length)
@@ -236,7 +235,6 @@ export function Hero({photos: PHOTOS}: {photos: string[]}) {
   useEffect(() => {
     setPlayer({
       autoplay,
-      shuffle,
       visible,
       toggle: () => {
         // 停止するときは静止帯の頭へ戻す。バーは停止と同時に遷移の終了地点へ
@@ -244,11 +242,10 @@ export function Hero({photos: PHOTOS}: {photos: string[]}) {
         if (autoplay) stateRef.current = pause(stateRef.current, timingRef.current)
         setAutoplay(!autoplay)
       },
-      toggleShuffle: () => setShuffle(!shuffle),
       prev: () => go(goBack(stateRef.current, order, timingRef.current)),
       next: () => go(goNext(stateRef.current, order, timingRef.current))
     })
-  }, [autoplay, shuffle, visible, order, go])
+  }, [autoplay, visible, order, go])
   useEffect(() => () => setPlayer(null), [])
 
   // 写真の枠は JS で寸法を決める。canvas を写真ぴったりにすると、

@@ -28,13 +28,6 @@ export function HeroPlayer() {
       </Transport>
       {/* 広い画面のプログレス。狭い画面ではフッターの上の線を使う（Footer.tsx） */}
       <HeroProgress className="h-px w-52 max-sm:hidden" />
-      {/* モードであるシャッフルは最後に置く */}
-      <Transport label="Shuffle" onClick={player.toggleShuffle} pressed={player.shuffle}>
-        <g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M3 6h4l10 12h4M3 18h4l10-12h4" />
-          <path d="M18 3l3 3-3 3M18 15l3 3-3 3" />
-        </g>
-      </Transport>
     </div>
   )
 }
@@ -79,17 +72,15 @@ export function HeroProgress({className}: {className: string}) {
   )
 }
 
-/** 再生操作の1ボタン。`pressed` を渡したときだけ入り切りのあるモードとして扱う */
+/** 再生操作の1ボタン */
 function Transport({
   label,
   onClick,
-  pressed,
   size = 'size-4',
   children
 }: {
   label: string
   onClick: () => void
-  pressed?: boolean
   size?: string
   children: ComponentChildren
 }) {
@@ -98,11 +89,8 @@ function Transport({
       type="button"
       onClick={onClick}
       aria-label={label}
-      aria-pressed={pressed}
       // before は指の当たり判定。配置を変えずに 44px を確保する
-      className={`relative flex cursor-pointer transition-opacity duration-300 before:absolute before:top-1/2 before:left-1/2 before:size-11 before:-translate-x-1/2 before:-translate-y-1/2 before:content-[''] hover:opacity-60 ${
-        pressed === false ? 'opacity-35' : ''
-      }`}
+      className="relative flex cursor-pointer transition-opacity duration-300 before:absolute before:top-1/2 before:left-1/2 before:size-11 before:-translate-x-1/2 before:-translate-y-1/2 before:content-[''] hover:opacity-60"
     >
       <svg viewBox="0 0 24 24" aria-hidden className={`${size} fill-current`}>
         {children}

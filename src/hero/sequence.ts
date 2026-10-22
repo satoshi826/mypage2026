@@ -10,16 +10,16 @@ export type SequenceState = {
   /** 次の1枚。null は未定で、候補が読み込まれたら advance が選ぶ。それまで時計は止まる */
   to: number | null
   elapsed: number
-  /** たどってきた写真。シャッフル中の「前へ」で戻るために持つ */
+  /** たどってきた写真。「前へ」で戻るために持つ */
   history: number[]
 }
 
 /**
- * 再生の順番。available は読み込みが終わって選べる写真の番号（昇順）。
+ * 次の1枚を選ぶ材料。available は読み込みが終わって選べる写真の番号（昇順）。
  * 写真は1枚ずつ届くので、起動直後は少なく、揃うにつれて増える。
- * seen はこの巡で表示した写真の番号。シャッフルは全部を表示し終えるまで、表示した写真を選ばない
+ * seen はこの巡で表示した写真の番号。全部を表示し終えるまで、表示した写真は選ばない
  */
-export type Order = {shuffle: boolean; available: readonly number[]; seen: readonly number[]}
+export type Order = {available: readonly number[]; seen: readonly number[]}
 
 /** 履歴の上限。戻れる深さで、これ以上は古いものから捨てる */
 const HISTORY_LIMIT = 64
@@ -37,18 +37,15 @@ const clamp01 = (v: number) => Math.min(Math.max(v, 0), 1)
 const cycleOf = (timing: Timing) => Math.max(timing.cycleSeconds, 0.1)
 
 /**
- * 次の1枚。シャッフル中は、この巡でまだ表示していない写真から抽選する（まだの写真がすべて読み込み前なら、
- * 直前以外の読み込み済みから）。そうでなければ番号順。候補がなければ今のまま
+ * 次の1枚。この巡でまだ表示していない写真から抽選する（まだの写真がすべて読み込み前なら、直前以外の
+ * 読み込み済みから）。候補がなければ今のまま
  */
-export function pickNext(current: number, {shuffle, available, seen}: Order) {
+export function pickNext(current: number, {available, seen}: Order) {
   const candidates = available.filter((i) => i !== current)
   if (candidates.length === 0) return current
-  if (shuffle) {
-    const fresh = candidates.filter((i) => !seen.includes(i))
-    const pool = fresh.length > 0 ? fresh : candidates
-    return pool[Math.floor(Math.random() * pool.length)]
-  }
-  return candidates.find((i) => i > current) ?? candidates[0]
+  const fresh = candidates.filter((i) => !seen.includes(i))
+  const pool = fresh.length > 0 ? fresh : candidates
+  return pool[Math.floor(Math.random() * pool.length)]
 }
 
 /** 番号順で1つ前。候補がなければ今のまま */
@@ -143,13 +140,10 @@ export function goNext(state: SequenceState, order: Order, timing: Timing): Sequ
   return startFrom(state, target, timing, remember(state.history, marked))
 }
 
-/**
- * 「前へ」。番号順のときは1つ前の番号へ、シャッフル中はたどってきた履歴を1つ戻る。
- * シャッフルでも履歴が空なら番号順に落とす。
- */
+/** 「前へ」。たどってきた履歴を1つ戻る。履歴が空なら番号順で1つ前へ */
 export function goBack(state: SequenceState, order: Order, timing: Timing): SequenceState {
   const marked = markedOf(state, timing)
-  const previous = order.shuffle ? state.history[state.history.length - 1] : undefined
+  const previous = state.history[state.history.length - 1] as number | undefined
   const target = previous ?? pickPrev(marked, order)
   if (target === marked) return state
   // 戻るときは積まない。積むと2回目で行き来するだけになる

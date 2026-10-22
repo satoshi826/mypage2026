@@ -68,8 +68,8 @@ export type Tone = {
   /** 選択中の数字の濃さ % */
   activeOpacity: number
   /**
-   * この巡でまだ表示していない数字の濃さ %。読み込み前の番号はこの 3 割。45 未満にすると、地との明るさの比が
-   * 文字の基準（4.5）を下回る（Lighthouse のアクセシビリティで減点される）
+   * この巡でまだ表示していない数字の濃さ %。読み込み前の番号はこの 3 割。地との明るさの比は文字の基準（4.5）を
+   * 下回るが、表示済みとの差をはっきりさせるほうを取る（Lighthouse のアクセシビリティの減点は受け入れる）
    */
   idleOpacity: number
   /** この巡で表示した数字の濃さ %。まだの数字より明るくして、見てきた分が積み上がるように見せる */
@@ -80,9 +80,9 @@ export type Tone = {
 
 export const TONE: Tone = {
   activeOpacity: 100,
-  idleOpacity: 50,
-  seenOpacity: 100,
-  markerOpacity: 60
+  idleOpacity: 25,
+  seenOpacity: 80,
+  markerOpacity: 75
 }
 
 export const TONE_PARAMS: Param<Tone>[] = [
