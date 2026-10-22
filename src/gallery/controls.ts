@@ -13,11 +13,8 @@ export const COUNTS: Count[] = [2, 3, 4, 5, 6]
  */
 export type Columns = 'auto' | Count
 
-/**
- * auto のときの列数。狭い画面（640px 未満）は 2 列、一覧が最大幅（1280px）に届く画面は 4 列、ほかは 3 列。
- * 4 列にするのは、写真 1 枚の幅が約 295px より小さくならない広さがあるときだけ
- */
-export const autoColumns = (viewport: number) => (viewport < 640 ? 2 : viewport >= 1280 ? 4 : 3)
+/** auto のときの列数。狭い画面（640px 未満）は 2 列、ほかは 3 列 */
+export const autoColumns = (viewport: number) => (viewport < 640 ? 2 : 3)
 
 /** 選べる列数の上限。狭い画面（640px 未満）は 5 列まで。6 列だと写真 1 枚が約 58px になり、小さすぎるため */
 export const MAX_COLUMNS = {narrow: 5, wide: 6} as const satisfies Record<string, Count>

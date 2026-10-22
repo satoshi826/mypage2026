@@ -57,7 +57,7 @@ const NONE: ReadonlySet<string> = new Set()
 const ADD: Photo = {file: '+', w: 3, h: 2, category: 'street', v: ''}
 
 /**
- * Photos の一覧。既定は画面の幅で 2〜4 列の段組（controls.ts の autoColumns）。配置は layout.ts が計算し、
+ * Photos の一覧。既定は画面の幅で 2〜3 列の段組（controls.ts の autoColumns）。配置は layout.ts が計算し、
  * ここは絶対配置で並べるだけ。画面に近い写真だけを描く。全部の写真の位置は計算で分かっているので、
  * 写真が何枚あっても描く要素の数は画面の大きさで決まる。
  *
