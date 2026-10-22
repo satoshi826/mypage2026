@@ -6,6 +6,7 @@ import {useReveal} from './reveal'
 import {autoColumns, chosen, maxColumns, setGalleryControls, type Columns} from './controls'
 import {DEFAULT_MOTION, DEFAULT_SPACING, EASINGS, MOTION_PARAMS, SPACING_PARAMS, type Motion} from './tuning'
 import {DevPanel} from '../app/DevPanel'
+import {NAME} from '../app/routes'
 import {useDragging, useEditorTools} from '../app/editing'
 import {onScrollFrame} from '../app/scrollFrame'
 import {useExternal} from '../app/useExternal'
@@ -420,7 +421,8 @@ export function Gallery({photos, label}: {photos: Photo[]; label: string}) {
             >
               <Img
                 photo={photo}
-                alt={`${label} ${index + 1}`}
+                // 画像検索で撮った人の名前とつながるよう、名前を入れる。例: Street photograph 12 by Satoshi Hata
+                alt={`${label} photograph ${index + 1} by ${NAME}`}
                 width={at.w}
                 large={wide}
                 // 広げる写真は待たずに拡大用へ替える。1 枚なので重くなく、待つと小さい段が全幅に引き伸ばされて荒れる

@@ -12,7 +12,8 @@ import {subsetFonts} from './fonts.js'
 const root = dirname(dirname(fileURLToPath(import.meta.url)))
 const dist = join(root, 'dist')
 
-const escapeHtml = (text) => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+const escapeHtml = (text) =>
+  text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 
 // 本番として読む。dev サーバの既定（development）のままだと import.meta.env.DEV が true になり、
 // 開発用のパネルが HTML に入ってしまう（クライアントの本番バンドルには入らないので、表示が食い違う）。
@@ -23,6 +24,7 @@ const vite = await createServer({root, mode: 'production', appType: 'custom', se
 try {
   const {render} = await vite.ssrLoadModule('/src/entry-server.tsx')
   const {ROUTES, NAME, ORIGIN} = await vite.ssrLoadModule('/src/app/routes.ts')
+  const {PERSON} = await vite.ssrLoadModule('/src/app/profile.ts')
   const template = await inlineStyles(await readFile(join(dist, 'index.html'), 'utf8'))
   const hints = await preloadHints()
 
@@ -38,18 +40,46 @@ try {
   ].map((page) => ({...page, body: render(page.path)}))
 
   // 書体は全ページの本文が揃ってから、出てくる文字だけに絞る
-  const fonts = await subsetFonts(root, dist, pages.map(({body}) => body))
+  const fonts = await subsetFonts(
+    root,
+    dist,
+    pages.map(({body}) => body)
+  )
+
+  // 検索に載せないページ。編集のログインの入口と、どこにも当たらないパス
+  const hidden = (path) => path === '/admin' || path === '/404'
 
   const html = ({path, title, description, body}) => {
+    const url = `${ORIGIN}${path}`
     const head = [
       `<title>${escapeHtml(title)}</title>`,
       `<meta name="description" content="${escapeHtml(description)}">`,
-      // どこにも当たらないパス（404）には正式な住所がない
-      ...(path === '/404' ? [] : [`<link rel="canonical" href="${ORIGIN}${path}">`]),
+      ...(hidden(path)
+        ? ['<meta name="robots" content="noindex">']
+        : [
+            `<link rel="canonical" href="${url}">`,
+            // SNS やメッセージで URL を貼られたときのプレビュー。画像はロゴを黒地に置いたもの（public/og.png）
+            `<meta property="og:type" content="${path === '/about' ? 'profile' : 'website'}">`,
+            `<meta property="og:site_name" content="${NAME}">`,
+            `<meta property="og:title" content="${escapeHtml(title)}">`,
+            `<meta property="og:description" content="${escapeHtml(description)}">`,
+            `<meta property="og:url" content="${url}">`,
+            `<meta property="og:image" content="${ORIGIN}/og.png">`,
+            '<meta property="og:image:width" content="1200">',
+            '<meta property="og:image:height" content="630">',
+            '<meta property="og:locale" content="ja_JP">',
+            '<meta name="twitter:card" content="summary_large_image">'
+          ]),
+      // 検索エンジン向けの人物の情報。トップと About に置く（src/app/profile.ts）
+      ...(path === '/' || path === '/about'
+        ? [`<script type="application/ld+json">${JSON.stringify(PERSON).replace(/</g, '\\u003c')}</script>`]
+        : []),
       ...fonts,
       ...hints(path)
     ].join('\n    ')
-    return template.replace(/<title>.*?<\/title>/, head).replace('<div id="root"></div>', `<div id="root">${body}</div>`)
+    return template
+      .replace(/<title>.*?<\/title>/, head)
+      .replace('<div id="root"></div>', `<div id="root">${body}</div>`)
   }
 
   for (const page of pages) {
@@ -57,6 +87,17 @@ try {
     await writeFile(page.file, html(page))
     console.log('prerendered', page.file.replace(root + '/', ''))
   }
+
+  // サイトマップ。検索に載せるページの一覧（public/robots.txt から指す）
+  const urls = pages
+    .filter(({path}) => !hidden(path))
+    .map(({path}) => `  <url><loc>${ORIGIN}${path}</loc></url>`)
+    .join('\n')
+  await writeFile(
+    join(dist, 'sitemap.xml'),
+    `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`
+  )
+  console.log('sitemap', pages.filter(({path}) => !hidden(path)).length, 'pages')
 } finally {
   await vite.close()
 }

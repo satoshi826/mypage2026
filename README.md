@@ -169,6 +169,7 @@ worker/     Cloudflare Worker（写真の API）
 | `app/pages/`        | 各ページ |
 | `app/useSmoothScroll.ts` | 慣性スクロール。ホイールを横取りして目標へ減衰追従させる。全ページ共通 |
 | `app/Scrollbar.tsx` | 自前のスクロールバー（マウスなどの環境だけ）。ブラウザのものは消し、ナビとフッターのあいだに出す |
+| `app/profile.ts`    | 本人の情報（受賞・展示・掲載・リンク）。About の表示と、検索エンジン向けの人物の情報（JSON-LD）の両方の出典 |
 | `app/cursor.ts`     | 自前のマウスカーソル（マウスのある環境だけ）。ふだんは丸、リンクは三角、スライダーは横長、Photos の写真はピントを合わせる枠（広げた写真は内向きの四隅）。見た目は `styles.css` の `#cursor`。入力欄と編集中は OS のカーソル |
 | `gallery/layout.ts` | Photos の段組の計算。写真の順・幅・列数・広げている写真から各写真の位置を決める純粋関数 |
 | `gallery/Gallery.tsx` | Photos の一覧。layout.ts の結果を絶対配置で並べ、クリックでその場に広げる（FLIP）。`Img.tsx` が先読みと派生の切り替え |
@@ -178,7 +179,7 @@ worker/     Cloudflare Worker（写真の API）
 | `worker/`           | Cloudflare Worker。写真の API と Access の検証、問い合わせフォームの受け口（`contact.ts`） |
 | `scripts/encode-photos.mjs` | 原本（`.photos/originals/`）から派生画像を `.photos/` に書き出し、manifest.json を更新する（移行と作り直し用） |
 | `scripts/sync-photos.mjs` | 写真を `.photos/` → ローカル、本番 ⇄ ローカルで動かす。作り直しの前に本番の一覧と原本を手元に揃える |
-| `scripts/prerender.js` | ビルド後に各ルートを HTML 化する。CSS は読み込みの往復を減らすため `<style>` で埋め込む |
+| `scripts/prerender.js` | ビルド後に各ルートを HTML 化する。CSS は読み込みの往復を減らすため `<style>` で埋め込む。共有のプレビュー（OGP、画像は `public/og.png`）、トップと About の人物の情報（JSON-LD）、サイトマップ（`sitemap.xml`、`public/robots.txt` から指す）も書く。編集の入口と 404 は検索に載せない |
 | `index.html` | ページの雛形。初めて開いたとき（タブごとに 1 回）のスプラッシュを HTML と CSS だけで持つ。JS を待たずに動き、ロゴが組み上がってナビのロゴへ移る |
 | `scripts/fonts.js` | 本文の書体（Zen Kaku Gothic New）を、プリレンダした全ページに出てくる文字と英数字だけに絞って woff2 にし、各ページの先頭で先読みさせる。元のフォントは `fonts/`（OFL）。開発中は絞らずに `src/dev-fonts.css` で読む |
 

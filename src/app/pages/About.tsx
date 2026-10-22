@@ -1,45 +1,9 @@
 import type {ComponentChildren} from 'preact'
 import {Page} from '../Page'
-import {INSTAGRAM, X} from '../social'
+import {AWARDS, EXHIBITIONS, LINKS, PRESS} from '../profile'
 
-// 仮実装。内容は docs/profile.md を元にしている。ステートメントは note のエッセイから
+// 仮実装。内容は docs/profile.md を元にしている（データは ../profile.ts）。ステートメントは note のエッセイから
 // 起こした下書きなので、本人の言葉に差し替える。
-
-const LINKS = [
-  ['Instagram', INSTAGRAM],
-  ['X', X],
-  ['note', 'https://note.com/mu826'],
-  ['1x', 'https://1x.com/satoshi826']
-] as const
-
-// 作品名は出さない。賞名のリンク先は代表する1点の公式ページ
-const AWARDS = [
-  [
-    '2024',
-    'Tokyo International Foto Awards',
-    'Honorable Mention, Street Photography',
-    'https://www.tokyofotoawards.jp/winners/hm/2024/12681/'
-  ],
-  [
-    '2025',
-    '11th Fine Art Photography Awards',
-    'Nominee, Street Photography',
-    'https://fineartphotoawards.com/winners-gallery/fapa-2024-2025/amateur/street-photography/hm/23448'
-  ]
-] as const
-
-const EXHIBITIONS = [
-  [
-    '2026',
-    '1X Artist Exhibition 2026',
-    'Group exhibition, Hiltopia Art Square, Tokyo',
-    'https://1xjapan.co.jp/1x-artist-exhibition-2026/'
-  ]
-] as const
-
-const PRESS = [
-  ['2020', 'Photography Masterclass Magazine', 'Issue 97, Interview', 'https://photographymc.com/issues/issue-97']
-] as const
 
 export function About() {
   return (
@@ -94,7 +58,7 @@ function Section({label, children}: {label: string; children: ComponentChildren}
 }
 
 /** 年・名前（公式ページへのリンク）・結果の並び */
-function Entries({items}: {items: readonly (readonly [string, string, string, string])[]}) {
+function Entries({items}: {items: typeof AWARDS}) {
   return items.map(([year, name, result, href]) => (
     <Row key={name} label={year}>
       <a href={href} target="_blank" rel="noreferrer" className="no-underline hover:underline">
