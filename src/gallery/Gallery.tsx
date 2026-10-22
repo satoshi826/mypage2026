@@ -70,17 +70,10 @@ const ADD: Photo = {file: '+', w: 3, h: 2, category: 'street', v: ''}
  *
  * マウスを載せた写真は、枠を動かさずに中の画像だけ少しズームする（Img の zoom）。広げている写真は除く。
  *
- * caption を渡すと、その写真の左下に小さな説明を重ねる（Works の案件の 1 行）。返さない写真には出さない。
+ * 編集中は先頭に写真を足す「＋」の枠を置く。add を false にすると置かない（Works のように 1 ページに一覧が
+ * いくつも並ぶとき、先頭の一覧にだけ置くため）。
  */
-export function Gallery({
-  photos,
-  label,
-  caption
-}: {
-  photos: Photo[]
-  label: string
-  caption?: (photo: Photo) => string | undefined
-}) {
+export function Gallery({photos, label, add = true}: {photos: Photo[]; label: string; add?: boolean}) {
   const root = useRef<HTMLDivElement>(null)
   const [metrics, setMetrics] = useState<Metrics | null>(null)
   // 広げている写真
@@ -100,7 +93,8 @@ export function Gallery({
   const editing = !!tools
   const dragging = useDragging()
   // 並べる写真。編集中は先頭に「＋」の枠を足す
-  const items = useMemo(() => (tools ? [ADD, ...photos] : photos), [tools, photos])
+  const adding = !!tools && add
+  const items = useMemo(() => (adding ? [ADD, ...photos] : photos), [adding, photos])
   // 広げた写真が画面に収まらなければ寄せるか。押して広げたときだけ
   const reveal = useRef(false)
 
@@ -177,7 +171,7 @@ export function Gallery({
     const from = view - RANGE * height
     const to = view + (1 + STEP + RANGE) * height
     // 番号（alt）は写真だけで数える。「＋」の枠のぶんをずらす
-    const offset = tools ? 1 : 0
+    const offset = adding ? 1 : 0
     items.forEach((photo, i) => {
       const at = placed.items.get(photo.file)!
       if ((at.y + at.h > from && at.y < to) || keep.has(photo.file) || photo.file === dragging)
@@ -402,7 +396,7 @@ export function Gallery({
         mounted.map(({photo, index}) => {
           const at = placed.items.get(photo.file)!
           const box = {left: `${at.x}px`, top: `${at.y}px`, width: `${at.w}px`, height: `${at.h}px`}
-          if (tools && photo === ADD)
+          if (adding && photo === ADD)
             return (
               <div key={photo.file} data-file={photo.file} className="absolute" style={box}>
                 <tools.Add />
@@ -439,11 +433,6 @@ export function Gallery({
                 hold={keep.size > 0 && !wide}
                 zoom={!wide}
               />
-              {caption?.(photo) && (
-                <figcaption className="pointer-events-none absolute bottom-0 left-0 m-2 bg-black/60 px-2 py-1 text-xs leading-snug tracking-[0.04em] backdrop-blur-[12px]">
-                  {caption(photo)}
-                </figcaption>
-              )}
               {/* ワイプ用の覆い。styles.css の [data-reveal] を参照 */}
               <div data-reveal-cover aria-hidden />
               {tools && <tools.Photo photo={photo} />}
