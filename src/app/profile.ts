@@ -40,7 +40,9 @@ export const EXHIBITIONS: readonly Entry[] = [
 ]
 
 export const PRESS: readonly Entry[] = [
-  ['2020', 'Photography Masterclass Magazine', 'Issue 97, Interview', 'https://photographymc.com/issues/issue-97']
+  ['2020', 'Photography Masterclass Magazine', 'Issue 97, Interview', 'https://photographymc.com/issues/issue-97'],
+  // 1x は審査を通った写真だけが載る。掲載が続いているので、年は始めた年から
+  ['2020–', '1x', '277 curated photos', 'https://1x.com/satoshi826']
 ]
 
 /**
