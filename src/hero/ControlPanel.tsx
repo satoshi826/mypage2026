@@ -12,6 +12,7 @@ import {layoutVars, type Layout, type Tone} from './layout'
 export function ControlPanel({
   count,
   available,
+  seen,
   index,
   layout,
   tone,
@@ -22,6 +23,8 @@ export function ControlPanel({
   count: number
   /** 読み込みが済んだ番号。それ以外は薄く出し、押せない */
   available: readonly number[]
+  /** この巡で表示した番号。まだの番号より明るく出す */
+  seen: readonly number[]
   index: number
   layout: Layout
   /** 濃さ。PC とスマホで共通 */
@@ -77,9 +80,11 @@ export function ControlPanel({
                 className={`flex size-full items-center justify-center tracking-[0.1em] transition-opacity duration-300 text-(length:--number-size) [translate:0.05em_-0.08em] enabled:cursor-pointer enabled:hover:opacity-70 ${
                   i === index
                     ? '[opacity:var(--active-opacity)]'
-                    : loaded.has(i)
-                      ? '[opacity:var(--idle-opacity)]'
-                      : '[opacity:calc(var(--idle-opacity)*0.3)]'
+                    : !loaded.has(i)
+                      ? '[opacity:calc(var(--idle-opacity)*0.3)]'
+                      : seen.includes(i)
+                        ? '[opacity:var(--seen-opacity)]'
+                        : '[opacity:var(--idle-opacity)]'
                 }`}
               >
                 {String(i + 1).padStart(2, '0')}

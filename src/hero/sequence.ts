@@ -16,9 +16,10 @@ export type SequenceState = {
 
 /**
  * 再生の順番。available は読み込みが終わって選べる写真の番号（昇順）。
- * 写真は1枚ずつ届くので、起動直後は少なく、揃うにつれて増える
+ * 写真は1枚ずつ届くので、起動直後は少なく、揃うにつれて増える。
+ * seen はこの巡で表示した写真の番号。シャッフルは全部を表示し終えるまで、表示した写真を選ばない
  */
-export type Order = {shuffle: boolean; available: readonly number[]}
+export type Order = {shuffle: boolean; available: readonly number[]; seen: readonly number[]}
 
 /** 履歴の上限。戻れる深さで、これ以上は古いものから捨てる */
 const HISTORY_LIMIT = 64
@@ -35,11 +36,18 @@ export type Timing = {
 const clamp01 = (v: number) => Math.min(Math.max(v, 0), 1)
 const cycleOf = (timing: Timing) => Math.max(timing.cycleSeconds, 0.1)
 
-/** 次の1枚。シャッフル中は直前と同じものを避けて抽選し、そうでなければ番号順。候補がなければ今のまま */
-export function pickNext(current: number, {shuffle, available}: Order) {
+/**
+ * 次の1枚。シャッフル中は、この巡でまだ表示していない写真から抽選する（まだの写真がすべて読み込み前なら、
+ * 直前以外の読み込み済みから）。そうでなければ番号順。候補がなければ今のまま
+ */
+export function pickNext(current: number, {shuffle, available, seen}: Order) {
   const candidates = available.filter((i) => i !== current)
   if (candidates.length === 0) return current
-  if (shuffle) return candidates[Math.floor(Math.random() * candidates.length)]
+  if (shuffle) {
+    const fresh = candidates.filter((i) => !seen.includes(i))
+    const pool = fresh.length > 0 ? fresh : candidates
+    return pool[Math.floor(Math.random() * pool.length)]
+  }
   return candidates.find((i) => i > current) ?? candidates[0]
 }
 

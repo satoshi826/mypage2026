@@ -68,10 +68,12 @@ export type Tone = {
   /** 選択中の数字の濃さ % */
   activeOpacity: number
   /**
-   * 非選択の数字の濃さ %。読み込み前の番号はこの 3 割。45 未満にすると、地との明るさの比が文字の基準（4.5）を
-   * 下回る（Lighthouse のアクセシビリティで減点される）
+   * この巡でまだ表示していない数字の濃さ %。読み込み前の番号はこの 3 割。45 未満にすると、地との明るさの比が
+   * 文字の基準（4.5）を下回る（Lighthouse のアクセシビリティで減点される）
    */
   idleOpacity: number
+  /** この巡で表示した数字の濃さ %。まだの数字より明るくして、見てきた分が積み上がるように見せる */
+  seenOpacity: number
   /** 選択中を囲む丸の線の濃さ % */
   markerOpacity: number
 }
@@ -79,12 +81,21 @@ export type Tone = {
 export const TONE: Tone = {
   activeOpacity: 100,
   idleOpacity: 50,
+  seenOpacity: 100,
   markerOpacity: 60
 }
 
 export const TONE_PARAMS: Param<Tone>[] = [
   {key: 'activeOpacity', label: '選択中の濃さ', min: 0, max: 100, step: 5, hint: '%'},
-  {key: 'idleOpacity', label: '非選択の濃さ', min: 0, max: 100, step: 5, hint: '%。読み込み前の番号はこの 3 割'},
+  {
+    key: 'idleOpacity',
+    label: 'まだの濃さ',
+    min: 0,
+    max: 100,
+    step: 5,
+    hint: '%。この巡で未表示。読み込み前はこの 3 割'
+  },
+  {key: 'seenOpacity', label: '表示済みの濃さ', min: 0, max: 100, step: 5, hint: '%。この巡で表示した番号'},
   {key: 'markerOpacity', label: '丸の線の濃さ', min: 0, max: 100, step: 5, hint: '%'}
 ]
 
@@ -189,5 +200,6 @@ export const layoutVars = (l: Layout, t: Tone) =>
     '--number-size': `${l.fontSize}px`,
     '--marker-duration': `${l.markerDuration}ms`,
     '--active-opacity': `${t.activeOpacity}%`,
-    '--idle-opacity': `${t.idleOpacity}%`
+    '--idle-opacity': `${t.idleOpacity}%`,
+    '--seen-opacity': `${t.seenOpacity}%`
   }) as CSSProperties

@@ -64,7 +64,18 @@ export function Hero({photos: PHOTOS}: {photos: string[]}) {
   const [shuffle, setShuffle] = useState(true)
   // 読み込みが済んだ写真の番号。worker が1枚上げるごとに増える。抽選はこの中から
   const [available, setAvailable] = useState<number[]>([])
-  const order = useMemo<Order>(() => ({shuffle, available}), [shuffle, available])
+  // この巡で表示した写真の番号。丸がその番号へ移った時点で数える。全部を表示し終えたら、今の1枚から数え直す
+  const [seen, setSeen] = useState<number[]>([0])
+  useEffect(
+    () =>
+      setSeen((prev) => {
+        if (prev.includes(index)) return prev
+        const next = [...prev, index]
+        return next.length >= PHOTOS.length ? [index] : next
+      }),
+    [index, PHOTOS.length]
+  )
+  const order = useMemo<Order>(() => ({shuffle, available, seen}), [shuffle, available, seen])
   // 並べ方は画面の形で決める。写真が大きくなるほうを選ぶ
   const viewport = useViewport()
   const direction = chooseDirection(viewport.width, viewport.height, PHOTOS.length)
@@ -273,6 +284,7 @@ export function Hero({photos: PHOTOS}: {photos: string[]}) {
       <ControlPanel
         count={PHOTOS.length}
         available={available}
+        seen={seen}
         index={index}
         layout={layout}
         tone={tone}
