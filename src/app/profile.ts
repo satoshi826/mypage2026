@@ -55,7 +55,7 @@ export const PERSON = {
   jobTitle: 'Photographer',
   url: ORIGIN,
   image: `${ORIGIN}/og.png`,
-  homeLocation: {'@type': 'Place', name: 'Kanagawa, Japan'},
+  homeLocation: {'@type': 'Place', name: 'Tokyo and Kanagawa, Japan'},
   knowsAbout: ['Street photography', 'Architecture photography', 'Abstract photography'],
   sameAs: [...LINKS.map(([, href]) => href), 'https://500px.com/p/satoshi826'],
   award: AWARDS.map(([year, name, result]) => `${name} ${year} — ${result}`)

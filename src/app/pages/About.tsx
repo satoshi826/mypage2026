@@ -1,16 +1,21 @@
 import type {ComponentChildren} from 'preact'
 import {Page} from '../Page'
+import type {Lang} from '../lang'
 import {AWARDS, EXHIBITIONS, LINKS, PRESS} from '../profile'
 
 // 仮実装。内容は docs/profile.md を元にしている（データは ../profile.ts）。ステートメントは note のエッセイから
-// 起こした下書きなので、本人の言葉に差し替える。
+// 起こした下書きなので、本人の言葉に差し替える。英語版は日本語版の訳の下書き。
+// 欄の名前と経歴はもともと英語なので、言語で変わるのはステートメントだけ
 
-export function About() {
+const STATEMENT = {
+  ja: '目に見えている景色と、脳が見ているつもりの景色の差を探して、街を撮っています。光そのものは写らないので、影と明暗と質感を通して撮ります。',
+  en: 'I photograph the city, looking for the gap between the scene in front of my eyes and the one my mind believes it sees. Light itself cannot be photographed, so I work through shadow, contrast, and texture.'
+}
+
+export function About({lang}: {lang: Lang}) {
   return (
     <Page title="About">
-      <p className="mb-24 max-w-3xl text-[1.5rem]/[1.6] tracking-[0.02em] max-sm:text-xl">
-        目に見えている景色と、脳が見ているつもりの景色の差を探して、街を撮っています。光そのものは写らないので、影と明暗と質感を通して撮ります。
-      </p>
+      <p className="mb-24 max-w-3xl text-[1.5rem]/[1.6] tracking-[0.02em] max-sm:text-xl">{STATEMENT[lang]}</p>
 
       <Section label="Profile">
         <Row label="Name">
@@ -18,7 +23,7 @@ export function About() {
           <br />
           Satoshi Hata <span className="opacity-55">/ mu</span>
         </Row>
-        <Row label="Based in">Kanagawa, Japan</Row>
+        <Row label="Based in">Tokyo / Kanagawa, Japan</Row>
         <Row label="Subject">Street / Architecture / Abstract</Row>
         <Row label="Also">Web engineer</Row>
       </Section>

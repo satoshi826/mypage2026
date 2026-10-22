@@ -165,8 +165,9 @@ worker/     Cloudflare Worker（写真の API）
 | `app/DevPanel.tsx`  | 数値や選択肢を詰める開発用パネル（`import.meta.env.DEV` の中でのみ描画）。hero と Photos が使う |
 | `hero/layout.ts`    | コントロールパネルの寸法と、写真との並べ方の決定 |
 | `app/routes.ts`     | ルート定義。ナビ・プリレンダ・title/description の唯一の出典 |
+| `app/lang.ts`       | 日本語と英語の出し分け。英語版は About と Contact だけで、URL の頭に `/en` を付ける。フッターの JA / EN で行き来する |
 | `app/pageMotion.ts` | ページの移動。URL と表示中の中身を分け、中身とフッターの操作を「消える → 見えないあいだに差し替えて先頭へ戻す → 現れる」で入れ替える。演出は開発用パネル（`app/PageTransition.tsx`）で切り替える |
-| `app/Footer.tsx`    | 固定フッター。右に SNS、左にそのページ固有の操作（URL で選ぶ）。リンク先は `app/social.ts` |
+| `app/Footer.tsx`    | 固定フッター。右に SNS、左にそのページ固有の操作（URL で選ぶ。hero の再生、Photos のカテゴリ、About と Contact の言語）。リンク先は `app/social.ts` |
 | `app/pages/`        | 各ページ |
 | `app/useSmoothScroll.ts` | 慣性スクロール。ホイールを横取りして目標へ減衰追従させる。全ページ共通 |
 | `app/Scrollbar.tsx` | 自前のスクロールバー（マウスなどの環境だけ）。ブラウザのものは消し、ナビとフッターのあいだに出す |
@@ -180,7 +181,7 @@ worker/     Cloudflare Worker（写真の API）
 | `worker/`           | Cloudflare Worker。写真の API と Access の検証、問い合わせフォームの受け口（`contact.ts`） |
 | `scripts/encode-photos.mjs` | 原本（`.photos/originals/`）から派生画像を `.photos/` に書き出し、manifest.json を更新する（移行と作り直し用） |
 | `scripts/sync-photos.mjs` | 写真を `.photos/` → ローカル、本番 ⇄ ローカルで動かす。作り直しの前に本番の一覧と原本を手元に揃える |
-| `scripts/prerender.js` | ビルド後に各ルートを HTML 化する。CSS は読み込みの往復を減らすため `<style>` で埋め込む。共有のプレビュー（OGP、画像は `public/og.png`）、トップと About の人物の情報（JSON-LD）、サイトマップ（`sitemap.xml`、`public/robots.txt` から指す）も書く。編集の入口と 404 は検索に載せない |
+| `scripts/prerender.js` | ビルド後に各ルートを HTML 化する。CSS は読み込みの往復を減らすため `<style>` で埋め込む。共有のプレビュー（OGP、画像は `public/og.png`）、トップと About の人物の情報（JSON-LD）、サイトマップ（`sitemap.xml`、`public/robots.txt` から指す）も書く。英語版は `<html lang="en">` にし、日英の版を互いに指す（hreflang）。編集の入口と 404 は検索に載せない |
 | `index.html` | ページの雛形。初めて開いたとき（タブごとに 1 回）のスプラッシュを HTML と CSS だけで持つ。JS を待たずに動き、ロゴが組み上がってナビのロゴへ移る |
 | `scripts/fonts.js` | 本文の書体（Zen Kaku Gothic New）を、プリレンダした全ページに出てくる文字と英数字だけに絞って woff2 にし、各ページの先頭で先読みさせる。元のフォントは `fonts/`（OFL）。開発中は絞らずに `src/dev-fonts.css` で読む |
 

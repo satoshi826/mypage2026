@@ -2,6 +2,7 @@ import {useEffect, useLayoutEffect, useRef, useState} from 'preact/hooks'
 import {matchRoute, useLocation, useRouter} from 'wouter-preact'
 import type {Param} from './DevPanel'
 import {jumpTo} from './useSmoothScroll'
+import {basePath} from './lang'
 import {EASINGS, type Easing} from '../gallery/tuning'
 
 /*
@@ -209,9 +210,10 @@ const footerTargets = () => [...document.querySelectorAll<HTMLElement>('[data-pa
 const growTargets = () => [...document.querySelectorAll<HTMLElement>('[data-page-grow]')]
 const GROW: Frames = {exit: [{scale: '1 1'}, {scale: '1 0'}], enter: [{scale: '1 0'}, {scale: '1 1'}]}
 
-/** 同じページの中の移動か（Photos のカテゴリの切り替え） */
+/** 同じページの中の移動か（Photos のカテゴリの切り替え、About と Contact の言語の切り替え） */
 const samePage = (parser: Parameters<typeof matchRoute>[0], a: string, b: string) =>
-  matchRoute(parser, '/photos/:category?', a)[0] && matchRoute(parser, '/photos/:category?', b)[0]
+  basePath(a) === basePath(b) ||
+  (matchRoute(parser, '/photos/:category?', a)[0] && matchRoute(parser, '/photos/:category?', b)[0])
 
 /**
  * 表示中の場所を返す。App はこれで中身（Switch とフッター）を描き、ナビだけ実際の URL を使う

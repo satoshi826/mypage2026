@@ -1,5 +1,6 @@
 import type {ComponentChildren} from 'preact'
 import {useEffect, useRef, useState} from 'preact/hooks'
+import type {Lang} from '../lang'
 
 // 問い合わせフォーム。送ると Worker（worker/contact.ts）が本人の Gmail へメールで送る。
 // 自動送信の対策に Turnstile を使う。読み込むのはフォームに触れたときで、人の操作が要るときだけ
@@ -111,13 +112,33 @@ type Status = 'idle' | 'sending' | 'sent' | 'failed'
 
 // 状態の文はすべて最初から HTML に置き、濃さで出し入れする。書体は HTML に出てくる文字だけに
 // 絞っているので（scripts/fonts.js）、あとから出す文を HTML に無い文字で書くと別の書体になる
-const MESSAGES: [Exclude<Status, 'idle'>, string][] = [
-  ['sending', '送っています'],
-  ['sent', '送りました。折り返しご連絡します。'],
-  ['failed', '送れませんでした。時間をおいて試すか、下のアドレスへメールでご連絡ください。']
-]
+const TEXT = {
+  ja: {
+    name: 'お名前',
+    email: 'メールアドレス',
+    message: '内容',
+    hint: 'ご依頼・ご相談の内容と、希望の時期など',
+    send: '送信',
+    sending: '送っています',
+    sent: '送りました。折り返しご連絡します。',
+    failed: '送れませんでした。時間をおいて試すか、下のアドレスへメールでご連絡ください。'
+  },
+  en: {
+    name: 'Name',
+    email: 'Email',
+    message: 'Message',
+    hint: 'What you have in mind, and when',
+    send: 'Send',
+    sending: 'Sending…',
+    sent: 'Sent. I will get back to you soon.',
+    failed: 'Could not send. Please try again later, or email the address below.'
+  }
+}
 
-export function ContactForm() {
+const MESSAGES = ['sending', 'sent', 'failed'] as const
+
+export function ContactForm({lang}: {lang: Lang}) {
+  const text = TEXT[lang]
   const [status, setStatus] = useState<Status>('idle')
   const box = useRef<HTMLDivElement>(null)
   const turnstile = useTurnstile(box)
@@ -156,14 +177,21 @@ export function ContactForm() {
       onInput={() => status !== 'sending' && setStatus('idle')}
       className="flex max-w-2xl flex-col gap-6"
     >
-      <Field label="お名前">
+      <Field label={text.name}>
         <input name="name" required maxLength={100} autoComplete="name" className={INPUT} />
       </Field>
-      <Field label="メールアドレス">
+      <Field label={text.email}>
         <input name="email" type="email" required maxLength={254} autoComplete="email" className={INPUT} />
       </Field>
-      <Field label="内容">
-        <textarea name="message" required maxLength={5000} rows={6} className={`${INPUT} resize-y`} />
+      <Field label={text.message}>
+        <textarea
+          name="message"
+          required
+          maxLength={5000}
+          rows={6}
+          placeholder={text.hint}
+          className={`${INPUT} resize-y placeholder:text-inherit placeholder:opacity-30`}
+        />
       </Field>
       <div ref={box} />
       <div className="flex flex-col items-start gap-3">
@@ -172,16 +200,16 @@ export function ContactForm() {
           disabled={status === 'sending'}
           className="cursor-pointer border border-white/25 bg-transparent px-6 py-2 text-inherit transition-[border-color,opacity] duration-300 hover:border-white/60 focus-visible:border-white/60 disabled:cursor-default disabled:opacity-55"
         >
-          送信
+          {text.send}
         </button>
         <p className="grid text-sm" aria-live="polite">
-          {MESSAGES.map(([key, text]) => (
+          {MESSAGES.map((key) => (
             <span
               key={key}
               className={`col-start-1 row-start-1 transition-[opacity,translate] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${status === key ? 'opacity-55' : 'pointer-events-none translate-y-1 opacity-0'}`}
               aria-hidden={status !== key}
             >
-              {text}
+              {text[key]}
             </span>
           ))}
         </p>

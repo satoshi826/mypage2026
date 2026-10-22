@@ -4,6 +4,8 @@ import {toCategory} from '../photos'
 import {HeroPlayer, HeroProgress} from '../hero/HeroPlayer'
 import {GalleryTools} from '../gallery/GalleryTools'
 import {INSTAGRAM, X} from './social'
+import {basePath, isBilingual, langOf, localized} from './lang'
+import {Tabs, Underline} from './Tabs'
 
 // 枠の幅は Photos の一覧の操作のアイコンと同じ（GalleryTools.tsx）。並ぶアイコンの間隔をそろえるため
 const LINK =
@@ -11,7 +13,7 @@ const LINK =
 
 /**
  * 固定フッター。ナビと対になり、右に SNS、左にそのページ固有の操作を置く
- * （トップは hero の再生操作、Photos はカテゴリ。Photos の一覧の操作は右の SNS の手前に仕切って置く）。上の線は、そのページの進み具合を示す
+ * （トップは hero の再生操作、Photos はカテゴリ、About と Contact は言語。Photos の一覧の操作は右の SNS の手前に仕切って置く）。上の線は、そのページの進み具合を示す
  * （トップのスマホは hero の次の写真まで、Photos は一覧のどこまで見たか）。
  * 左の中身は場所で選ぶ。ページから差し込む形にすると、プリレンダの HTML に入らないため。
  * 場所は App が渡す表示中の場所で、ページの移動では中身（main）とは別の演出で消えて現れる
@@ -37,6 +39,7 @@ export function Footer({location}: {location: string}) {
       <div data-page-footer className="flex items-center self-stretch will-change-[opacity]">
         {isTop && <HeroPlayer />}
         {isPhotos && <PhotoCategories current={category} />}
+        {isBilingual(location) && <Languages current={isBilingual(actual) ? actual : location} />}
       </div>
       {/* 狭い画面の hero のプログレス。上の境界線に重ねる。左側の入れ物の外に置く（HeroProgress） */}
       {isTop && (
@@ -86,5 +89,25 @@ export function Footer({location}: {location: string}) {
         </div>
       </div>
     </footer>
+  )
+}
+
+/**
+ * 日本語と英語の切り替え。About と Contact のフッターの左に置く。見た目と下線の動きは Photos のカテゴリと同じ。
+ * 選んでいる側は実際の URL で決める（カテゴリと同じく、押した瞬間から下線を滑らせるため）。別のページへ移る
+ * ときは、消えるまで今の言語のまま
+ */
+function Languages({current}: {current: string}) {
+  const page = basePath(current)
+  const items = (['ja', 'en'] as const).map((lang) => ({
+    href: localized(page, lang),
+    label: lang.toUpperCase(),
+    current: langOf(current) === lang
+  }))
+  return (
+    <nav aria-label="Language" className="relative h-full">
+      <Tabs items={items} />
+      <Underline current={current} />
+    </nav>
   )
 }

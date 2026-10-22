@@ -25,6 +25,7 @@ try {
   const {render} = await vite.ssrLoadModule('/src/entry-server.tsx')
   const {ROUTES, NAME, ORIGIN} = await vite.ssrLoadModule('/src/app/routes.ts')
   const {PERSON} = await vite.ssrLoadModule('/src/app/profile.ts')
+  const {basePath, isBilingual, langOf, localized} = await vite.ssrLoadModule('/src/app/lang.ts')
   const template = await inlineStyles(await readFile(join(dist, 'index.html'), 'utf8'))
   const hints = await preloadHints()
 
@@ -49,8 +50,21 @@ try {
   // 検索に載せないページ。編集のログインの入口と、どこにも当たらないパス
   const hidden = (path) => path === '/admin' || path === '/404'
 
+  // 英語版のあるページは、互いに言語違いの同じページだと検索エンジンに伝える。どちらでもない人には日本語版
+  const alternates = (path) => {
+    if (!isBilingual(path)) return []
+    const page = basePath(path)
+    return [
+      ...['ja', 'en'].map(
+        (lang) => `<link rel="alternate" hreflang="${lang}" href="${ORIGIN}${localized(page, lang)}">`
+      ),
+      `<link rel="alternate" hreflang="x-default" href="${ORIGIN}${page}">`
+    ]
+  }
+
   const html = ({path, title, description, body}) => {
     const url = `${ORIGIN}${path}`
+    const lang = langOf(path)
     const head = [
       `<title>${escapeHtml(title)}</title>`,
       `<meta name="description" content="${escapeHtml(description)}">`,
@@ -58,8 +72,9 @@ try {
         ? ['<meta name="robots" content="noindex">']
         : [
             `<link rel="canonical" href="${url}">`,
+            ...alternates(path),
             // SNS やメッセージで URL を貼られたときのプレビュー。画像はロゴを黒地に置いたもの（public/og.png）
-            `<meta property="og:type" content="${path === '/about' ? 'profile' : 'website'}">`,
+            `<meta property="og:type" content="${basePath(path) === '/about' ? 'profile' : 'website'}">`,
             `<meta property="og:site_name" content="${NAME}">`,
             `<meta property="og:title" content="${escapeHtml(title)}">`,
             `<meta property="og:description" content="${escapeHtml(description)}">`,
@@ -67,17 +82,18 @@ try {
             `<meta property="og:image" content="${ORIGIN}/og.png">`,
             '<meta property="og:image:width" content="1200">',
             '<meta property="og:image:height" content="630">',
-            '<meta property="og:locale" content="ja_JP">',
+            `<meta property="og:locale" content="${lang === 'en' ? 'en_US' : 'ja_JP'}">`,
             '<meta name="twitter:card" content="summary_large_image">'
           ]),
       // 検索エンジン向けの人物の情報。トップと About に置く（src/app/profile.ts）
-      ...(path === '/' || path === '/about'
+      ...(path === '/' || basePath(path) === '/about'
         ? [`<script type="application/ld+json">${JSON.stringify(PERSON).replace(/</g, '\\u003c')}</script>`]
         : []),
       ...fonts,
       ...hints(path)
     ].join('\n    ')
     return template
+      .replace('<html lang="ja">', `<html lang="${lang}">`)
       .replace(/<title>.*?<\/title>/, head)
       .replace('<div id="root"></div>', `<div id="root">${body}</div>`)
   }

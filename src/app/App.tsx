@@ -4,6 +4,7 @@ import {Nav} from './Nav'
 import {Footer} from './Footer'
 import {Page} from './Page'
 import {findRoute} from './routes'
+import {langOf} from './lang'
 import {Top} from './pages/Top'
 import {Photos} from './pages/Photos'
 import {Works} from './pages/Works'
@@ -18,10 +19,11 @@ import {DevDock} from './DevPanel'
 
 export function App() {
   const [location] = useLocation()
-  // プリレンダされた HTML には正しい title が入っているが、クライアント遷移では変わらないので追随させる
+  // プリレンダされた HTML には正しい title と言語が入っているが、クライアント遷移では変わらないので追随させる
   useEffect(() => {
     const route = findRoute(location)
     if (route) document.title = route.title
+    document.documentElement.lang = langOf(location)
   }, [location])
   useSmoothScroll()
   const [motion, setMotion] = useState(DEFAULT_PAGE_MOTION)
@@ -40,8 +42,18 @@ export function App() {
           </Route>
           <Route path="/photos/:category" component={Photos} />
           <Route path="/works" component={Works} />
-          <Route path="/about" component={About} />
-          <Route path="/contact" component={Contact} />
+          <Route path="/about">
+            <About lang="ja" />
+          </Route>
+          <Route path="/en/about">
+            <About lang="en" />
+          </Route>
+          <Route path="/contact">
+            <Contact lang="ja" />
+          </Route>
+          <Route path="/en/contact">
+            <Contact lang="en" />
+          </Route>
           <Route path="/admin" component={Login} />
           <Route>
             <Page title="Not found">{null}</Page>

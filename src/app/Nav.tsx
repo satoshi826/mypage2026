@@ -1,6 +1,7 @@
 import {Link, useLocation} from 'wouter-preact'
 import {Logo} from './Logo'
 import {NAV_ROUTES} from './routes'
+import {basePath, langOf, localized} from './lang'
 import {Tabs, Underline} from './Tabs'
 
 /**
@@ -11,10 +12,11 @@ import {Tabs, Underline} from './Tabs'
  */
 export function Nav() {
   const [location] = useLocation()
-  // 最初の区切りが同じなら選んでいる扱い。Photos はどのカテゴリ（/photos/color など）でも選んでいる
-  const section = (path: string) => path.split('/')[1]
+  // 最初の区切りが同じなら選んでいる扱い。Photos はどのカテゴリ（/photos/color など）でも、About と Contact は
+  // どちらの言語でも選んでいる。英語版を見ているあいだは、英語版のあるページへのリンクも英語版へ向ける
+  const section = (path: string) => basePath(path).split('/')[1]
   const items = NAV_ROUTES.map(({path, label}) => ({
-    href: path,
+    href: localized(path, langOf(location)),
     label: label!,
     current: section(location) === section(path)
   }))

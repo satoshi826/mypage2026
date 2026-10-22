@@ -22,7 +22,7 @@ export const ROUTES: RouteDef[] = [
     path: '/',
     label: null,
     title: `${NAME} (mu) — Photographer`,
-    description: '端 智士（mu / Satoshi Hata）。神奈川を拠点に street / architecture を撮る写真家。'
+    description: '端 智士（mu / Satoshi Hata）。東京・神奈川を拠点に street / architecture を撮る写真家。'
   },
   // Photos はカテゴリ別の URL（/photos/:category）。ナビの Photos は street を指し、ほかはフッターの
   // 切り替えから辿る。/photos は street へ転送する（worker/index.ts と App.tsx）
@@ -56,11 +56,24 @@ export const ROUTES: RouteDef[] = [
     title: `About — ${NAME}`,
     description: `${NAME} のプロフィールとステートメント。`
   },
+  // About と Contact の英語版（lang.ts）。ナビには出さず、フッターの JA / EN で行き来する
+  {
+    path: '/en/about',
+    label: null,
+    title: `About — ${NAME}`,
+    description: `Profile and statement of ${NAME} (mu), a street photographer based in Tokyo and Kanagawa, Japan.`
+  },
   {
     path: '/contact',
     label: 'Contact',
     title: `Contact — ${NAME}`,
-    description: '撮影のご依頼とお問い合わせ。ジャンルは問いません。'
+    description: '撮影のご依頼や、展示・掲載、ワークショップなどのご相談。'
+  },
+  {
+    path: '/en/contact',
+    label: null,
+    title: `Contact — ${NAME}`,
+    description: `Commissions, exhibitions and publications, workshops, and more — contact ${NAME}.`
   },
   // 編集のログインの入口（pages/Login.tsx）。Cloudflare Access で保護する。ナビには出さない
   {
