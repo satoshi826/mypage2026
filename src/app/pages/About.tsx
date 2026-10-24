@@ -12,12 +12,12 @@ import {AWARDS, EXHIBITIONS, LINKS, PRESS} from '../profile'
  */
 const STATEMENT = {
   ja: [
-    '世界には、|まだ|名前の|ついていない|美しさが|潜んでいる。',
+    'カメラを始めて、|まだ|名前の|ついていない|美しさが、|世界に|潜んでいると|知った。',
     '街にも、|人にも、|ありふれた|ものにも。',
     '光が|通った|跡に、|現れては|消える|それを、|写真という|形で|残したい。'
   ],
   en: [
-    'There is beauty in the world that has yet to be named.',
+    'Through the camera, I learned that the world holds a beauty yet to be named.',
     'In streets, in people, in ordinary things.',
     'Where light has passed, it appears and fades.',
     'I want to keep it in the form of a photograph.'
