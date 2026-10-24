@@ -12,15 +12,15 @@ import {AWARDS, EXHIBITIONS, LINKS, PRESS} from '../profile'
  */
 const STATEMENT = {
   ja: [
-    'カメラを始めて、|まだ|名前の|ついていない|美しさが、|世界に|あると|知りました。',
+    'カメラを通して、|まだ|名前の|ついていない|美しさが、|世界に|あると|知りました。',
     '街にも、|人にも、|ありふれた|ものにも。',
-    '光が|通った|跡に、|現れては|消える|それを、|写真という|形で|残したい。'
+    '光が|通った|跡に、|現れては|消える|それを、|写真という|形で|残せたらと|思います。'
   ],
   en: [
     'Through the camera, I learned that the world holds a beauty yet to be named.',
     'In streets, in people, in ordinary things.',
     'Where light has passed, it appears and fades.',
-    'I want to keep it in the form of a photograph.'
+    'I hope to keep it in the form of a photograph.'
   ]
 }
 
