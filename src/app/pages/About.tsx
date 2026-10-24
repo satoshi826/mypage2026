@@ -13,12 +13,12 @@ import {AWARDS, EXHIBITIONS, LINKS, PRESS} from '../profile'
 const STATEMENT = {
   ja: [
     '世界には、|まだ|名前の|ついていない|美しさが|潜んでいる。',
-    '街にも、|人にも、|モノにも。',
+    '街にも、|人にも、|ありふれた|ものにも。',
     '光が|通った|跡に、|現れては|消える|それを、|写真という|形で|残したい。'
   ],
   en: [
     'There is beauty in the world that has yet to be named.',
-    'In streets, in people, in things.',
+    'In streets, in people, in ordinary things.',
     'Where light has passed, it appears and fades.',
     'I want to keep it in the form of a photograph.'
   ]
@@ -27,7 +27,7 @@ const STATEMENT = {
 export function About({lang}: {lang: Lang}) {
   return (
     <Page title="About">
-      <p className="mb-24 max-w-3xl text-[1.5rem]/[1.6] tracking-[0.02em] max-sm:text-xl">
+      <p className="mb-24 max-w-3xl text-lg/[1.9] tracking-[0.04em] max-sm:text-base/[1.9]">
         {STATEMENT[lang].map((line) => (
           // 折り返してよいのは <wbr> の位置だけにする（英語は語の間の空白でも折り返す）
           <span key={line} className="block break-keep">
