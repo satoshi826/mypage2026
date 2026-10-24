@@ -3,19 +3,43 @@ import {Page} from '../Page'
 import type {Lang} from '../lang'
 import {AWARDS, EXHIBITIONS, LINKS, PRESS} from '../profile'
 
-// 仮実装。内容は docs/profile.md を元にしている（データは ../profile.ts）。ステートメントは note のエッセイから
-// 起こした下書きなので、本人の言葉に差し替える。英語版は日本語版の訳の下書き。
+// 内容は docs/profile.md を元にしている（データは ../profile.ts）。
 // 欄の名前と経歴はもともと英語なので、言語で変わるのはステートメントだけ
 
+/**
+ * ステートメント。詩のように行で区切って読ませるので、1 行ずつ持つ。
+ * 日本語は狭い画面で行の中が折り返すとき、語の途中で切れないよう、切ってよい位置を | で示す
+ */
 const STATEMENT = {
-  ja: '目に見えている景色と、脳が見ているつもりの景色の差を探して、街を撮っています。光そのものは写らないので、影と明暗と質感を通して撮ります。',
-  en: 'I photograph the city, looking for the gap between the scene in front of my eyes and the one my mind believes it sees. Light itself cannot be photographed, so I work through shadow, contrast, and texture.'
+  ja: [
+    '世界には、|まだ|名前の|ついていない|美しさが|潜んでいる。',
+    '街にも、|人にも、|モノにも。',
+    '光が|通った|跡に、|現れては|消える|それを、|写真という|形で|残したい。'
+  ],
+  en: [
+    'There is beauty in the world that has yet to be named.',
+    'In streets, in people, in things.',
+    'Where light has passed, it appears and fades.',
+    'I want to keep it in the form of a photograph.'
+  ]
 }
 
 export function About({lang}: {lang: Lang}) {
   return (
     <Page title="About">
-      <p className="mb-24 max-w-3xl text-[1.5rem]/[1.6] tracking-[0.02em] max-sm:text-xl">{STATEMENT[lang]}</p>
+      <p className="mb-24 max-w-3xl text-[1.5rem]/[1.6] tracking-[0.02em] max-sm:text-xl">
+        {STATEMENT[lang].map((line) => (
+          // 折り返してよいのは <wbr> の位置だけにする（英語は語の間の空白でも折り返す）
+          <span key={line} className="block break-keep">
+            {line.split('|').map((phrase, i) => (
+              <>
+                {i > 0 && <wbr />}
+                {phrase}
+              </>
+            ))}
+          </span>
+        ))}
+      </p>
 
       <Section label="Profile">
         <Row label="Name">
