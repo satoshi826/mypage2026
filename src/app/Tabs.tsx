@@ -11,7 +11,7 @@ export type Tab = {href: string; label: string; current: boolean}
 
 /**
  * Tabs のリンク 1 つ。押せる範囲はバーの高さいっぱい。文字の濃さは 75%、
- * ホバーで 100%。選んでいるかどうかは入れ物の Underline が下線で示し、文字も光らせる（ホバーは弱く）。
+ * ホバーと選んでいるときは 100%。選んでいるかどうかは入れ物の Underline が下線で示し、文字も光らせる（ホバーは弱く）。
  * 光は下線が滑るのと同じ長さでにじみ、引いていく
  */
 function TabLink({href, label, current}: Tab) {
@@ -19,7 +19,7 @@ function TabLink({href, label, current}: Tab) {
     <Link
       href={href}
       aria-current={current ? 'page' : undefined}
-      className={`flex items-center justify-center no-underline opacity-75 transition-opacity duration-300 hover:opacity-100 focus-visible:opacity-100 ${GLOW_HOVER} aria-[current=page]:[--glow:1]`}
+      className={`flex items-center justify-center no-underline opacity-75 transition-opacity duration-300 hover:opacity-100 focus-visible:opacity-100 ${GLOW_HOVER} aria-[current=page]:opacity-100 aria-[current=page]:[--glow:1]`}
     >
       {/* バーの中央からわずかに上げる。下線は文字の実寸から測るので一緒に上がる */}
       <span className="glow-text -translate-y-0.5 transition-[text-shadow] duration-800 ease-[cubic-bezier(0.22,1,0.36,1)]">
