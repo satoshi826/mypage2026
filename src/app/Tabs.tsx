@@ -126,7 +126,7 @@ type TabGlow = {
 }
 
 /** 既定値。styles.css の --tab-* と同じ値。決まったら両方を書き換える */
-const DEFAULT_TAB_GLOW: TabGlow = {line: 60, nearBlur: 3, near: 50, farBlur: 8, far: 25, textBlur: 8, text: 55}
+const DEFAULT_TAB_GLOW: TabGlow = {line: 80, nearBlur: 3, near: 60, farBlur: 20, far: 80, textBlur: 12, text: 60}
 
 const TAB_GLOW_PARAMS: Param<TabGlow>[] = [
   {key: 'line', label: '線の濃さ', min: 0, max: 100, step: 5, hint: '%'},

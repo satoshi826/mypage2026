@@ -35,13 +35,13 @@
 
 /* タブの選んでいる印の光（Tabs.tsx）。下線と文字に白い影をにじませる。開発中は Tabs.tsx のパネルで詰める */
 :root {
-  --tab-line: 60%;
+  --tab-line: 80%;
   --tab-near-blur: 3px;
-  --tab-near: 50%;
-  --tab-far-blur: 8px;
-  --tab-far: 25%;
-  --tab-text-blur: 8px;
-  --tab-text: 55%;
+  --tab-near: 60%;
+  --tab-far-blur: 20px;
+  --tab-far: 80%;
+  --tab-text-blur: 12px;
+  --tab-text: 60%;
 }
 [data-tab-line] {
   background: color-mix(in srgb, var(--color-ink) var(--tab-line), transparent);
