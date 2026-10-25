@@ -41,14 +41,14 @@
    光の出入りの速さは部品ごとの transition で決める（ホバー 0.3 秒、選ぶ状態 0.8 秒）。
    開発中は GlowPanel で詰める */
 :root {
-  --glow-near-blur: 3px;
-  --glow-near: 0.6;
-  --glow-far-blur: 20px;
-  --glow-far: 0.8;
-  --glow-text-blur: 12px;
+  --glow-near-blur: 6px;
+  --glow-near: 0.5;
+  --glow-far-blur: 28px;
+  --glow-far: 1;
+  --glow-text-blur: 6px;
   --glow-text: 0.6;
   --glow-hover: 1;
-  --glow-selected: 0.5;
+  --glow-selected: 0.85;
 }
 .glow-line {
   box-shadow:

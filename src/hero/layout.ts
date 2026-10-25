@@ -65,7 +65,7 @@ export const LAYOUT_PRESETS: Record<Direction, Layout> = {stacked: STACKED_LAYOU
 
 /** カレンダーの濃さ。寸法と違って並べ方（PC とスマホ）で変えない */
 export type Tone = {
-  /** 選択中の数字の濃さ % */
+  /** 選択中の数字の濃さ %。100% はホバーだけに使うので、その一段下（docs/design.md の「光」） */
   activeOpacity: number
   /**
    * この巡でまだ表示していない数字の濃さ %。読み込み前の番号はこの 3 割。地との明るさの比は文字の基準（4.5）を
@@ -79,7 +79,7 @@ export type Tone = {
 }
 
 export const TONE: Tone = {
-  activeOpacity: 100,
+  activeOpacity: 90,
   idleOpacity: 25,
   seenOpacity: 80,
   markerOpacity: 75

@@ -1,6 +1,5 @@
 import {useLayoutEffect, useRef} from 'preact/hooks'
 import {layoutVars, type Layout, type Tone} from './layout'
-import {GLOW_HOVER} from '../app/glow'
 
 /**
  * 写真に添える操作面。カレンダー状に並べた番号。
@@ -78,7 +77,7 @@ export function ControlPanel({
                 onClick={() => onSelect(i)}
                 aria-current={i === index}
                 disabled={!loaded.has(i)}
-                className={`glow-text flex size-full items-center justify-center tracking-[0.1em] transition-[opacity,text-shadow] duration-300 text-(length:--number-size) [translate:0.05em_-0.08em] enabled:cursor-pointer enabled:hover:opacity-70 ${GLOW_HOVER} aria-[current=true]:[--glow:var(--glow-selected)] ${
+                className={`glow-text flex size-full items-center justify-center tracking-[0.1em] transition-[opacity,text-shadow] duration-300 text-(length:--number-size) [translate:0.05em_-0.08em] enabled:cursor-pointer enabled:hover:opacity-100 enabled:focus-visible:opacity-100 enabled:hover:[--glow:var(--glow-hover)]! enabled:focus-visible:[--glow:var(--glow-hover)]! aria-[current=true]:[--glow:var(--glow-selected)] ${
                   i === index
                     ? '[opacity:var(--active-opacity)]'
                     : !loaded.has(i)
