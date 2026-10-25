@@ -14,8 +14,10 @@ const TILE = 1024
  * - blue: でたらめな明るさから、塊になる成分（なだらかな変化）を抜いたもの。粒が均等に散り、細かく見える
  * - binary: 明るいか暗いかの 2 つだけ。版画の網点のように硬い
  * - dust: ほとんどは地のままで、ところどころに明るい点。ほこりや星のよう
+ * - concrete: 打ちっぱなしのコンクリート。細かい砂の粒に、大きな濃淡のむら（雲のよう）、中くらいのざらつき、
+ *   ところどころの小さな穴（気泡の跡）と明るい点（骨材）を重ねる
  */
-export const GRAIN_KINDS = ['triangle', 'uniform', 'gauss', 'blue', 'binary', 'dust'] as const
+export const GRAIN_KINDS = ['triangle', 'uniform', 'gauss', 'blue', 'binary', 'dust', 'concrete'] as const
 export type GrainKind = (typeof GRAIN_KINDS)[number]
 
 /** 本番で使う種類 */
@@ -85,7 +87,34 @@ function noise(kind: GrainKind): Float32Array {
       // 2% の画素だけを明るくする。平均がわずかに上がるぶん、残りをほんの少し暗くして打ち消す
       for (let i = 0; i < size; i++) data[i] = r() < 0.02 ? 2.5 + r() * 1.5 : -0.065
       return data
+    case 'concrete': {
+      // 大きさの違う濃淡を重ねる。[ぼかしの半径（画面の画素）, 重み]。半径 0 はぼかさない砂の粒
+      for (const [radius, weight] of [
+        [0, 0.55],
+        [4, 0.3],
+        [32, 0.6]
+      ]) {
+        const layer = new Float32Array(size)
+        for (let i = 0; i < size; i++) layer[i] = r() - 0.5
+        if (radius > 0) for (let pass = 0; pass < 3; pass++) blur(layer, radius)
+        normalize(layer)
+        for (let i = 0; i < size; i++) data[i] += layer[i] * weight
+      }
+      normalize(data)
+      // 気泡の跡（暗い穴）と骨材（明るい点）。どちらも 1〜2 画素の小さな点
+      for (let n = 0; n < size * 0.0015; n++) speck(data, -3 - r() * 1.5, r() < 0.3 ? 2 : 1)
+      for (let n = 0; n < size * 0.001; n++) speck(data, 1.5 + r(), 1)
+      return data
+    }
   }
+}
+
+/** でたらめな位置に、一辺 side 画素の点を置く。端は反対側とつなぐ */
+function speck(data: Float32Array, value: number, side: number) {
+  const x = Math.floor(Math.random() * TILE)
+  const y = Math.floor(Math.random() * TILE)
+  for (let dy = 0; dy < side; dy++)
+    for (let dx = 0; dx < side; dx++) data[((y + dy) % TILE) * TILE + ((x + dx) % TILE)] = value
 }
 
 /** 横と縦に箱形のぼかしをかける。端は反対側とつなぐ（画像を並べても継ぎ目が出ない） */
