@@ -14,6 +14,8 @@
         if (!sessionStorage.getItem('mypage2026.splash') && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
           sessionStorage.setItem('mypage2026.splash', '1')
           document.documentElement.classList.add('splash')
+          // ナビのロゴの濃さ（トップは 100%、ほかは 80%。src/app/Nav.tsx）。移ってきたロゴを同じ濃さで着地させる
+          if (location.pathname !== '/') document.documentElement.style.setProperty('--splash-logo', '0.8')
         }
       } catch {
         // 残せない環境では毎回出てしまうので、出さない
@@ -57,7 +59,7 @@
       @keyframes splash-h-out {from {transform: scaleX(1); transform-origin: right;} to {transform: scaleX(0); transform-origin: right;}}
       @keyframes splash-move {
         from {transform: translate(calc(50vw - 84px), calc(50svh - 77px)) scale(1); opacity: 1;}
-        to {transform: translate(var(--to-x), var(--to-y)) scale(calc(1 / 7)); opacity: 0.8;}
+        to {transform: translate(var(--to-x), var(--to-y)) scale(calc(1 / 7)); opacity: var(--splash-logo, 1);}
       }
       @keyframes splash-veil {from {opacity: 1;} to {opacity: 0;}}
       @keyframes splash-end {to {visibility: hidden;}}
