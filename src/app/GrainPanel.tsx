@@ -1,5 +1,6 @@
 import {DevPanel, type Param} from './DevPanel'
 import {GRAIN_KINDS, renderGrain, type GrainKind} from './grain'
+import {renderVignette} from './vignette'
 
 // 地の粒（styles.css の --grain、app/grain.ts）と周辺減光（--vignette）を詰める開発用パネル。開発中だけ描かれる
 
@@ -25,6 +26,7 @@ const PARAMS: Param<Grain>[] = [
 ]
 
 let kind = ''
+let vignette = [-1, -1]
 
 function apply(g: Grain) {
   const style = document.documentElement.style
@@ -32,6 +34,11 @@ function apply(g: Grain) {
   style.setProperty('--grain-size', `${g.size}`)
   style.setProperty('--vignette', `${g.vignette / 100}`)
   style.setProperty('--vignette-start', `${g.vignetteStart}%`)
+  // 周辺減光は画像なので、値が変わったら作り直す
+  if (g.vignette !== vignette[0] || g.vignetteStart !== vignette[1]) {
+    vignette = [g.vignette, g.vignetteStart]
+    renderVignette()
+  }
   // 種類が変わったときだけ画像を作り直す（作るのに少しかかるため）
   if (g.kind !== kind) {
     kind = g.kind

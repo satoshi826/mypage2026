@@ -90,8 +90,8 @@ body {
 
 /* 地の質感（試し中）。周辺減光と、その上に重ねる止まった粒。写真や hero の canvas はこの上に描かれるので、
    どちらも地の部分にだけかかり、写真は暗くも粗くもしない。
-   - 周辺減光（body::before）: 画面の端へ向かって地を暗くする。--vignette は端での暗さ（0〜1）、
-     --vignette-start は暗くなり始める位置（中心からの距離）
+   - 周辺減光（body::before）: 画面の端へ向かって地を暗くする。縞が出ないよう、画像として app/vignette.ts が作る。
+     --vignette は端での暗さ（0〜1）、--vignette-start は暗くなり始める位置（中心からの距離）
    - 粒（body::after）: 下の明るさに対する割合で明暗へ揺らす（mix-blend-mode: overlay。粒の画像は中間の灰色を
      中心に揺れる。app/grain.ts）。平均の明るさは変えず、減光の濃淡の段差（縞）や、暗い地ににじむ光の段差も散らす。
      粒は明るいところで強く、暗いところで弱く出る（フィルムの粒と同じ）。--grain（0〜1）は揺れの大きさ、
@@ -112,7 +112,9 @@ body::after {
   pointer-events: none;
 }
 body::before {
-  background: radial-gradient(ellipse at center, transparent var(--vignette-start), rgb(0 0 0 / var(--vignette)) 100%);
+  background: var(--vignette-image, none) center / 100% 100%;
+  opacity: var(--vignette-on, 0);
+  transition: opacity 1.2s linear;
 }
 body::after {
   background-image: var(--grain-image, none);
