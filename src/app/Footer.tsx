@@ -1,7 +1,7 @@
 import {matchRoute, useLocation, useRouter} from 'wouter-preact'
 import {PhotoCategories} from './pages/Photos'
 import {toCategory} from '../photos'
-import {HeroPlayer, HeroProgress} from '../hero/HeroPlayer'
+import {HeroPlayer} from '../hero/HeroPlayer'
 import {GalleryTools} from '../gallery/GalleryTools'
 import {INSTAGRAM, X} from './social'
 import {basePath, isBilingual, langOf, localized} from './lang'
@@ -14,12 +14,11 @@ const LINK = `glow-mark flex w-10 items-center justify-center opacity-55 transit
 /**
  * 固定フッター。ナビと対になり、右に SNS、左にそのページ固有の操作を置く
  * （トップは hero の再生操作、Photos はカテゴリ、About と Contact は言語。Photos の一覧の操作は右の SNS の手前に仕切って置く）。上の線は、そのページの進み具合を示す
- * （トップのスマホは hero の次の写真まで、Photos は一覧のどこまで見たか）。
+ * （Photos の一覧をどこまで見たか）。
  * 左の中身は場所で選ぶ。ページから差し込む形にすると、プリレンダの HTML に入らないため。
  * 場所は App が渡す表示中の場所で、ページの移動では中身（main）とは別の演出で消えて現れる
  * （[data-page-footer]、pageMotion.ts）。入れ替わる部分は will-change で普段から別の層にしておく。ぼかしで
- * 現れる演出が終わった瞬間に層が外れて文字を描き直すと、一瞬ぼけて見えるため。filter や transform で層を
- * 持たせると中の絶対配置（スマホの hero のプログレスの線）の基準がずれるので、opacity で持たせる
+ * 現れる演出が終わった瞬間に層が外れて文字を描き直すと、一瞬ぼけて見えるため
  *
  * バー全体でクリックを受け止める。下を流れる写真に、バー越しに触れられないようにするため。
  *
@@ -41,12 +40,6 @@ export function Footer({location}: {location: string}) {
         {isPhotos && <PhotoCategories current={category} />}
         {isBilingual(location) && <Languages current={isBilingual(actual) ? actual : location} />}
       </div>
-      {/* 狭い画面の hero のプログレス。上の境界線に重ねる。左側の入れ物の外に置く（HeroProgress） */}
-      {isTop && (
-        <div data-page-footer className="absolute inset-x-0 -top-px h-[0.5px] will-change-[opacity] sm:hidden">
-          <HeroProgress className="h-full w-full" />
-        </div>
-      )}
       {/* 上の境界線に重ねて、一覧をどこまでスクロールしたかを伸ばす。styles.css の [data-scroll-progress] */}
       {isPhotos && (
         <div

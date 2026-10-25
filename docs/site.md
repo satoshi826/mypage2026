@@ -21,8 +21,7 @@ About の Subject に書く Architecture は、Photos では street か abstract
 
 ナビは固定表示で、左にロゴ（トップへ）、右に4項目（Photos / Works / About / Contact）。フッターも固定表示で、右に
 Instagram / X のアイコン、左にそのページ固有の操作を置く。トップは hero の再生・停止と
-次の写真までのプログレス。再生は常にランダムで、全部を表示し終えるまで同じ写真を出さない。プログレスは PC では再生操作の後ろに短く置き、スマホでは
-フッターの上の線を使う。Photos はカテゴリの切り替え。About と Contact は日本語と英語の切り替え（JA / EN）。
+次の写真までのプログレス。再生は常にランダムで、全部を表示し終えるまで同じ写真を出さない。プログレスは再生操作の後ろに短く置く。Photos はカテゴリの切り替え。About と Contact は日本語と英語の切り替え（JA / EN）。
 
 About と Contact だけ英語版を持つ（`/en/about`、`/en/contact`）。ほかのページは文字がほとんど英語か写真だけなので分けない。
 英語版を見ているあいだは、ナビの About と Contact も英語版へ向ける。

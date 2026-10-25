@@ -4,7 +4,7 @@ import {progressLines, usePlayer} from './playback'
 import {GLOW_HOVER, GLOW_SELECTED} from '../app/glow'
 
 /**
- * フッターの左に置く hero の再生操作と、広い画面での次の写真までのプログレス。
+ * フッターの左に置く hero の再生操作と、次の写真までのプログレス。
  * 状態と操作は Hero が playback.ts に出したものを使う。hero がまだ無いあいだは何も描かず、
  * hero の写真の 6 割が隠れたら（読み進めているあいだは）隠す。
  */
@@ -16,13 +16,12 @@ export function HeroPlayer() {
       role="group"
       aria-label="再生操作"
       aria-hidden={!player.visible}
-      className={`flex items-center gap-6 transition-opacity duration-700 ${player.visible ? '' : 'pointer-events-none opacity-0'}`}
+      className={`flex items-center gap-6 transition-opacity duration-700 max-sm:gap-4 ${player.visible ? '' : 'pointer-events-none opacity-0'}`}
     >
       <Transport label={player.autoplay ? 'Pause' : 'Play'} onClick={player.toggle} size="size-5">
         {player.autoplay ? <path d="M8 5h3v14H8zM14 5h3v14h-3z" /> : <path d="M8 5 19 12 8 19z" />}
       </Transport>
-      {/* 広い画面のプログレス。狭い画面ではフッターの上の線を使う（Footer.tsx） */}
-      <HeroProgress className="h-px w-64 max-sm:hidden" />
+      <HeroProgress />
     </div>
   )
 }
@@ -31,31 +30,20 @@ export function HeroPlayer() {
  * 次の遷移までのプログレス。前の遷移の開始で 0、次の遷移の開始で 1。通過した部分は白一色にして、
  * まだ通過していない部分を遷移ぶんと静止帯ぶんで塗り分け、どの地点で止まるかが先に見えるようにする。
  *
- * 広い画面では再生操作の後ろに長さを決めて置き（全幅だと進みが速すぎて落ち着かないため）、狭い画面では
- * フッターの上の線に重ねる。狭い画面の線はフッターの直下に置く。再生操作の入れ物の中に置くと、ページの移動で
- * 入れ物がぼけるあいだ（filter）、絶対配置の基準が入れ物に変わって線が縮むため。
- * hero の写真の 6 割が隠れたら、再生操作と一緒に隠す
+ * 再生操作の後ろに長さを決めて置く（全幅だと進みが速すぎて落ち着かないため）。狭い画面では短くする
  */
-export function HeroProgress({className}: {className: string}) {
-  const player = usePlayer()
+function HeroProgress() {
   const ref = useRef<HTMLDivElement>(null)
-  // 再生操作が出たときに線が描かれるので、そこで登録する
-  const ready = player !== null
+  // 再生操作と一緒に描かれる（hero が出てから）ので、描かれたときに登録する
   useEffect(() => {
-    const el = ref.current
-    if (!el) return
+    const el = ref.current!
     progressLines.add(el)
     return () => {
       progressLines.delete(el)
     }
-  }, [ready])
-  if (!player) return null
+  }, [])
   return (
-    <div
-      ref={ref}
-      aria-hidden
-      className={`relative flex transition-opacity duration-700 ${player.visible ? '' : 'opacity-0'} ${className}`}
-    >
+    <div ref={ref} aria-hidden className="relative flex h-px w-64 max-sm:w-40">
       {/* 未通過部分の濃さ。遷移帯ぶん 30%、静止帯ぶん 16%。通過した部分は 100% */}
       <div className="shrink-0 bg-ink opacity-30 [width:var(--morph)]" />
       <div className="flex-1 bg-ink opacity-16" />
