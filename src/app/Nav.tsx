@@ -33,10 +33,12 @@ export function Nav() {
         // 初めて開いたときのスプラッシュ（index.html）が、ロゴを移し終えるまでここを隠す
         data-logo
         // pt-px で中身の高さを偶数にし、ロゴを画素にそろえる（ナビの下の線 1px のぶん奇数になり、半画素に
-        // かかってにじむ）。上に足して、ロゴの中心を下の線まで含めたナビの高さの中央に置く
-        className={`glow-mark flex items-center pt-px opacity-80 transition-[opacity,filter] duration-300 hover:opacity-100! focus-visible:opacity-100! ${GLOW_HOVER} aria-[current=page]:opacity-90 aria-[current=page]:[--glow:calc(var(--glow-selected)*0.6)]`}
+        // かかってにじむ）。上に足して、ロゴの中心を下の線まで含めたナビの高さの中央に置く。
+        // 狭い画面ではロゴを 20 × 18.33（格子 1 つが 5/3px）に縮める。iPhone（1px が 3 画素）で格子が画素にそろう。
+        // 中央に置くと上端が 1/3px の刻みから外れるので、上からの位置を 13px に決めて置く
+        className={`glow-mark flex items-center pt-px max-sm:items-start max-sm:pt-[13px] opacity-80 transition-[opacity,filter] duration-300 hover:opacity-100! focus-visible:opacity-100! ${GLOW_HOVER} aria-[current=page]:opacity-90 aria-[current=page]:[--glow:calc(var(--glow-selected)*0.6)]`}
       >
-        <Logo />
+        <Logo className="max-sm:h-[calc(55px/3)] max-sm:w-5" />
       </Link>
       {/* 狭い画面ではロゴとリンクが1行に収まらず、ナビが2行に伸びて
           --spacing-nav とずれる。360px で収まるところまで詰める */}
