@@ -16,8 +16,20 @@ const TILE = 1024
  * - dust: ほとんどは地のままで、ところどころに明るい点。ほこりや星のよう
  * - concrete: 打ちっぱなしのコンクリート。細かい砂の粒に、大きな濃淡のむら（雲のよう）、中くらいのざらつき、
  *   ところどころの小さな穴（気泡の跡）と明るい点（骨材）を重ねる
+ * - hairline: 金属のヘアライン加工。横にだけ伸ばした細い筋に、ごく細かい粒を重ねる
+ * - paper: 印画紙のような紙。ばらばらの向きの短い繊維に、細かい粒と、ごく弱いむらを重ねる
  */
-export const GRAIN_KINDS = ['triangle', 'uniform', 'gauss', 'blue', 'binary', 'dust', 'concrete'] as const
+export const GRAIN_KINDS = [
+  'triangle',
+  'uniform',
+  'gauss',
+  'blue',
+  'binary',
+  'dust',
+  'concrete',
+  'hairline',
+  'paper'
+] as const
 export type GrainKind = (typeof GRAIN_KINDS)[number]
 
 /** 本番で使う種類 */
@@ -106,6 +118,38 @@ function noise(kind: GrainKind): Float32Array {
       for (let n = 0; n < size * 0.001; n++) speck(data, 1.5 + r(), 1)
       return data
     }
+    case 'hairline': {
+      // 横にだけ長くぼかすと、横に走る筋になる。筋の太さは 1 画素のまま
+      const lines = new Float32Array(size)
+      for (let i = 0; i < size; i++) lines[i] = r() - 0.5
+      for (let pass = 0; pass < 3; pass++) blur(lines, 48, 'x')
+      normalize(lines)
+      for (let i = 0; i < size; i++) data[i] = lines[i] * 0.85 + (r() + r() - 1) * 0.9
+      return normalize(data)
+    }
+    case 'paper': {
+      for (let i = 0; i < size; i++) data[i] = (r() + r() - 1) * 1.2
+      const mottle = new Float32Array(size)
+      for (let i = 0; i < size; i++) mottle[i] = r() - 0.5
+      for (let pass = 0; pass < 3; pass++) blur(mottle, 24)
+      normalize(mottle)
+      for (let i = 0; i < size; i++) data[i] += mottle[i] * 0.25
+      // 繊維。長さ 8〜40 画素の細い線を、ばらばらの向きに置く。明るいものと暗いものを半々に
+      for (let n = 0; n < size * 0.0008; n++) {
+        const length = 8 + r() * 32
+        const angle = r() * Math.PI
+        const value = (r() < 0.5 ? -1 : 1) * (0.4 + r() * 0.4)
+        let x = r() * TILE
+        let y = r() * TILE
+        for (let t = 0; t < length; t++) {
+          const i = (Math.floor(y + TILE) % TILE) * TILE + (Math.floor(x + TILE) % TILE)
+          data[i] += value
+          x += Math.cos(angle)
+          y += Math.sin(angle)
+        }
+      }
+      return normalize(data)
+    }
   }
 }
 
@@ -117,15 +161,16 @@ function speck(data: Float32Array, value: number, side: number) {
     for (let dx = 0; dx < side; dx++) data[((y + dy) % TILE) * TILE + ((x + dx) % TILE)] = value
 }
 
-/** 横と縦に箱形のぼかしをかける。端は反対側とつなぐ（画像を並べても継ぎ目が出ない） */
-function blur(data: Float32Array, radius: number) {
+/** 箱形のぼかしをかける（横と縦、または片方だけ）。端は反対側とつなぐ（画像を並べても継ぎ目が出ない） */
+function blur(data: Float32Array, radius: number, axis: 'both' | 'x' = 'both') {
   const width = TILE
   const line = new Float32Array(width)
   const span = radius * 2 + 1
-  for (const [step, stride] of [
+  const axes = [
     [1, width],
     [width, 1]
-  ]) {
+  ]
+  for (const [step, stride] of axis === 'x' ? axes.slice(0, 1) : axes) {
     for (let row = 0; row < width; row++) {
       const start = row * stride
       let acc = 0
