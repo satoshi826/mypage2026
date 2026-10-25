@@ -1,6 +1,7 @@
-// 地の粒（styles.css の body::before）の画像を作る。開いたときに 1 度だけ、手の空いたときに作り、できたら
+// 地の粒（styles.css の body::after）の画像を作る。開いたときに 1 度だけ、手の空いたときに作り、できたら
 // 薄く現す（styles.css の --grain-on）。粒の種類は試し中で、開発中は GrainPanel で切り替えて比べる。
-// どの種類も地の色を中心に明暗へ揺らし（平均の明るさは地の色のまま）、ぼかさずくっきり置く。
+// どの種類も中間の灰色を中心に明暗へ揺らし、ぼかさずくっきり置く。地の上には、下の明るさに対する割合で
+// 重ねる（styles.css の mix-blend-mode: overlay）ので、平均の明るさは変わらない。
 // 画面の画素に合わせて粒を置くため、画素の細かさ（devicePixelRatio）に合わせて敷く大きさを決める。
 
 /** 粒の画像の一辺（画面の画素）。これより大きい範囲は繰り返すが、粒どうしに関係がないので繰り返しは見えない */
@@ -33,7 +34,7 @@ export const GRAIN_KINDS = [
 export type GrainKind = (typeof GRAIN_KINDS)[number]
 
 /** 本番で使う種類 */
-const KIND: GrainKind = 'triangle'
+const KIND: GrainKind = 'blue'
 
 export function startGrain() {
   const idle = window.requestIdleCallback ?? ((run: () => void) => setTimeout(run, 200))
@@ -45,9 +46,9 @@ let url = ''
 /** 粒の画像を作って敷く。開発用パネルからも種類を変えて呼ぶ */
 export function renderGrain(kind: GrainKind) {
   const root = document.documentElement
-  // 地が暗いので、振れ幅はおおむね地の明るさまで（暗い側が黒で止まる）
-  const ground = groundLevel()
-  const amplitude = ground / 2.5
+  // 中間の灰色（128）を中心に揺らす。ほとんどの粒（±2.5 標準偏差）が 0〜255 に収まる振れ幅。重ねたときの揺れは
+  // 下の明るさの ±40%（1 標準偏差）になる
+  const amplitude = 51
   const values = noise(kind)
   const canvas = document.createElement('canvas')
   canvas.width = canvas.height = TILE
@@ -55,7 +56,7 @@ export function renderGrain(kind: GrainKind) {
   const image = context.createImageData(TILE, TILE)
   const pixels = new Uint32Array(image.data.buffer)
   for (let i = 0; i < pixels.length; i++) {
-    const v = Math.max(0, Math.min(255, Math.round(ground + amplitude * values[i])))
+    const v = Math.max(0, Math.min(255, Math.round(128 + amplitude * values[i])))
     pixels[i] = 0xff000000 | (v << 16) | (v << 8) | v
   }
   context.putImageData(image, 0, 0)
@@ -194,14 +195,4 @@ function normalize(data: Float32Array) {
   const sd = Math.sqrt(variance / data.length) || 1
   for (let i = 0; i < data.length; i++) data[i] = (data[i] - mean) / sd
   return data
-}
-
-/** 地の色（--color-ground）の明るさ 0〜255。灰色なので赤の値を使う */
-function groundLevel() {
-  const probe = document.createElement('div')
-  probe.style.color = 'var(--color-ground)'
-  document.body.append(probe)
-  const [r] = getComputedStyle(probe).color.match(/\d+/g)!.map(Number)
-  probe.remove()
-  return r
 }
