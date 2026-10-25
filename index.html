@@ -14,7 +14,7 @@
         if (!sessionStorage.getItem('mypage2026.splash') && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
           sessionStorage.setItem('mypage2026.splash', '1')
           document.documentElement.classList.add('splash')
-          // ナビのロゴの濃さ（トップは 100%、ほかは 80%。src/app/Nav.tsx）。移ってきたロゴを同じ濃さで着地させる
+          // ナビのロゴの濃さ（トップは 90%、ほかは 80%。src/app/Nav.tsx）。移ってきたロゴを同じ濃さで着地させる
           if (location.pathname !== '/') document.documentElement.style.setProperty('--splash-logo', '0.8')
         }
       } catch {
@@ -49,6 +49,8 @@
       #splash .h {animation: splash-h-in calc(280ms * var(--slow)) var(--ease) calc((480ms + var(--i) * 60ms) * var(--slow)) both, splash-h-out calc(260ms * var(--slow)) var(--ease) calc((1210ms + var(--i) * 60ms) * var(--slow)) forwards;}
       /* 移ってきたロゴと入れ替わるまで、ナビのロゴは隠しておく */
       .splash [data-logo] svg {animation: splash-show 0s calc(2080ms * var(--slow, 1.6667)) both;}
+      /* ナビのロゴの光（トップで選んでいるとき）は、スプラッシュが片付いてから灯す。入れ替わりで光が跳ばないように */
+      .splash [data-logo] {--glow: 0;}
       .splash-skip #splash {opacity: 0; transition: opacity 300ms linear;}
       .splash-skip [data-logo] svg {animation: none;}
       @keyframes splash-grow {from {transform: scale(0);} to {transform: scale(1);}}
@@ -59,7 +61,7 @@
       @keyframes splash-h-out {from {transform: scaleX(1); transform-origin: right;} to {transform: scaleX(0); transform-origin: right;}}
       @keyframes splash-move {
         from {transform: translate(calc(50vw - 84px), calc(50svh - 77px)) scale(1); opacity: 1;}
-        to {transform: translate(var(--to-x), var(--to-y)) scale(calc(1 / 7)); opacity: var(--splash-logo, 1);}
+        to {transform: translate(var(--to-x), var(--to-y)) scale(calc(1 / 7)); opacity: var(--splash-logo, 0.9);}
       }
       @keyframes splash-veil {from {opacity: 1;} to {opacity: 0;}}
       @keyframes splash-end {to {visibility: hidden;}}
