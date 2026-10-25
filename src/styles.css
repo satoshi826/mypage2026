@@ -54,7 +54,9 @@
     0 0 var(--glow-far-blur) rgb(255 255 255 / calc(var(--glow-far) * var(--glow, 0)));
 }
 .glow-text {
-  text-shadow: 0 0 var(--glow-text-blur) rgb(255 255 255 / calc(var(--glow-text) * var(--glow, 0)));
+  text-shadow:
+    0 0 var(--glow-near-blur) rgb(255 255 255 / calc(var(--glow-near) * var(--glow, 0))),
+    0 0 var(--glow-text-blur) rgb(255 255 255 / calc(var(--glow-text) * var(--glow, 0)));
 }
 /* 形（SVG の輪郭）に沿って光らせる。遠い層は記号が小さいので文字と同じ広さにとどめる */
 .glow-mark {
