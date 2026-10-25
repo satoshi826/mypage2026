@@ -17,6 +17,7 @@ import {DEFAULT_PAGE_MOTION, usePageTransition} from './pageMotion'
 import {PageCover, PageMotionPanel} from './PageTransition'
 import {DevDock} from './DevPanel'
 import {GlowPanel} from './GlowPanel'
+import {GrainPanel} from './GrainPanel'
 
 export function App() {
   const [location] = useLocation()
@@ -67,6 +68,7 @@ export function App() {
       {import.meta.env.DEV && <DevDock />}
       {import.meta.env.DEV && <PageMotionPanel onChange={setMotion} />}
       {import.meta.env.DEV && <GlowPanel />}
+      {import.meta.env.DEV && <GrainPanel />}
     </>
   )
 }
