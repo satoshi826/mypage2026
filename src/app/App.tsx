@@ -16,6 +16,7 @@ import {Scrollbar} from './Scrollbar'
 import {DEFAULT_PAGE_MOTION, usePageTransition} from './pageMotion'
 import {PageCover, PageMotionPanel} from './PageTransition'
 import {DevDock} from './DevPanel'
+import {TabGlowPanel} from './Tabs'
 
 export function App() {
   const [location] = useLocation()
@@ -65,6 +66,7 @@ export function App() {
       <Scrollbar />
       {import.meta.env.DEV && <DevDock />}
       {import.meta.env.DEV && <PageMotionPanel onChange={setMotion} />}
+      {import.meta.env.DEV && <TabGlowPanel />}
     </>
   )
 }

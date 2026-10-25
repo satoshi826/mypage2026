@@ -33,6 +33,29 @@
   color-scheme: dark;
 }
 
+/* タブの選んでいる印の光（Tabs.tsx）。下線と文字に白い影をにじませる。開発中は Tabs.tsx のパネルで詰める */
+:root {
+  --tab-line: 60%;
+  --tab-near-blur: 3px;
+  --tab-near: 50%;
+  --tab-far-blur: 8px;
+  --tab-far: 25%;
+  --tab-text-blur: 8px;
+  --tab-text: 55%;
+}
+[data-tab-line] {
+  background: color-mix(in srgb, var(--color-ink) var(--tab-line), transparent);
+  box-shadow:
+    0 0 var(--tab-near-blur) rgb(255 255 255 / var(--tab-near)),
+    0 0 var(--tab-far-blur) rgb(255 255 255 / var(--tab-far));
+}
+[data-tab-label] {
+  text-shadow: 0 0 var(--tab-text-blur) rgb(255 255 255 / 0);
+}
+[aria-current] > [data-tab-label] {
+  text-shadow: 0 0 var(--tab-text-blur) rgb(255 255 255 / var(--tab-text));
+}
+
 html,
 body {
   background: var(--color-ground);
