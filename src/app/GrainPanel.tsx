@@ -5,11 +5,11 @@ import {DevPanel, type Param} from './DevPanel'
 type Grain = {amount: number; size: number}
 
 /** 既定値。styles.css の --grain と同じ値。決まったら両方を書き換える */
-const DEFAULT_GRAIN: Grain = {amount: 40, size: 1}
+const DEFAULT_GRAIN: Grain = {amount: 40, size: 2}
 
 const PARAMS: Param<Grain>[] = [
   {key: 'amount', label: '濃さ', min: 0, max: 100, step: 5, hint: '%。0 で無地'},
-  {key: 'size', label: '粒の大きさ', min: 0.5, max: 3, step: 0.25, hint: '倍'}
+  {key: 'size', label: '粒の大きさ', min: 1, max: 4, step: 1, hint: '画面の画素いくつ分か'}
 ]
 
 function apply(g: Grain) {

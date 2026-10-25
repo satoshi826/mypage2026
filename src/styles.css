@@ -91,10 +91,11 @@ body {
 /* 地の粒（試し中）。フィルムの粒子のような止まった粒を、地の色の上に重ねる。写真や hero の canvas は
    この上に描かれるので、粒は地の部分にだけ乗る。暗い地ににじむ光の明るさの段差（縞）を散らす働きもある。
    粒の画像は app/grain.ts が作る（地の色を中心に明暗へ揺らすので、平均の明るさは地の色のまま）。
-   --grain（0〜1）は揺れの大きさ、--grain-size は粒の大きさの倍率。開発中は GrainPanel で詰める */
+   --grain（0〜1）は揺れの大きさ、--grain-size は粒 1 つが画面の画素いくつ分か（ぼかさず、くっきり拡大する）。
+   開発中は GrainPanel で詰める */
 :root {
   --grain: 0.4;
-  --grain-size: 1;
+  --grain-size: 2;
 }
 body::before {
   content: '';
@@ -104,6 +105,7 @@ body::before {
   pointer-events: none;
   background-image: var(--grain-image, none);
   background-size: calc(var(--grain-tile, 1024px) * var(--grain-size));
+  image-rendering: pixelated;
   opacity: calc(var(--grain) * var(--grain-on, 0));
   transition: opacity 1.2s linear;
 }

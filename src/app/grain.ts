@@ -1,48 +1,27 @@
-// 地の粒（styles.css の body::before）の画像を、開いたときに 1 度だけ作る。
-//
-// フィルムの粒に寄せる。フィルムの粒は大きさのばらついた銀の結晶の重なりで、粒どうしが寄り集まった塊が
-// 粒らしさを作る（Newson ほか, "A Stochastic Film Grain Model for Resolution-Independent Rendering", 2017）。
-// ここでは、でたらめな明るさを 2 つの大きさでぼかして重ね（細かい粒と、少し大きい塊）、大きさのばらついた粒が
-// 寄り集まった見え方に近づける。ぼかしは端を反対側へつないで行うので、画像を並べても継ぎ目が出ない。
+// 地の粒（styles.css の body::before）の画像を、開いたときに 1 度だけ作る。画素ごとにでたらめな明るさを割り振った
+// くっきりした粒で、なめらかなノイズ（塊ができる）や小さな画像の繰り返しのように、模様が見えることがない。
+// 粒をぼかして塊にするとフィルムの粒には近づくが、ぼけて安っぽく見えたので、ぼかさない。
 // 粒は地の色を中心に明暗へ同じだけ揺らす（平均の明るさは地の色のまま）。
-// 画面の画素 1 つを粒の単位にするため、画素の細かさ（devicePixelRatio）に合わせて敷く大きさを決める。
+// 画面の画素に合わせて粒を置くため、画素の細かさ（devicePixelRatio）に合わせて敷く大きさを決める。
 // 作るのに少しかかるので、手の空いたときに作り、できたら薄く現す（styles.css の --grain-on）
 
-/** 粒の画像の一辺（画面の画素） */
+/** 粒の画像の一辺（画面の画素）。これより大きい範囲は繰り返すが、粒どうしに関係がないので繰り返しは見えない */
 const TILE = 1024
-
-/** 重ねる粒の大きさ（ぼかしの半径、画面の画素）と重み */
-const SCALES = [
-  {radius: 1, weight: 0.65},
-  {radius: 3, weight: 0.35}
-]
 
 export function startGrain() {
   const idle = window.requestIdleCallback ?? ((run: () => void) => setTimeout(run, 200))
   idle(() => {
     const root = document.documentElement
+    // 地が暗いので、振れ幅は地の明るさまで（暗い側が黒で止まる）
     const ground = groundLevel()
-    const size = TILE * TILE
-    const sum = new Float32Array(size)
-    for (const {radius, weight} of SCALES) {
-      const layer = new Float32Array(size)
-      for (let i = 0; i < size; i++) layer[i] = Math.random() - 0.5
-      // 箱形のぼかしを 3 回かけると、ガウスのぼかしに近くなる
-      for (let pass = 0; pass < 3; pass++) blur(layer, radius)
-      normalize(layer)
-      for (let i = 0; i < size; i++) sum[i] += layer[i] * weight
-    }
-    normalize(sum)
-
-    // 揺れの大きさ。地が暗く、暗い側は黒で止まるので、ほとんどの粒（±2.5 標準偏差）が地の明るさに収まる大きさ
-    const amplitude = ground / 2.5
     const canvas = document.createElement('canvas')
     canvas.width = canvas.height = TILE
     const context = canvas.getContext('2d')!
     const image = context.createImageData(TILE, TILE)
     const pixels = new Uint32Array(image.data.buffer)
-    for (let i = 0; i < size; i++) {
-      const v = Math.max(0, Math.min(255, Math.round(ground + amplitude * sum[i])))
+    for (let i = 0; i < pixels.length; i++) {
+      // 2 つの乱数の和で、中央に寄った（三角形の）分布にする。一様だと粒がざらついて見える
+      const v = Math.round(ground + ground * (Math.random() + Math.random() - 1))
       pixels[i] = 0xff000000 | (v << 16) | (v << 8) | v
     }
     context.putImageData(image, 0, 0)
@@ -53,39 +32,6 @@ export function startGrain() {
       root.style.setProperty('--grain-on', '1')
     })
   })
-}
-
-/** 横と縦に箱形のぼかしをかける。端は反対側とつなぐ */
-function blur(data: Float32Array, radius: number) {
-  const width = TILE
-  const line = new Float32Array(width)
-  const span = radius * 2 + 1
-  for (const [step, stride] of [
-    [1, width],
-    [width, 1]
-  ]) {
-    for (let row = 0; row < width; row++) {
-      const start = row * stride
-      let acc = 0
-      for (let k = -radius; k <= radius; k++) acc += data[start + ((k + width) % width) * step]
-      for (let i = 0; i < width; i++) {
-        line[i] = acc / span
-        acc += data[start + ((i + radius + 1) % width) * step] - data[start + ((i - radius + width) % width) * step]
-      }
-      for (let i = 0; i < width; i++) data[start + i * step] = line[i]
-    }
-  }
-}
-
-/** 平均 0、標準偏差 1 にそろえる */
-function normalize(data: Float32Array) {
-  let mean = 0
-  for (const v of data) mean += v
-  mean /= data.length
-  let variance = 0
-  for (const v of data) variance += (v - mean) ** 2
-  const sd = Math.sqrt(variance / data.length) || 1
-  for (let i = 0; i < data.length; i++) data[i] = (data[i] - mean) / sd
 }
 
 /** 地の色（--color-ground）の明るさ 0〜255。灰色なので赤の値を使う */
