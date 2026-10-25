@@ -10,7 +10,8 @@ export type Tab = {href: string; label: string; current: boolean}
 
 /**
  * Tabs のリンク 1 つ。押せる範囲はバーの高さいっぱい。文字の濃さは 75%、
- * ホバーで 100%。選んでいるかどうかは文字では示さず、入れ物の Underline が下線で示す
+ * ホバーで 100%。選んでいるかどうかは入れ物の Underline が下線で示し、文字はうっすら光らせる（試し中）。
+ * 光は下線が滑るのと同じ長さでにじみ、引いていく
  */
 function TabLink({href, label, current}: Tab) {
   return (
@@ -20,7 +21,11 @@ function TabLink({href, label, current}: Tab) {
       className="flex items-center justify-center no-underline opacity-75 transition-opacity duration-300 hover:opacity-100 focus-visible:opacity-100"
     >
       {/* バーの中央からわずかに上げる。下線は文字の実寸から測るので一緒に上がる */}
-      <span className="-translate-y-0.5">{label}</span>
+      <span
+        className={`-translate-y-0.5 transition-[text-shadow] duration-800 ease-[cubic-bezier(0.22,1,0.36,1)] ${current ? '[text-shadow:0_0_8px_rgb(255_255_255/0.55)]' : '[text-shadow:0_0_8px_rgb(255_255_255/0)]'}`}
+      >
+        {label}
+      </span>
     </Link>
   )
 }
@@ -46,6 +51,7 @@ export function Tabs({items, className = ''}: {items: Tab[]; className?: string}
  *
  * 選んでいるリンクが無くなる・現れるとき（ナビのトップと他のページのあいだ）は、その場で中央の点へ縮んで
  * 消え、中央の点から左右へ伸びて線になる。ページを直接開いたときは出入りさせずにその場に置く。
+ * 線はうっすら光らせる（影を白でにじませる。試し中）。滑ると光も一緒に移る。
  */
 export function Underline({current}: {current: string}) {
   const lineRef = useRef<HTMLDivElement>(null)
@@ -100,7 +106,7 @@ export function Underline({current}: {current: string}) {
     <div
       ref={lineRef}
       aria-hidden
-      className="pointer-events-none absolute top-0 left-0 h-[0.5px] bg-ink/60 transition-transform duration-800 ease-[cubic-bezier(0.22,1,0.36,1)]"
+      className="pointer-events-none absolute top-0 left-0 h-[0.5px] bg-ink/60 shadow-[0_0_3px_rgb(255_255_255/0.5),0_0_8px_rgb(255_255_255/0.25)] transition-transform duration-800 ease-[cubic-bezier(0.22,1,0.36,1)]"
     />
   )
 }
