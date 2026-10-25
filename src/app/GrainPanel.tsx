@@ -8,7 +8,7 @@ type Grain = {amount: number; size: number}
 const DEFAULT_GRAIN: Grain = {amount: 40, size: 1}
 
 const PARAMS: Param<Grain>[] = [
-  {key: 'amount', label: '濃さ', min: 0, max: 100, step: 5, hint: '%。0 で無地。100 で地の明るさいっぱいに揺らす'},
+  {key: 'amount', label: '濃さ', min: 0, max: 100, step: 5, hint: '%。0 で無地'},
   {key: 'size', label: '粒の大きさ', min: 0.5, max: 3, step: 0.25, hint: '倍'}
 ]
 
