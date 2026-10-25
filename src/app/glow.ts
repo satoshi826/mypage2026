@@ -1,7 +1,8 @@
-// 部品の光の強さ（styles.css の --glow）を置くクラス。光る線や文字（.glow-line など）は、この要素か、その中に置く
+// 部品の光の強さ（styles.css の --glow）を置くクラス。光る線や文字（.glow-line など）は、この要素か、その中に置く。
+// 一番明るいのはホバーで、選んでいる状態はその一段下（docs/design.md の「光」）
 
-/** ホバーとキーボードで選んだときに弱く光らせる */
-export const GLOW_HOVER = 'hover:[--glow:var(--glow-weak)] focus-visible:[--glow:var(--glow-weak)]'
+/** ホバーとキーボードで選んだときの光。選んでいる状態の要素でも、触れているあいだはこちらが勝つ */
+export const GLOW_HOVER = 'hover:[--glow:var(--glow-hover)]! focus-visible:[--glow:var(--glow-hover)]!'
 
-/** いつも選んでいる状態の強さで光らせる（タブの下線、hero のプログレスなど、それ自体が「今」を示すもの） */
-export const GLOW_ON = '[--glow:1]'
+/** 選んでいる状態の光。いつもそれ自体が「今」を示すもの（タブの下線、hero のプログレス）に置く */
+export const GLOW_SELECTED = '[--glow:var(--glow-selected)]'

@@ -1,7 +1,7 @@
 import {useEffect, useRef} from 'preact/hooks'
 import {type ComponentChildren} from 'preact'
 import {progressLines, usePlayer} from './playback'
-import {GLOW_HOVER, GLOW_ON} from '../app/glow'
+import {GLOW_HOVER, GLOW_SELECTED} from '../app/glow'
 
 /**
  * フッターの左に置く hero の再生操作と、広い画面での次の写真までのプログレス。
@@ -62,7 +62,7 @@ export function HeroProgress({className}: {className: string}) {
       {/* 通過した部分は、今の位置を示す線として光らせる。右端は今の位置で切るので、切り口が目立たないよう近い層だけにし、
           切り抜きは上下と左に光のぶんの余白を残す */}
       <div
-        className={`glow-line glow-near absolute inset-0 bg-ink ${GLOW_ON}`}
+        className={`glow-line glow-near absolute inset-0 bg-ink ${GLOW_SELECTED}`}
         style={{clipPath: 'inset(-8px calc((1 - var(--progress, 0)) * 100%) -8px -8px)'}}
       />
     </div>

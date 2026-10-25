@@ -222,7 +222,7 @@ export function ContactForm({lang}: {lang: Lang}) {
 // 入力した文字は、絞った書体（scripts/fonts.js）に無いことが多いので、端末の書体で書く。
 // 1 つの欄の中で書体が混ざらないようにするため
 const INPUT =
-  'glow-under block w-full rounded-none border-0 border-b border-white/20 bg-transparent px-0 py-2 [font-family:system-ui,sans-serif] font-light text-inherit outline-none transition-[border-color,box-shadow] duration-300 focus:border-white/60 focus:[--glow:1]'
+  'glow-under block w-full rounded-none border-0 border-b border-white/20 bg-transparent px-0 py-2 [font-family:system-ui,sans-serif] font-light text-inherit outline-none transition-[border-color,box-shadow] duration-300 focus:border-white/60 focus:[--glow:var(--glow-selected)]'
 
 function Field({label, children}: {label: string; children: ComponentChildren}) {
   return (

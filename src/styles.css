@@ -35,7 +35,8 @@
 
 /* 部品の光（docs/design.md の「光」）。光源は 1 つで、白い影を近い層と遠い層の 2 つ重ねてにじませる。
    光らせるのは線（.glow-line）・文字（.glow-text）・記号（.glow-mark）だけで、面や箱は光らせない。
-   強さは --glow で決める。0 は光らない、1 は選んでいる状態、ホバーはその半分（--glow-weak）。
+   強さは --glow で決める。一番明るいのはホバー（--glow-hover）で、選んでいる状態はその一段下（--glow-selected）、
+   何もしていないものは 0（光らない）。
    --glow は受け継がれるので、押せる要素に強さを置き、中の線や文字が光る形にできる（app/glow.ts）。
    光の出入りの速さは部品ごとの transition で決める（ホバー 0.3 秒、選ぶ状態 0.8 秒）。
    開発中は GlowPanel で詰める */
@@ -46,7 +47,8 @@
   --glow-far: 0.8;
   --glow-text-blur: 12px;
   --glow-text: 0.6;
-  --glow-weak: 0.5;
+  --glow-hover: 1;
+  --glow-selected: 0.5;
 }
 .glow-line {
   box-shadow:

@@ -78,7 +78,7 @@ export function ControlPanel({
                 onClick={() => onSelect(i)}
                 aria-current={i === index}
                 disabled={!loaded.has(i)}
-                className={`glow-text flex size-full items-center justify-center tracking-[0.1em] transition-[opacity,text-shadow] duration-300 text-(length:--number-size) [translate:0.05em_-0.08em] enabled:cursor-pointer enabled:hover:opacity-70 ${GLOW_HOVER} aria-[current=true]:[--glow:1] ${
+                className={`glow-text flex size-full items-center justify-center tracking-[0.1em] transition-[opacity,text-shadow] duration-300 text-(length:--number-size) [translate:0.05em_-0.08em] enabled:cursor-pointer enabled:hover:opacity-70 ${GLOW_HOVER} aria-[current=true]:[--glow:var(--glow-selected)] ${
                   i === index
                     ? '[opacity:var(--active-opacity)]'
                     : !loaded.has(i)

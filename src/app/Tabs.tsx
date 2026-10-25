@@ -1,6 +1,6 @@
 import {useLayoutEffect, useRef} from 'preact/hooks'
 import {Link} from 'wouter-preact'
-import {GLOW_HOVER, GLOW_ON} from './glow'
+import {GLOW_HOVER, GLOW_SELECTED} from './glow'
 
 /** 文字の下端から下線までの間隔 px */
 const GAP = 6
@@ -11,7 +11,8 @@ export type Tab = {href: string; label: string; current: boolean}
 
 /**
  * Tabs のリンク 1 つ。押せる範囲はバーの高さいっぱい。文字の濃さは 75%、選んでいるときは 90%、
- * ホバーで 100%（100% はホバーだけに使う）。選んでいるかどうかは入れ物の Underline が下線で示し、文字も光らせる（ホバーは弱く）。
+ * ホバーで 100%（100% はホバーだけに使う）。選んでいるかどうかは入れ物の Underline が下線で示し、文字も光らせる。
+ * 光もホバーが一番明るく、選んでいる状態はその一段下。
  * 光は下線が滑るのと同じ長さでにじみ、引いていく
  */
 function TabLink({href, label, current}: Tab) {
@@ -19,7 +20,7 @@ function TabLink({href, label, current}: Tab) {
     <Link
       href={href}
       aria-current={current ? 'page' : undefined}
-      className={`flex items-center justify-center no-underline opacity-75 transition-opacity duration-300 hover:opacity-100! focus-visible:opacity-100! ${GLOW_HOVER} aria-[current=page]:opacity-90 aria-[current=page]:[--glow:1]`}
+      className={`flex items-center justify-center no-underline opacity-75 transition-opacity duration-300 hover:opacity-100! focus-visible:opacity-100! ${GLOW_HOVER} aria-[current=page]:opacity-90 aria-[current=page]:[--glow:var(--glow-selected)]`}
     >
       {/* バーの中央からわずかに上げる。下線は文字の実寸から測るので一緒に上がる */}
       <span className="glow-text -translate-y-0.5 transition-[text-shadow] duration-800 ease-[cubic-bezier(0.22,1,0.36,1)]">
@@ -105,7 +106,7 @@ export function Underline({current}: {current: string}) {
     <div
       ref={lineRef}
       aria-hidden
-      className={`glow-line pointer-events-none absolute top-0 left-0 h-[0.5px] bg-ink/80 ${GLOW_ON} transition-transform duration-800 ease-[cubic-bezier(0.22,1,0.36,1)]`}
+      className={`glow-line pointer-events-none absolute top-0 left-0 h-[0.5px] bg-ink/80 ${GLOW_SELECTED} transition-transform duration-800 ease-[cubic-bezier(0.22,1,0.36,1)]`}
     />
   )
 }

@@ -28,13 +28,13 @@ export function Nav() {
         href="/"
         aria-label="mu"
         // トップにいるあいだは、ほかのページのタブと同じく選んでいる扱いにし、濃さを 90% にしてうっすら光らせる。
-        // ロゴは面が大きく光が強く出るので、選んでいる光はホバーより弱くする
+        // ロゴは面が大きく、同じ強さでも光が強く出るので、選んでいる光をタブより弱くする
         aria-current={location === '/' ? 'page' : undefined}
         // 初めて開いたときのスプラッシュ（index.html）が、ロゴを移し終えるまでここを隠す
         data-logo
         // pt-px で中身の高さを偶数にし、ロゴを画素にそろえる（ナビの下の線 1px のぶん奇数になり、半画素に
         // かかってにじむ）。上に足して、ロゴの中心を下の線まで含めたナビの高さの中央に置く
-        className={`glow-mark flex items-center pt-px opacity-80 transition-[opacity,filter] duration-300 hover:opacity-100! focus-visible:opacity-100! ${GLOW_HOVER} aria-[current=page]:opacity-90 aria-[current=page]:not-hover:[--glow:0.3]`}
+        className={`glow-mark flex items-center pt-px opacity-80 transition-[opacity,filter] duration-300 hover:opacity-100! focus-visible:opacity-100! ${GLOW_HOVER} aria-[current=page]:opacity-90 aria-[current=page]:[--glow:calc(var(--glow-selected)*0.6)]`}
       >
         <Logo />
       </Link>
