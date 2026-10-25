@@ -183,7 +183,7 @@ function ColumnSlider({
         {value && (
           <div
             aria-hidden
-            className="absolute top-1/2 -translate-1/2 rounded-full bg-ink transition-[left,scale] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-140 group-has-[input:focus-visible]:scale-150"
+            className="glow-line absolute top-1/2 -translate-1/2 rounded-full bg-ink transition-[left,scale,box-shadow] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-140 group-hover:[--glow:var(--glow-weak)] group-has-[input:focus-visible]:scale-150 group-has-[input:focus-visible]:[--glow:var(--glow-weak)]"
             style={{left: position(value), width: `${look.thumbSize}px`, height: `${look.thumbSize}px`}}
           />
         )}

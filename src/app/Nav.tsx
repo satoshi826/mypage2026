@@ -3,6 +3,7 @@ import {Logo} from './Logo'
 import {NAV_ROUTES} from './routes'
 import {basePath, langOf, localized} from './lang'
 import {Tabs, Underline} from './Tabs'
+import {GLOW_HOVER} from './glow'
 
 /**
  * 固定ナビ。左にロゴ（トップへのリンク）、右にページのリンク。選んでいるページの下に線を引き、
@@ -30,7 +31,7 @@ export function Nav() {
         data-logo
         // pt-px で中身の高さを偶数にし、ロゴを画素にそろえる（ナビの下の線 1px のぶん奇数になり、半画素に
         // かかってにじむ）。上に足して、ロゴの中心を下の線まで含めたナビの高さの中央に置く
-        className="flex items-center pt-px opacity-80 transition-opacity duration-300 hover:opacity-100 focus-visible:opacity-100"
+        className={`glow-mark flex items-center pt-px opacity-80 transition-[opacity,filter] duration-300 hover:opacity-100 focus-visible:opacity-100 ${GLOW_HOVER}`}
       >
         <Logo />
       </Link>

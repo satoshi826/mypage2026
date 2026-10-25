@@ -1,6 +1,7 @@
 import {useEffect, useRef} from 'preact/hooks'
 import {type ComponentChildren} from 'preact'
 import {progressLines, usePlayer} from './playback'
+import {GLOW_HOVER, GLOW_ON} from '../app/glow'
 
 /**
  * フッターの左に置く hero の再生操作と、広い画面での次の写真までのプログレス。
@@ -58,9 +59,11 @@ export function HeroProgress({className}: {className: string}) {
       {/* 未通過部分の濃さ。遷移帯ぶん 30%、静止帯ぶん 16%。通過した部分は 100% */}
       <div className="shrink-0 bg-ink opacity-30 [width:var(--morph)]" />
       <div className="flex-1 bg-ink opacity-16" />
+      {/* 通過した部分は、今の位置を示す線として光らせる。右端は今の位置で切るので、切り口が目立たないよう近い層だけにし、
+          切り抜きは上下と左に光のぶんの余白を残す */}
       <div
-        className="absolute inset-0 bg-ink"
-        style={{clipPath: 'inset(0 calc((1 - var(--progress, 0)) * 100%) 0 0)'}}
+        className={`glow-line glow-near absolute inset-0 bg-ink ${GLOW_ON}`}
+        style={{clipPath: 'inset(-8px calc((1 - var(--progress, 0)) * 100%) -8px -8px)'}}
       />
     </div>
   )
@@ -84,7 +87,7 @@ function Transport({
       onClick={onClick}
       aria-label={label}
       // before は指の当たり判定。配置を変えずに 44px を確保する
-      className="relative flex cursor-pointer transition-opacity duration-300 before:absolute before:top-1/2 before:left-1/2 before:size-11 before:-translate-x-1/2 before:-translate-y-1/2 before:content-[''] hover:opacity-60"
+      className={`glow-mark relative flex cursor-pointer transition-[filter] duration-300 before:absolute before:top-1/2 before:left-1/2 before:size-11 before:-translate-x-1/2 before:-translate-y-1/2 before:content-[''] ${GLOW_HOVER}`}
     >
       <svg viewBox="0 0 24 24" aria-hidden className={`${size} fill-current`}>
         {children}

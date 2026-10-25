@@ -52,7 +52,7 @@ export function Scrollbar() {
     >
       <div
         ref={thumb}
-        className="absolute top-0 right-1 w-0.5 rounded-full bg-ink opacity-15 transition-opacity duration-500 group-hover:opacity-80 group-data-active:opacity-80 group-data-dragging:opacity-80"
+        className="glow-line absolute top-0 right-1 w-0.5 rounded-full bg-ink opacity-15 transition-[opacity,box-shadow] duration-500 group-hover:opacity-80 group-hover:[--glow:var(--glow-weak)] group-data-active:opacity-80 group-data-active:[--glow:1] group-data-dragging:opacity-80 group-data-dragging:[--glow:1]"
       />
     </div>
   )

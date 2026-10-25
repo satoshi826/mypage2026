@@ -6,10 +6,10 @@ import {GalleryTools} from '../gallery/GalleryTools'
 import {INSTAGRAM, X} from './social'
 import {basePath, isBilingual, langOf, localized} from './lang'
 import {Tabs, Underline} from './Tabs'
+import {GLOW_HOVER} from './glow'
 
 // 枠の幅は Photos の一覧の操作のアイコンと同じ（GalleryTools.tsx）。並ぶアイコンの間隔をそろえるため
-const LINK =
-  'flex w-10 items-center justify-center opacity-55 transition-opacity duration-300 hover:opacity-100 focus-visible:opacity-100 max-sm:w-8'
+const LINK = `glow-mark flex w-10 items-center justify-center opacity-55 transition-[opacity,filter] duration-300 hover:opacity-100 focus-visible:opacity-100 ${GLOW_HOVER} max-sm:w-8`
 
 /**
  * 固定フッター。ナビと対になり、右に SNS、左にそのページ固有の操作を置く

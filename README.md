@@ -172,6 +172,7 @@ worker/     Cloudflare Worker（写真の API）
 | `app/useSmoothScroll.ts` | 慣性スクロール。ホイールを横取りして目標へ減衰追従させる。全ページ共通 |
 | `app/Scrollbar.tsx` | 自前のスクロールバー（マウスなどの環境だけ）。ブラウザのものは消し、ナビとフッターのあいだに出す |
 | `app/profile.ts`    | 本人の情報（受賞・展示・掲載・リンク）。About の表示と、検索エンジン向けの人物の情報（JSON-LD）の両方の出典 |
+| `app/glow.ts`       | 部品の光の強さを置くクラス（ホバーで弱く、選んでいる状態で強く）。光の見た目は `styles.css` の `.glow-*`、詰めるのは開発用パネル（`app/GlowPanel.tsx`）。ルールは docs/design.md の「光」 |
 | `app/cursor.ts`     | 自前のマウスカーソル（マウスのある環境だけ）。ふだんは丸、リンクは三角、スライダーは横長、Photos の写真はピントを合わせる枠（広げた写真は内向きの四隅）。見た目は `styles.css` の `#cursor`。入力欄と編集中は OS のカーソル |
 | `gallery/layout.ts` | Photos の段組の計算。写真の順・幅・列数・広げている写真から各写真の位置を決める純粋関数 |
 | `gallery/Gallery.tsx` | Photos の一覧。layout.ts の結果を絶対配置で並べ、クリックでその場に広げる（FLIP）。`Img.tsx` が先読みと派生の切り替え |

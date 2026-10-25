@@ -33,27 +33,42 @@
   color-scheme: dark;
 }
 
-/* タブの選んでいる印の光（Tabs.tsx）。下線と文字に白い影をにじませる。開発中は Tabs.tsx のパネルで詰める */
+/* 部品の光（docs/design.md の「光」）。光源は 1 つで、白い影を近い層と遠い層の 2 つ重ねてにじませる。
+   光らせるのは線（.glow-line）・文字（.glow-text）・記号（.glow-mark）だけで、面や箱は光らせない。
+   強さは --glow で決める。0 は光らない、1 は選んでいる状態、ホバーはその半分（--glow-weak）。
+   --glow は受け継がれるので、押せる要素に強さを置き、中の線や文字が光る形にできる（app/glow.ts）。
+   光の出入りの速さは部品ごとの transition で決める（ホバー 0.3 秒、選ぶ状態 0.8 秒）。
+   開発中は GlowPanel で詰める */
 :root {
-  --tab-line: 80%;
-  --tab-near-blur: 3px;
-  --tab-near: 60%;
-  --tab-far-blur: 20px;
-  --tab-far: 80%;
-  --tab-text-blur: 12px;
-  --tab-text: 60%;
+  --glow-near-blur: 3px;
+  --glow-near: 0.6;
+  --glow-far-blur: 20px;
+  --glow-far: 0.8;
+  --glow-text-blur: 12px;
+  --glow-text: 0.6;
+  --glow-weak: 0.5;
 }
-[data-tab-line] {
-  background: color-mix(in srgb, var(--color-ink) var(--tab-line), transparent);
+.glow-line {
   box-shadow:
-    0 0 var(--tab-near-blur) rgb(255 255 255 / var(--tab-near)),
-    0 0 var(--tab-far-blur) rgb(255 255 255 / var(--tab-far));
+    0 0 var(--glow-near-blur) rgb(255 255 255 / calc(var(--glow-near) * var(--glow, 0))),
+    0 0 var(--glow-far-blur) rgb(255 255 255 / calc(var(--glow-far) * var(--glow, 0)));
 }
-[data-tab-label] {
-  text-shadow: 0 0 var(--tab-text-blur) rgb(255 255 255 / 0);
+.glow-text {
+  text-shadow: 0 0 var(--glow-text-blur) rgb(255 255 255 / calc(var(--glow-text) * var(--glow, 0)));
 }
-[aria-current] > [data-tab-label] {
-  text-shadow: 0 0 var(--tab-text-blur) rgb(255 255 255 / var(--tab-text));
+/* 形（SVG の輪郭）に沿って光らせる。遠い層は記号が小さいので文字と同じ広さにとどめる */
+.glow-mark {
+  filter: drop-shadow(0 0 var(--glow-near-blur) rgb(255 255 255 / calc(var(--glow-near) * var(--glow, 0))))
+    drop-shadow(0 0 var(--glow-text-blur) rgb(255 255 255 / calc(var(--glow-text) * var(--glow, 0))));
+}
+/* 近い層だけで光らせる。遠い層の広いにじみを途中で切らなければならない線（hero のプログレス）に使う */
+.glow-near {
+  --glow-far: 0;
+}
+/* 下の線だけの入力欄。箱のまわりではなく、下の線の下へだけにじませる */
+.glow-under {
+  box-shadow: 0 var(--glow-near-blur) var(--glow-near-blur) calc(var(--glow-near-blur) * -1)
+    rgb(255 255 255 / calc(var(--glow-far) * var(--glow, 0)));
 }
 
 html,

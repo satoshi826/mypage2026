@@ -1,6 +1,7 @@
 import type {ComponentChildren} from 'preact'
 import {useEffect, useRef, useState} from 'preact/hooks'
 import type {Lang} from '../lang'
+import {GLOW_HOVER} from '../glow'
 
 // 問い合わせフォーム。送ると Worker（worker/contact.ts）が本人の Gmail へメールで送る。
 // 自動送信の対策に Turnstile を使う。読み込むのはフォームに触れたときで、人の操作が要るときだけ
@@ -198,7 +199,7 @@ export function ContactForm({lang}: {lang: Lang}) {
         <button
           type="submit"
           disabled={status === 'sending'}
-          className="cursor-pointer border border-white/25 bg-transparent px-6 py-2 text-inherit transition-[border-color,opacity] duration-300 hover:border-white/60 focus-visible:border-white/60 disabled:cursor-default disabled:opacity-55"
+          className={`glow-text cursor-pointer border border-white/25 bg-transparent px-6 py-2 text-inherit transition-[border-color,opacity,text-shadow] duration-300 hover:border-white/60 focus-visible:border-white/60 disabled:cursor-default disabled:opacity-55 ${GLOW_HOVER}`}
         >
           {text.send}
         </button>
@@ -221,7 +222,7 @@ export function ContactForm({lang}: {lang: Lang}) {
 // 入力した文字は、絞った書体（scripts/fonts.js）に無いことが多いので、端末の書体で書く。
 // 1 つの欄の中で書体が混ざらないようにするため
 const INPUT =
-  'block w-full rounded-none border-0 border-b border-white/20 bg-transparent px-0 py-2 [font-family:system-ui,sans-serif] font-light text-inherit outline-none transition-colors duration-300 focus:border-white/60'
+  'glow-under block w-full rounded-none border-0 border-b border-white/20 bg-transparent px-0 py-2 [font-family:system-ui,sans-serif] font-light text-inherit outline-none transition-[border-color,box-shadow] duration-300 focus:border-white/60 focus:[--glow:1]'
 
 function Field({label, children}: {label: string; children: ComponentChildren}) {
   return (
