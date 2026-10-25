@@ -38,6 +38,7 @@
    強さは --glow で決める。一番明るいのはホバー（--glow-hover）で、選んでいる状態はその一段下（--glow-selected）、
    何もしていないものは 0（光らない）。
    --glow は受け継がれるので、押せる要素に強さを置き、中の線や文字が光る形にできる（app/glow.ts）。
+   面の大きい記号（ロゴ）は、同じ強さでも光が強く出るので、--glow-weight で部品ごとに弱める。
    光の出入りの速さは部品ごとの transition で決める（ホバー 0.3 秒、選ぶ状態 0.8 秒）。
    開発中は GlowPanel で詰める */
 :root {
@@ -52,18 +53,22 @@
 }
 .glow-line {
   box-shadow:
-    0 0 var(--glow-near-blur) rgb(255 255 255 / calc(var(--glow-near) * var(--glow, 0))),
-    0 0 var(--glow-far-blur) rgb(255 255 255 / calc(var(--glow-far) * var(--glow, 0)));
+    0 0 var(--glow-near-blur) rgb(255 255 255 / calc(var(--glow-near) * var(--glow, 0) * var(--glow-weight, 1))),
+    0 0 var(--glow-far-blur) rgb(255 255 255 / calc(var(--glow-far) * var(--glow, 0) * var(--glow-weight, 1)));
 }
 .glow-text {
   text-shadow:
-    0 0 var(--glow-near-blur) rgb(255 255 255 / calc(var(--glow-near) * var(--glow, 0))),
-    0 0 var(--glow-text-blur) rgb(255 255 255 / calc(var(--glow-text) * var(--glow, 0)));
+    0 0 var(--glow-near-blur) rgb(255 255 255 / calc(var(--glow-near) * var(--glow, 0) * var(--glow-weight, 1))),
+    0 0 var(--glow-text-blur) rgb(255 255 255 / calc(var(--glow-text) * var(--glow, 0) * var(--glow-weight, 1)));
 }
 /* 形（SVG の輪郭）に沿って光らせる。遠い層は記号が小さいので文字と同じ広さにとどめる */
 .glow-mark {
-  filter: drop-shadow(0 0 var(--glow-near-blur) rgb(255 255 255 / calc(var(--glow-near) * var(--glow, 0))))
-    drop-shadow(0 0 var(--glow-text-blur) rgb(255 255 255 / calc(var(--glow-text) * var(--glow, 0))));
+  filter: drop-shadow(
+      0 0 var(--glow-near-blur) rgb(255 255 255 / calc(var(--glow-near) * var(--glow, 0) * var(--glow-weight, 1)))
+    )
+    drop-shadow(
+      0 0 var(--glow-text-blur) rgb(255 255 255 / calc(var(--glow-text) * var(--glow, 0) * var(--glow-weight, 1)))
+    );
 }
 /* 近い層だけで光らせる。遠い層の広いにじみを途中で切らなければならない線（hero のプログレス）に使う */
 .glow-near {
@@ -72,7 +77,7 @@
 /* 下の線だけの入力欄。箱のまわりではなく、下の線の下へだけにじませる */
 .glow-under {
   box-shadow: 0 var(--glow-near-blur) var(--glow-near-blur) calc(var(--glow-near-blur) * -1)
-    rgb(255 255 255 / calc(var(--glow-far) * var(--glow, 0)));
+    rgb(255 255 255 / calc(var(--glow-far) * var(--glow, 0) * var(--glow-weight, 1)));
 }
 
 html,

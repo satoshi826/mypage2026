@@ -28,7 +28,7 @@ export function Nav() {
         href="/"
         aria-label="mu"
         // トップにいるあいだは、ほかのページのタブと同じく選んでいる扱いにし、濃さを 90% にしてうっすら光らせる。
-        // ロゴは面が大きく、同じ強さでも光が強く出るので、選んでいる光をタブより弱くする
+        // ロゴは面が大きく、同じ強さでも光が強く出るので、光を 6 割に弱める（ホバーも選んでいる状態も）
         aria-current={location === '/' ? 'page' : undefined}
         // 初めて開いたときのスプラッシュ（index.html）が、ロゴを移し終えるまでここを隠す
         data-logo
@@ -36,7 +36,7 @@ export function Nav() {
         // かかってにじむ）。上に足して、ロゴの中心を下の線まで含めたナビの高さの中央に置く。
         // 狭い画面ではロゴを 20 × 18.33（格子 1 つが 5/3px）に縮める。iPhone（1px が 3 画素）で格子が画素にそろう。
         // 中央に置くと上端が 1/3px の刻みから外れるので、上からの位置を 13px に決めて置く
-        className={`glow-mark flex items-center pt-px max-sm:items-start max-sm:pt-[13px] opacity-80 transition-[opacity,filter] duration-300 hover:opacity-100! focus-visible:opacity-100! ${GLOW_HOVER} aria-[current=page]:opacity-90 aria-[current=page]:[--glow:calc(var(--glow-selected)*0.6)]`}
+        className={`glow-mark flex items-center pt-px max-sm:items-start max-sm:pt-[13px] opacity-80 transition-[opacity,filter] duration-300 hover:opacity-100! focus-visible:opacity-100! ${GLOW_HOVER} aria-[current=page]:opacity-90 aria-[current=page]:[--glow:var(--glow-selected)] [--glow-weight:0.6]`}
       >
         <Logo className="max-sm:h-[calc(55px/3)] max-sm:w-5" />
       </Link>
