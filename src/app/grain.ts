@@ -34,7 +34,7 @@ export const GRAIN_KINDS = [
 export type GrainKind = (typeof GRAIN_KINDS)[number]
 
 /** 本番で使う種類 */
-const KIND: GrainKind = 'blue'
+const KIND: GrainKind = 'gauss'
 
 export function startGrain() {
   const idle = window.requestIdleCallback ?? ((run: () => void) => setTimeout(run, 200))

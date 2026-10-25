@@ -8,7 +8,7 @@
 @theme {
   /* 地の色。純黒だと写真の黒と見分けが付かないのでわずかに持ち上げる。
      canvas のクリア色もこの値を読んで合わせる（Hero が worker へ渡す） */
-  --color-ground: #101010;
+  --color-ground: #191919;
   --color-ink: #fdfdfd;
 
   /* 固定ナビの高さ。フッターと揃える。hero と各ページの中身がこのぶん下げて重なりを避ける */
@@ -98,10 +98,10 @@ body {
      --grain-size は粒 1 つが画面の画素いくつ分か（ぼかさず、くっきり拡大する）
    開発中は GrainPanel で詰める */
 :root {
-  --grain: 0.4;
+  --grain: 0.2;
   --grain-size: 1;
-  --vignette: 0.5;
-  --vignette-start: 40%;
+  --vignette: 0.6;
+  --vignette-start: 5%;
 }
 body::before,
 body::after {
