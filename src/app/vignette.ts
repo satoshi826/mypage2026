@@ -50,7 +50,6 @@ export function renderVignette() {
     if (url) URL.revokeObjectURL(url)
     url = URL.createObjectURL(blob)
     root.style.setProperty('--vignette-image', `url(${url})`)
-    root.style.setProperty('--vignette-on', '1')
   })
 }
 

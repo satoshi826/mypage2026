@@ -79,8 +79,11 @@
     rgb(255 255 255 / calc(var(--glow-far) * var(--glow, 0) * var(--glow-weight, 1)));
 }
 
+/* ページ自体の背景は、地の色ではなく周辺減光の端の色（--ground-edge）にする。地の中ほどの明るさは周辺減光の層
+   （body::before）が持つ。スマホのツールバーの出入りで層と画面の端のあいだにすき間ができても、そこが端の暗さに
+   なじんで帯に見えないようにするため */
 html {
-  background: var(--color-ground);
+  background: var(--ground-edge);
 }
 body {
   color: var(--color-ink);
@@ -101,6 +104,8 @@ body {
   --grain-size: 1;
   --vignette: 0.85;
   --vignette-start: 0%;
+  /* 周辺減光の端の色 */
+  --ground-edge: color-mix(in srgb, var(--color-ground) calc((1 - var(--vignette)) * 100%), black);
 }
 /* 高さは、スマホのツールバーを引っ込めたときの一番大きい画面（100lvh）にする。inset: 0 で今の画面に合わせると、
    ツールバーが引っ込む動きに大きさが追いつかず、下端に地の平らな色がすき間として見えるため。
@@ -116,10 +121,13 @@ body::after {
   z-index: -1;
   pointer-events: none;
 }
+/* 画像ができるまでは、同じ形の CSS のグラデーションで先に出しておく（縞は出るが、開いた瞬間から減光がかかる） */
 body::before {
-  background: var(--vignette-image, none) center / 100% 100%;
-  opacity: var(--vignette-on, 0);
-  transition: opacity 1.2s linear;
+  background: var(
+      --vignette-image,
+      radial-gradient(ellipse at center, var(--color-ground) var(--vignette-start), var(--ground-edge) 100%)
+    )
+    center / 100% 100%;
 }
 body::after {
   background-image: var(--grain-image, none);
