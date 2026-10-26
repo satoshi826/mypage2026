@@ -102,7 +102,7 @@ body {
 :root {
   --grain: 0.2;
   --grain-size: 1;
-  --vignette: 0.85;
+  --vignette: 0;
   --vignette-start: 0%;
   /* 周辺減光の端の色 */
   --ground-edge: color-mix(in srgb, var(--color-ground) calc((1 - var(--vignette)) * 100%), black);
