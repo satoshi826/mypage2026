@@ -30,7 +30,9 @@
         /* 移る先。ナビのロゴの位置（ナビの左の余白と、ナビの高さの中央）。src/app/Nav.tsx */
         --to-x: calc(32px + env(safe-area-inset-left));
         --to-y: 15px;
-        --to-scale: calc(2 / 16);
+        --to-scale: calc(2 / 32);
+        /* 現れるときの大きさ（画像の実寸に対する倍率）。狭い画面では半分にする */
+        --from-scale: 1;
         position: fixed;
         inset: 0;
         z-index: 100;
@@ -38,7 +40,7 @@
       }
       @media (max-width: 640px) {#splash {--to-y: 11px;}}
       /* 狭い画面のナビのロゴは 20 × 18.33 で、上から 13px に置く（src/app/Nav.tsx） */
-      @media (max-width: 639.98px) {#splash {--to-x: calc(20px + env(safe-area-inset-left)); --to-y: 13px; --to-scale: calc(5 / 48);}}
+      @media (max-width: 639.98px) {#splash {--to-x: calc(20px + env(safe-area-inset-left)); --to-y: 13px; --to-scale: calc(5 / 96); --from-scale: 0.5;}}
       #splash .veil {position: absolute; inset: 0; background: #141414; animation: splash-veil calc(480ms * var(--slow)) linear calc(1660ms * var(--slow)) both;}
       #splash svg {position: absolute; top: 0; left: 0; transform-origin: 0 0; animation: splash-move calc(520ms * var(--slow)) var(--ease) calc(1560ms * var(--slow)) both;}
       #splash rect {transform-box: fill-box;}
@@ -62,7 +64,7 @@
       @keyframes splash-h-in {from {transform: scaleX(0); transform-origin: left;} to {transform: scaleX(1); transform-origin: left;}}
       @keyframes splash-h-out {from {transform: scaleX(1); transform-origin: right;} to {transform: scaleX(0); transform-origin: right;}}
       @keyframes splash-move {
-        from {transform: translate(calc(50vw - 96px), calc(50svh - 88px)) scale(1); opacity: 1;}
+        from {transform: translate(calc(50vw - 192px * var(--from-scale)), calc(50svh - 176px * var(--from-scale))) scale(var(--from-scale)); opacity: 1;}
         to {transform: translate(var(--to-x), var(--to-y)) scale(var(--to-scale)); opacity: var(--splash-logo, 0.9);}
       }
       @keyframes splash-veil {from {opacity: 1;} to {opacity: 0;}}
@@ -74,25 +76,26 @@
   <body>
     <div id="splash" aria-hidden="true">
       <div class="veil"></div>
-      <!-- 横を 12 等分した格子の 1 マスが 16px。ナビの 24×22（1 マス 2px）へ 2/16 に縮んで重なる。狭い画面は 20×18.33 へ 5/48 -->
-      <svg viewBox="0 0 192 176" width="192" height="176">
-        <rect class="face" width="192" height="176" />
-        <rect class="cut" style="--t: 640ms" x="32" y="32" width="16" height="144" />
-        <rect class="cut" style="--t: 760ms" x="80" y="32" width="16" height="144" />
-        <rect class="cut groove" style="--t: 880ms" x="128" y="0" width="32" height="144" />
-        <rect class="v" style="--i: 0" x="15.5" width="1" height="176" />
-        <rect class="v" style="--i: 1" x="31.5" width="1" height="176" />
-        <rect class="v" style="--i: 2" x="47.5" width="1" height="176" />
-        <rect class="v" style="--i: 3" x="63.5" width="1" height="176" />
-        <rect class="v" style="--i: 4" x="79.5" width="1" height="176" />
-        <rect class="v" style="--i: 5" x="95.5" width="1" height="176" />
-        <rect class="v" style="--i: 6" x="111.5" width="1" height="176" />
-        <rect class="v" style="--i: 7" x="127.5" width="1" height="176" />
-        <rect class="v" style="--i: 8" x="143.5" width="1" height="176" />
-        <rect class="v" style="--i: 9" x="159.5" width="1" height="176" />
-        <rect class="v" style="--i: 10" x="175.5" width="1" height="176" />
-        <rect class="h" style="--i: 0" y="31.5" width="192" height="1" />
-        <rect class="h" style="--i: 1" y="143.5" width="192" height="1" />
+      <!-- 横を 12 等分した格子の 1 マスが 32px（狭い画面では半分の大きさで現れる）。ナビの 24×22（1 マス 2px）へ 2/32 に
+           縮んで重なる。狭い画面は 20×18.33 へ 5/96 -->
+      <svg viewBox="0 0 384 352" width="384" height="352">
+        <rect class="face" width="384" height="352" />
+        <rect class="cut" style="--t: 640ms" x="64" y="64" width="32" height="288" />
+        <rect class="cut" style="--t: 760ms" x="160" y="64" width="32" height="288" />
+        <rect class="cut groove" style="--t: 880ms" x="256" y="0" width="64" height="288" />
+        <rect class="v" style="--i: 0" x="31.5" width="1" height="352" />
+        <rect class="v" style="--i: 1" x="63.5" width="1" height="352" />
+        <rect class="v" style="--i: 2" x="95.5" width="1" height="352" />
+        <rect class="v" style="--i: 3" x="127.5" width="1" height="352" />
+        <rect class="v" style="--i: 4" x="159.5" width="1" height="352" />
+        <rect class="v" style="--i: 5" x="191.5" width="1" height="352" />
+        <rect class="v" style="--i: 6" x="223.5" width="1" height="352" />
+        <rect class="v" style="--i: 7" x="255.5" width="1" height="352" />
+        <rect class="v" style="--i: 8" x="287.5" width="1" height="352" />
+        <rect class="v" style="--i: 9" x="319.5" width="1" height="352" />
+        <rect class="v" style="--i: 10" x="351.5" width="1" height="352" />
+        <rect class="h" style="--i: 0" y="63.5" width="384" height="1" />
+        <rect class="h" style="--i: 1" y="287.5" width="384" height="1" />
       </svg>
     </div>
     <script>
