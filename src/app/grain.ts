@@ -1,8 +1,8 @@
-// 地の粒（styles.css の body::after）の画像を作る。開いたときに 1 度だけ、手の空いたときに作り、できたら
-// 薄く現す（styles.css の --grain-on）。粒の種類は試し中で、開発中は GrainPanel で切り替えて比べる。
-// どの種類も中間の灰色を中心に明暗へ揺らし、ぼかさずくっきり置く。地の上には、下の明るさに対する割合で
-// 重ねる（styles.css の mix-blend-mode: overlay）ので、平均の明るさは変わらない。
-// 画面の画素に合わせて粒を置くため、画素の細かさ（devicePixelRatio）に合わせて敷く大きさを決める。
+// 地の粒（styles.css の html の背景）の画像を作る。開いたときに 1 度だけ、手の空いたときに作る。
+// 粒の種類は試し中で、開発中は GrainPanel で切り替えて比べる。
+// どの種類も中間の灰色を中心に明暗へ揺らし、ぼかさずくっきり置く。地の色とは overlay で重ねる
+// （styles.css の background-blend-mode）ので、平均の明るさは変わらない。濃さは揺れの大きさとして画像に焼き込む。
+// 画面の画素 1 つを粒 1 つにするため、画素の細かさ（devicePixelRatio）に合わせて敷く大きさを決める。
 
 /** 粒の画像の一辺（画面の画素）。これより大きい範囲は繰り返すが、粒どうしに関係がないので繰り返しは見えない */
 const TILE = 1024
@@ -33,22 +33,22 @@ export const GRAIN_KINDS = [
 ] as const
 export type GrainKind = (typeof GRAIN_KINDS)[number]
 
-/** 本番で使う種類 */
+/** 本番で使う種類と濃さ（0〜1。1 で、重ねたときの揺れが下の明るさの ±40%（1 標準偏差）） */
 const KIND: GrainKind = 'gauss'
+const AMOUNT = 0.25
 
 export function startGrain() {
   const idle = window.requestIdleCallback ?? ((run: () => void) => setTimeout(run, 200))
-  idle(() => renderGrain(KIND))
+  idle(() => renderGrain(KIND, AMOUNT))
 }
 
 let url = ''
 
-/** 粒の画像を作って敷く。開発用パネルからも種類を変えて呼ぶ */
-export function renderGrain(kind: GrainKind) {
+/** 粒の画像を作って敷く。開発用パネルからも種類と濃さを変えて呼ぶ */
+export function renderGrain(kind: GrainKind, amount: number) {
   const root = document.documentElement
-  // 中間の灰色（128）を中心に揺らす。ほとんどの粒（±2.5 標準偏差）が 0〜255 に収まる振れ幅。重ねたときの揺れは
-  // 下の明るさの ±40%（1 標準偏差）になる
-  const amplitude = 51
+  // 中間の灰色（128）を中心に揺らす。濃さ 1 で、ほとんどの粒（±2.5 標準偏差）が 0〜255 に収まる振れ幅
+  const amplitude = 51 * amount
   const values = noise(kind)
   const canvas = document.createElement('canvas')
   canvas.width = canvas.height = TILE
@@ -66,7 +66,6 @@ export function renderGrain(kind: GrainKind) {
     url = URL.createObjectURL(blob)
     root.style.setProperty('--grain-image', `url(${url})`)
     root.style.setProperty('--grain-tile', `${TILE / devicePixelRatio}px`)
-    root.style.setProperty('--grain-on', '1')
   })
 }
 

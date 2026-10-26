@@ -4,7 +4,6 @@ import {hydrated} from './app/useExternal'
 import {startEditing} from './app/editing'
 import {startCursor} from './app/cursor'
 import {startGrain} from './app/grain'
-import {startVignette} from './app/vignette'
 import {registerServiceWorker} from './sw/register'
 import './styles.css'
 
@@ -23,8 +22,7 @@ startEditing()
 // マウスのある環境では、カーソルを場面ごとに形の変わる自前のものにする（src/app/cursor.ts）
 startCursor()
 
-// 地の周辺減光と粒の画像を作る（src/app/vignette.ts、src/app/grain.ts）
-startVignette()
+// 地の粒の画像を作る（src/app/grain.ts）
 startGrain()
 
 // 写真（img と hero の canvas）の上では右クリックのメニュー（画像を保存）を出さない。styles.css の誤操作の手当てと対

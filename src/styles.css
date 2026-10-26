@@ -7,7 +7,7 @@
    Tailwind の utility（bg-ground など）からも参照できる。 */
 @theme {
   /* 地の色。純黒だと写真の黒と見分けが付かないのでわずかに持ち上げる */
-  --color-ground: #1e1e1e;
+  --color-ground: #141414;
   --color-ink: #fdfdfd;
 
   /* 固定ナビの高さ。フッターと揃える。hero と各ページの中身がこのぶん下げて重なりを避ける */
@@ -79,63 +79,21 @@
     rgb(255 255 255 / calc(var(--glow-far) * var(--glow, 0) * var(--glow-weight, 1)));
 }
 
-/* ページ自体の背景は、地の色ではなく周辺減光の端の色（--ground-edge）にする。地の中ほどの明るさは周辺減光の層
-   （body::before）が持つ。スマホのツールバーの出入りで層と画面の端のあいだにすき間ができても、そこが端の暗さに
-   なじんで帯に見えないようにするため */
-html {
-  background: var(--ground-edge);
-}
 body {
   color: var(--color-ink);
   font: 400 16px/1.7 var(--font-sans);
 }
 
-/* 地の質感（試し中）。周辺減光と、その上に重ねる止まった粒。写真や hero の canvas はこの上に描かれるので、
-   どちらも地の部分にだけかかり、写真は暗くも粗くもしない。
-   - 周辺減光（body::before）: 画面の端へ向かって地を暗くする。縞が出ないよう、画像として app/vignette.ts が作る。
-     --vignette は端での暗さ（0〜1）、--vignette-start は暗くなり始める位置（中心からの距離）
-   - 粒（body::after）: 下の明るさに対する割合で明暗へ揺らす（mix-blend-mode: overlay。粒の画像は中間の灰色を
-     中心に揺れる。app/grain.ts）。平均の明るさは変えず、減光の濃淡の段差（縞）や、暗い地ににじむ光の段差も散らす。
-     粒は明るいところで強く、暗いところで弱く出る（フィルムの粒と同じ）。--grain（0〜1）は揺れの大きさ、
-     --grain-size は粒 1 つが画面の画素いくつ分か（ぼかさず、くっきり拡大する）
-   開発中は GrainPanel で詰める */
-:root {
-  --grain: 0.2;
-  --grain-size: 1;
-  --vignette: 0;
-  --vignette-start: 0%;
-  /* 周辺減光の端の色 */
-  --ground-edge: color-mix(in srgb, var(--color-ground) calc((1 - var(--vignette)) * 100%), black);
-}
-/* 高さは、スマホのツールバーを引っ込めたときの一番大きい画面（100lvh）にする。inset: 0 で今の画面に合わせると、
-   ツールバーが引っ込む動きに大きさが追いつかず、下端に地の平らな色がすき間として見えるため。
-   ツールバーが出ているあいだは、下の端がツールバーの裏に隠れる */
-body::before,
-body::after {
-  content: '';
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 100lvh;
-  z-index: -1;
-  pointer-events: none;
-}
-/* 画像ができるまでは、同じ形の CSS のグラデーションで先に出しておく（縞は出るが、開いた瞬間から減光がかかる） */
-body::before {
-  background: var(
-      --vignette-image,
-      radial-gradient(ellipse at center, var(--color-ground) var(--vignette-start), var(--ground-edge) 100%)
-    )
-    center / 100% 100%;
-}
-body::after {
+/* 地の粒。地の色の上に、止まったごく細かい粒を重ねて、無地より紙や印画紙に近い暗さにする。暗い地ににじむ光の
+   明るさの段差（縞）を散らす働きもある。ページ自体の背景に敷くので、写真や hero の canvas の下にだけ見え、
+   ページと一緒にスクロールする（画面に固定した層にすると、スマホのツールバーの出入りで端にすき間が出る）。
+   粒の画像は app/grain.ts が作り、地の色と overlay で重ねる（下の明るさに対する割合で明暗へ揺れ、平均の明るさは
+   地の色のまま）。画像ができるまでは無地 */
+html {
+  background-color: var(--color-ground);
   background-image: var(--grain-image, none);
-  background-size: calc(var(--grain-tile, 1024px) * var(--grain-size));
-  image-rendering: pixelated;
-  mix-blend-mode: overlay;
-  opacity: calc(var(--grain) * var(--grain-on, 0));
-  transition: opacity 1.2s linear;
+  background-size: var(--grain-tile, 1024px);
+  background-blend-mode: overlay;
 }
 
 /* 誤操作を減らす。
