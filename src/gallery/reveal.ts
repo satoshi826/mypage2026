@@ -9,7 +9,7 @@ const MARGIN = 0.08
 
 /**
  * 視界に入った要素を現す演出。要素に `data-reveal` を付けると、視界に入ったときに
- * `data-revealed` が付く。見た目は styles.css の `[data-reveal-cover]` が持つ（下から現像するワイプ）。
+ * `data-revealed` が付く。見た目は styles.css の `[data-reveal-clip]` が持つ（下から現像するワイプ）。
  * 一度現れたら戻さない。
  *
  * 判定はスクロールのたびに、まだ現れていない要素の位置を読んで行う。上辺が画面の上に出た要素は

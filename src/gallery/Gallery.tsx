@@ -438,18 +438,19 @@ export function Gallery({
               // 乗っていて、スクロールが止まったあと画面内の写真が飛ばされたまま残ることがある（Chrome）
               style={box}
             >
-              <Img
-                photo={photo}
-                // 画像検索で撮った人の名前とつながるよう、名前を入れる。例: Street photograph 12 by Satoshi Hata
-                alt={`${label} photograph ${index + 1} by ${NAME}`}
-                width={at.w}
-                large={wide}
-                // 広げる写真は待たずに拡大用へ替える。1 枚なので重くなく、待つと小さい段が全幅に引き伸ばされて荒れる
-                hold={keep.size > 0 && !wide}
-                zoom={expandable && !wide}
-              />
-              {/* ワイプ用の覆い。styles.css の [data-reveal] を参照 */}
-              <div data-reveal-cover aria-hidden />
+              {/* ワイプで切り抜く入れ物。styles.css の [data-reveal] を参照 */}
+              <div data-reveal-clip>
+                <Img
+                  photo={photo}
+                  // 画像検索で撮った人の名前とつながるよう、名前を入れる。例: Street photograph 12 by Satoshi Hata
+                  alt={`${label} photograph ${index + 1} by ${NAME}`}
+                  width={at.w}
+                  large={wide}
+                  // 広げる写真は待たずに拡大用へ替える。1 枚なので重くなく、待つと小さい段が全幅に引き伸ばされて荒れる
+                  hold={keep.size > 0 && !wide}
+                  zoom={expandable && !wide}
+                />
+              </div>
               {tools && <tools.Photo photo={photo} />}
             </figure>
           )
