@@ -97,9 +97,7 @@ export function Hero({photos: PHOTOS}: {photos: string[]}) {
   const takePointer = usePointer(ref)
 
   useEffect(() => {
-    // canvas の余白をページ背景に合わせる。worker から CSS は読めないので値を渡す
-    const ground = getComputedStyle(document.documentElement).getPropertyValue('--color-ground')
-    post({photos: PHOTOS, ground})
+    post({photos: PHOTOS})
   }, [post, PHOTOS])
 
   // 固定のナビとフッターに隠れているだけの範囲は、どちらの判定でも画面外とみなす。トップの一番下まで

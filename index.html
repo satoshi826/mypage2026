@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <style>html,body {margin: 0; padding: 0;} html {background: #191919;}</style>
+    <style>html,body {margin: 0; padding: 0;} html {background: #1f1f1f;}</style>
     <!-- 初めて開いたときのスプラッシュ。ロゴ（src/app/Logo.tsx）が 12 の格子から組み上がり、ナビの位置へ移る。
          JS を待たずに最初の描画から動かすため、HTML と CSS だけで書いてここに置く。そのあいだに裏で JS と写真を読む。
          訪問ごと（タブごと）に 1 回だけ出し、同じタブの再読み込みでは出さない。動きを減らす設定の人には出さない。
@@ -39,14 +39,14 @@
       @media (max-width: 640px) {#splash {--to-y: 11px;}}
       /* 狭い画面のナビのロゴは 20 × 18.33 で、上から 13px に置く（src/app/Nav.tsx） */
       @media (max-width: 639.98px) {#splash {--to-x: calc(20px + env(safe-area-inset-left)); --to-y: 13px; --to-scale: calc(5 / 42);}}
-      #splash .veil {position: absolute; inset: 0; background: #191919; animation: splash-veil calc(480ms * var(--slow)) linear calc(1660ms * var(--slow)) both;}
+      #splash .veil {position: absolute; inset: 0; background: #1f1f1f; animation: splash-veil calc(480ms * var(--slow)) linear calc(1660ms * var(--slow)) both;}
       #splash svg {position: absolute; top: 0; left: 0; transform-origin: 0 0; animation: splash-move calc(520ms * var(--slow)) var(--ease) calc(1560ms * var(--slow)) both;}
       #splash rect {transform-box: fill-box;}
       #splash .face {fill: #fdfdfd; transform-origin: center; animation: splash-grow calc(380ms * var(--slow)) var(--ease) both;}
-      #splash .cut {fill: #191919; transform-origin: bottom; animation: splash-cut calc(320ms * var(--slow)) var(--ease) calc(var(--t) * var(--slow)) both;}
+      #splash .cut {fill: #1f1f1f; transform-origin: bottom; animation: splash-cut calc(320ms * var(--slow)) var(--ease) calc(var(--t) * var(--slow)) both;}
       #splash .groove {transform-origin: top;}
       /* 区切り線。入るときと同じ向きに走り抜けて消える */
-      #splash .v, #splash .h {fill: #191919;}
+      #splash .v, #splash .h {fill: #1f1f1f;}
       #splash .v {animation: splash-v-in calc(280ms * var(--slow)) var(--ease) calc((300ms + var(--i) * 20ms) * var(--slow)) both, splash-v-out calc(260ms * var(--slow)) var(--ease) calc((1150ms + var(--i) * 20ms) * var(--slow)) forwards;}
       #splash .h {animation: splash-h-in calc(280ms * var(--slow)) var(--ease) calc((480ms + var(--i) * 60ms) * var(--slow)) both, splash-h-out calc(260ms * var(--slow)) var(--ease) calc((1210ms + var(--i) * 60ms) * var(--slow)) forwards;}
       /* 移ってきたロゴと入れ替わるまで、ナビのロゴは隠しておく */

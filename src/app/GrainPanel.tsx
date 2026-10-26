@@ -3,13 +3,12 @@ import {GRAIN_KINDS, renderGrain, type GrainKind} from './grain'
 import {renderVignette} from './vignette'
 
 // 地の色（--color-ground）、粒（styles.css の --grain、app/grain.ts）、周辺減光（--vignette、app/vignette.ts）を
-// 詰める開発用パネル。開発中だけ描かれる。地の色は hero が開いたときに 1 度だけ読むので、hero の地には
-// 再読み込みで反映される
+// 詰める開発用パネル。開発中だけ描かれる
 
 type Grain = {ground: number; kind: string; amount: number; size: number; vignette: number; vignetteStart: number}
 
 /** 既定値。styles.css の --color-ground・--grain・--vignette と grain.ts の KIND と同じ値。決まったら両方を書き換える */
-const DEFAULT_GRAIN: Grain = {ground: 25, kind: 'gauss', amount: 20, size: 1, vignette: 60, vignetteStart: 5}
+const DEFAULT_GRAIN: Grain = {ground: 31, kind: 'gauss', amount: 20, size: 1, vignette: 90, vignetteStart: 10}
 
 const PARAMS: Param<Grain>[] = [
   {key: 'ground', label: '地の明るさ', min: 0, max: 48, step: 1, hint: '0〜255 の灰色'},

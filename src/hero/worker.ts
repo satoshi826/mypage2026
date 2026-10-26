@@ -65,13 +65,7 @@ async function fillAtlas(
 /** worker からメインスレッドへ返すもの。写真が1枚上がるごとに、その番号が届く */
 export type Loaded = {layer: number}
 
-/** `#rrggbb` を WebGL のクリア色に変換する。ページ背景と canvas の余白を揃えるため */
-function parseColor(hex: string): [number, number, number, number] {
-  const value = Number.parseInt(hex.trim().replace('#', ''), 16)
-  return [((value >> 16) & 255) / 255, ((value >> 8) & 255) / 255, (value & 255) / 255, 1]
-}
-
-function createScene(canvas: OffscreenCanvas, pixelRatio: number, photos: string[], ground: string) {
+function createScene(canvas: OffscreenCanvas, pixelRatio: number, photos: string[]) {
   const core = new Core({canvas, pixelRatio})
 
   // 粒子グリッドは起動時に一度だけ決める。以後は変わらない
@@ -80,9 +74,6 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number, photos: string
   const imageAspect = grid.width / grid.height
 
   const layout = layoutFor(textureLimit, photos.length, grid)
-  // 粒子の後ろにあるのは地の色1色だけなので、薄れさせるときはここへ混ぜる。
-  // 透過にしなくても同じ絵になり、描画順に意味が出ない
-  const groundColor = parseColor(ground)
 
   // 頂点ごとのランク。glaku の型は number[] だが内部で Float32Array に詰め直すだけ
   const rankIndices = Float32Array.from({length: grid.count}, (_, i) => i)
@@ -347,7 +338,8 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number, photos: string
     if (layer === frame.from || layer === frame.to) draw()
   }).catch((e) => console.error('hero: 写真の読み込みが止まった', e))
 
-  const renderer = new Renderer(core, {id: 'canvas', backgroundColor: groundColor})
+  // 粒子のすき間は透明にして、ページの地（周辺減光と粒。styles.css）を透かす。粒子は不透明に描く
+  const renderer = new Renderer(core, {id: 'canvas', backgroundColor: [0, 0, 0, 0]})
 
   // 粒子は u_fit を掛ける前の空間にいるので、ポインタも同じ空間へ戻してから渡す
   let fit = [1, 1]
@@ -456,8 +448,6 @@ export type Command = {
   canvas?: OffscreenCanvas
   pixelRatio?: number
   photos?: string[]
-  /** ページ背景の色。canvas の余白をこれに合わせる */
-  ground?: string
   resize?: {width: number; height: number}
   render?: Frame
   /** 番号のクリックで行き先が変わったフレーム。基準位置の飛びをズレに振り替える */
@@ -492,6 +482,6 @@ onmessage = ({data}: {data: Command}) => {
   if (scene) return apply(data)
   if (!pending.canvas || !pending.photos) return
 
-  scene = createScene(pending.canvas, pending.pixelRatio ?? 1, pending.photos, pending.ground ?? '#000')
+  scene = createScene(pending.canvas, pending.pixelRatio ?? 1, pending.photos)
   apply(pending)
 }
