@@ -102,11 +102,17 @@ body {
   --vignette: 0.85;
   --vignette-start: 0%;
 }
+/* 高さは、スマホのツールバーを引っ込めたときの一番大きい画面（100lvh）にする。inset: 0 で今の画面に合わせると、
+   ツールバーが引っ込む動きに大きさが追いつかず、下端に地の平らな色がすき間として見えるため。
+   ツールバーが出ているあいだは、下の端がツールバーの裏に隠れる */
 body::before,
 body::after {
   content: '';
   position: fixed;
-  inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 100lvh;
   z-index: -1;
   pointer-events: none;
 }
