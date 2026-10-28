@@ -1,12 +1,13 @@
 import type {CSSProperties} from 'preact'
 import type {Param} from '../app/DevPanel'
-import {ASPECT, SOURCE_W} from './table'
+import {ASPECT} from './table'
 
 /**
- * 写真の枠の幅の上限（CSS の px）。粒子の格子は配信解像度（1200 × 800）なので、それより大きく広げると粒子の四角が
- * 見えて粗くなる。CSS の px で止めるので、2 倍の画面では粒子 1 つが画面の 2 画素まで
+ * 写真の枠の幅の上限（CSS の px）。大きい画面で写真が広がりすぎないようにし、粒子の格子（1200 × 800）が
+ * 引き伸ばされて粗くなるのも防ぐ。格子と同じ 1200 にすると、2 倍の画面でちょうど 2 倍の拡大になり、干渉で粒子が
+ * ずれたときの点の詰まり方のむらが、ぼけずにそのまま縞（モアレ）として見えるので、少し小さくしてある
  */
-export const MAX_PHOTO_WIDTH = SOURCE_W
+export const MAX_PHOTO_WIDTH = 1110
 
 /**
  * コントロールパネルの寸法。CSS 変数としてパネルのルートに書き込む。
