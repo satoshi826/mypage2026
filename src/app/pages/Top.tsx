@@ -6,6 +6,8 @@ import {Page, Text} from '../Page'
 
 type HeroComponent = typeof import('../../hero/Hero').Hero
 let loaded: HeroComponent | null = null
+type LightComponent = typeof import('../../light/Light').Light
+let lightLoaded: LightComponent | null = null
 
 /**
  * Hero は Worker と OffscreenCanvas を使うのでサーバーでは動かせない。描いたあと（ブラウザで）初めて import
@@ -19,8 +21,18 @@ function useHero() {
   return Hero
 }
 
+/** 光とロゴの段（試し）。hero と同じく worker を使うので、ブラウザで初めて import する */
+function useLight() {
+  const [Light, setLight] = useState(() => lightLoaded)
+  useEffect(() => {
+    if (!Light) void import('../../light/Light').then((module) => setLight(() => (lightLoaded = module.Light)))
+  }, [Light])
+  return Light
+}
+
 export function Top() {
   const Hero = useHero()
+  const Light = useLight()
   const photos = usePhotos()
   const heroPhotos = photos ? heroesOf(photos).map(heroSrc) : []
 
@@ -44,6 +56,9 @@ export function Top() {
           />
         </div>
       )}
+      {/* 光とロゴの段も、読み込んだ 1 つの部品で、描くたびに作り直すものではない */}
+      {/* oxlint-disable-next-line react/static-components */}
+      {Light ? <Light /> : <div className="h-[100svh]" />}
       <Page title={NAME}>
         <Text>street / architecture を撮っています。Web エンジニアでもあります。</Text>
         <Text>
