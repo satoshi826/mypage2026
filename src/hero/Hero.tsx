@@ -239,13 +239,17 @@ export function Hero({photos: PHOTOS}: {photos: string[]}) {
     setPlayer({autoplay, visible, toggle})
   }, [autoplay, visible, toggle])
 
-  // 写真を押しても再生と停止を切り替える（動画のプレイヤーと同じ）。写真の上は粒子を押して遊ぶ場所でもあるので、
-  // ほとんど動かさず（TAP_MOVE 未満）短く（TAP_MS 未満）押して離したときだけにする。切り替えたら、写真の中央に
+  // 写真をマウスで押しても再生と停止を切り替える（動画のプレイヤーと同じ）。写真の上は粒子を押して遊ぶ場所でもあるので、
+  // ほとんど動かさず（TAP_MOVE 未満）短く（TAP_MS 未満）押して離したときだけにする。指では切り替えない。軽く触るのが
+  // 指のふつうの操作で、粒子を試しに触っただけで止まってしまうため（フッターの再生ボタンで切り替える）。切り替えたら、写真の中央に
   // 切り替えた先の記号を一瞬出す（flash。数を増やして描き直し、出る動きを最初からやり直す）
   const press = useRef<{x: number; y: number; time: number} | null>(null)
   const [flash, setFlash] = useState<{count: number; playing: boolean} | null>(null)
   const onPointerDown = (event: PointerEvent) => {
-    press.current = event.button === 0 ? {x: event.clientX, y: event.clientY, time: event.timeStamp} : null
+    press.current =
+      event.pointerType === 'mouse' && event.button === 0
+        ? {x: event.clientX, y: event.clientY, time: event.timeStamp}
+        : null
   }
   const onPointerUp = (event: PointerEvent) => {
     const down = press.current
