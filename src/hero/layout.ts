@@ -43,7 +43,7 @@ export type Direction = 'stacked' | 'side'
 /** 写真の下にパネルを置く。縦長の画面ではこちらが有利 */
 export const STACKED_LAYOUT: Layout = {
   padding: 12,
-  photoGap: 32,
+  photoGap: 48,
   cell: 40,
   fontSize: 12,
   gapX: 4,
@@ -59,7 +59,7 @@ export const SIDE_LAYOUT: Layout = {
   padding: 52,
   photoGap: 32,
   cell: 28,
-  fontSize: 14,
+  fontSize: 12,
   gapX: 16,
   gapY: 32,
   columns: 7,
