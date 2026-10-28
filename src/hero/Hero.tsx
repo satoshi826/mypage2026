@@ -58,6 +58,10 @@ export function Hero({photos: PHOTOS}: {photos: string[]}) {
   const velocity = useRef({x: 0, y: 0})
   const settling = useRef(0)
   const jumped = useRef(false)
+  // 停止したあと、バーを静止帯の頭より前へ戻さない。停止中も進行中の遷移は完走させる（settle）ので、走り終わる前に
+  // 再生すると、中の進み具合に合わせてバーが静止帯より前へ戻り、そこから流れ出してしまう。走り終わるまでバーは
+  // 静止帯の頭で待たせる（中の状態とは少しずれるが、バーは次の遷移までの待ち時間として読めればよい）
+  const barHeld = useRef(false)
 
   const [index, setIndex] = useState(0)
   // 読み込みが済んだ写真の番号。worker が1枚上げるごとに増える。抽選はこの中から
@@ -212,10 +216,15 @@ export function Hero({photos: PHOTOS}: {photos: string[]}) {
       // 中の3枚（遷移帯・静止帯・通過ぶん）はそれを継承して描き分ける
       // 停止中は遷移が終わった地点で止める。バーは次の遷移までの待ち時間なので、
       // 待っていないあいだ中途半端な位置に居座らせない。粒子のほうは着地まで動く
-      const progress = autoplay ? cycleProgress(stateRef.current, timing) : morphRatio(timing)
+      const morph = morphRatio(timing)
+      let progress = autoplay ? cycleProgress(stateRef.current, timing) : morph
+      if (autoplay && barHeld.current) {
+        if (progress < morph) progress = morph
+        else barHeld.current = false
+      }
       for (const bar of progressLines) {
         bar.style.setProperty('--progress', String(progress))
-        bar.style.setProperty('--morph', `${morphRatio(timing) * 100}%`)
+        bar.style.setProperty('--morph', `${morph * 100}%`)
       }
     }, [autoplay, order, post, reduced, takePointer])
   )
@@ -225,12 +234,17 @@ export function Hero({photos: PHOTOS}: {photos: string[]}) {
     if (next === stateRef.current) return
     stateRef.current = next
     jumped.current = true
+    // 番号を選ぶのは新しい遷移を始める操作なので、バーは先頭から進める
+    barHeld.current = false
   }, [])
 
   const toggle = useCallback(() => {
     // 停止するときは静止帯の頭へ戻す。バーは停止と同時に遷移の終了地点へ
     // 飛ぶので、内部を途中に残すと再生でバーが飛ぶ
-    if (autoplay) stateRef.current = pause(stateRef.current, timingRef.current)
+    if (autoplay) {
+      stateRef.current = pause(stateRef.current, timingRef.current)
+      barHeld.current = true
+    }
     setAutoplay(!autoplay)
   }, [autoplay])
 
