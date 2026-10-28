@@ -56,14 +56,14 @@ export const STACKED_LAYOUT: Layout = {
 
 /** 写真の横にパネルを置く。横長の画面ではこちらが有利 */
 export const SIDE_LAYOUT: Layout = {
-  padding: 36,
+  padding: 52,
   photoGap: 32,
-  cell: 24,
-  fontSize: 12,
+  cell: 28,
+  fontSize: 14,
   gapX: 16,
-  gapY: 26,
+  gapY: 32,
   columns: 7,
-  markerGrow: 13,
+  markerGrow: 18,
   markerBorder: 1,
   markerDuration: 1000
 }
