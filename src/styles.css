@@ -212,18 +212,27 @@ input[data-slider]::-moz-range-thumb {
   }
 }
 
-/* hero の写真を押して再生と停止を切り替えたときに、中央に出す記号（src/hero/Hero.tsx）。
-   にじんで現れ、しばらく留まってから、少し広がりながら引く */
+/* hero の写真を押して再生と停止を切り替えたときの合図（src/hero/Hero.tsx）。写真を一瞬暗くし（hero-dim）、
+   中央に記号を出す（hero-flash）。記号はにじんで現れ、少し留まってから、少し広がりながら引く */
+@keyframes hero-dim {
+  0% {
+    background: rgb(0 0 0 / 0);
+  }
+  15%,
+  40% {
+    background: rgb(0 0 0 / 0.35);
+  }
+  100% {
+    background: rgb(0 0 0 / 0);
+  }
+}
 @keyframes hero-flash {
   0% {
     opacity: 0;
     scale: 0.9;
   }
-  15% {
-    opacity: 0.9;
-    scale: 1;
-  }
-  55% {
+  15%,
+  40% {
     opacity: 0.9;
     scale: 1;
   }

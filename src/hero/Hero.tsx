@@ -241,8 +241,8 @@ export function Hero({photos: PHOTOS}: {photos: string[]}) {
 
   // 写真をマウスで押しても再生と停止を切り替える（動画のプレイヤーと同じ）。写真の上は粒子を押して遊ぶ場所でもあるので、
   // ほとんど動かさず（TAP_MOVE 未満）短く（TAP_MS 未満）押して離したときだけにする。指では切り替えない。軽く触るのが
-  // 指のふつうの操作で、粒子を試しに触っただけで止まってしまうため（フッターの再生ボタンで切り替える）。切り替えたら、写真の中央に
-  // 切り替えた先の記号を一瞬出す（flash。数を増やして描き直し、出る動きを最初からやり直す）
+  // 指のふつうの操作で、粒子を試しに触っただけで止まってしまうため（フッターの再生ボタンで切り替える）。切り替えたら、写真を
+  // 一瞬暗くして、中央に切り替えた先の記号を出す（flash。数を増やして描き直し、出る動きを最初からやり直す）
   const press = useRef<{x: number; y: number; time: number} | null>(null)
   const [flash, setFlash] = useState<{count: number; playing: boolean} | null>(null)
   const onPointerDown = (event: PointerEvent) => {
@@ -297,9 +297,12 @@ export function Hero({photos: PHOTOS}: {photos: string[]}) {
           <div
             key={flash.count}
             aria-hidden
-            className="glow-mark pointer-events-none absolute inset-0 m-auto size-20 [--glow:var(--glow-hover)] [animation:hero-flash_1.6s_ease-out_both] max-sm:size-14"
+            className="pointer-events-none absolute inset-0 flex items-center justify-center [animation:hero-dim_1s_ease-out_both]"
           >
-            <svg viewBox="0 0 24 24" className="size-full fill-ink">
+            <svg
+              viewBox="0 0 24 24"
+              className="glow-mark size-32 fill-ink [--glow:var(--glow-hover)] [animation:hero-flash_1s_ease-out_both]"
+            >
               {flash.playing ? <path d="M8 5 19 12 8 19z" /> : <path d="M8 5h3v14H8zM14 5h3v14h-3z" />}
             </svg>
           </div>
