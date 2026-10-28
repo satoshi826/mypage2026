@@ -16,9 +16,6 @@ import {DEFAULT_LIGHT, type LightTuning} from './tuning'
 /** 1 本の光線が描く線分の数の上限（光源からの 1 本 + 跳ね返り 3 回） */
 const MAX_SEGMENTS = 4
 
-/** ロゴの長方形を渡す uniform の名前。配列の uniform は glaku が宣言を入れないので、1 つずつ分ける（docs/glaku.md） */
-const RECT_UNIFORMS = LOGO_RECTS.map((_, i) => `u_rect${i}` as const)
-
 const HALF_FLOAT = [['RGBA16F', 'RGBA', 'HALF_FLOAT', 'LINEAR', 'CLAMP_TO_EDGE']] as const
 
 function createScene(canvas: OffscreenCanvas, pixelRatio: number) {
@@ -52,8 +49,8 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number) {
       u_specular: 'float',
       u_power: 'float',
       u_seed: 'float',
-      ...Object.fromEntries(RECT_UNIFORMS.map((name) => [name, 'vec4']))
-    } as Record<string, 'float' | 'vec2' | 'vec4'>,
+      u_rects: `vec4[${LOGO_RECTS.length}]`
+    },
     vert: /* glsl */ `
       out float v_energy;
 
@@ -93,7 +90,7 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number) {
         float best = min(far.x, far.y);
         solid = false;
         normal = far.x < far.y ? vec2(-sign(rd.x), 0.0) : vec2(0.0, -sign(rd.y));
-        ${RECT_UNIFORMS.map((name) => `hitRect(ro, rd, inv, ${name}, best, normal, solid);`).join(' ')}
+        for (int i = 0; i < ${LOGO_RECTS.length}; i++) hitRect(ro, rd, inv, u_rects[i], best, normal, solid);
         return best;
       }
 
@@ -209,12 +206,7 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number) {
     rays.setUniform({
       u_size: [width, height],
       u_light: [width / 2, (height * tuning.lightY) / 100],
-      ...Object.fromEntries(
-        LOGO_RECTS.map(([l, t, r, b], i) => [
-          RECT_UNIFORMS[i],
-          [left + l * unit, top + t * unit, left + r * unit, top + b * unit]
-        ])
-      )
+      u_rects: LOGO_RECTS.flatMap(([l, t, r, b]) => [left + l * unit, top + t * unit, left + r * unit, top + b * unit])
     })
     const scale = pixelRatio * (tuning.resolution / 100)
     for (const r of [frameLayer, ...acc]) r.resize({width, height, pixelRatio: scale})
