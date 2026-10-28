@@ -20,6 +20,7 @@ import {DevPanel} from '../app/DevPanel'
 import {
   LAYOUT_PARAMS,
   LAYOUT_PRESETS,
+  MAX_PHOTO_WIDTH,
   TONE,
   TONE_PARAMS,
   chooseDirection,
@@ -330,9 +331,9 @@ export function Hero({photos: PHOTOS}: {photos: string[]}) {
 /** フッターの再生操作を出しておく、写真の見えている割合の下限 */
 const CONTROLS_SHOWN = 0.4
 
-/** 使える領域から、パネルに取られるぶんを引いて、3:2 を保った最大の枠を出す */
+/** 使える領域から、パネルに取られるぶんを引いて、3:2 を保った最大の枠を出す。幅は MAX_PHOTO_WIDTH まで */
 function fitPhoto({width, height}: {width: number; height: number}, takenX: number) {
-  const fitted = Math.round(Math.min(Math.max(0, width - takenX), height * ASPECT))
+  const fitted = Math.round(Math.min(Math.max(0, width - takenX), height * ASPECT, MAX_PHOTO_WIDTH))
   return {width: fitted, height: Math.round(fitted / ASPECT)}
 }
 

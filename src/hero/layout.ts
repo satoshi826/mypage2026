@@ -1,6 +1,12 @@
 import type {CSSProperties} from 'preact'
 import type {Param} from '../app/DevPanel'
-import {ASPECT} from './table'
+import {ASPECT, SOURCE_W} from './table'
+
+/**
+ * 写真の枠の幅の上限（CSS の px）。粒子の格子は配信解像度（1200 × 800）なので、それより大きく広げると粒子の四角が
+ * 見えて粗くなる。CSS の px で止めるので、2 倍の画面では粒子 1 つが画面の 2 画素まで
+ */
+export const MAX_PHOTO_WIDTH = SOURCE_W
 
 /**
  * コントロールパネルの寸法。CSS 変数としてパネルのルートに書き込む。
@@ -125,7 +131,7 @@ export function fitStacked(content: {width: number; height: number}, l: Layout, 
       ? room * ASPECT
       : (content.height - fixed + (rows * (l.columns - 1) * l.gapX) / l.columns) / (1 / ASPECT + rows / l.columns)
   // 切り上げると1px はみ出すので切り下げる
-  const width = Math.max(0, Math.min(content.width, Math.floor(solved)))
+  const width = Math.max(0, Math.min(content.width, MAX_PHOTO_WIDTH, Math.floor(solved)))
   return {width, height: Math.floor(width / ASPECT)}
 }
 

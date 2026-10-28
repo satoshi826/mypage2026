@@ -15,9 +15,10 @@ export const ASPECT = SOURCE_W / SOURCE_H
 const MIN_HEIGHT = 256
 /**
  * アトラス全体のバイト数の上限。枚数が増えると自動的にグリッドが下がる。
+ * 31 枚（カレンダーの上限）でも配信解像度（1200 × 800）のまま持てる大きさにしてある（約 114MB）。
  * 実際の確保量は矩形に敷き詰めた分だけ数%上振れする（layoutFor 参照）。
  */
-const VRAM_BUDGET = 96 * 1024 * 1024
+const VRAM_BUDGET = 120 * 1024 * 1024
 
 const gridOf = (height: number): Grid => {
   const width = Math.round(height * ASPECT)
