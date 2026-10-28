@@ -227,19 +227,35 @@ export function Hero({photos: PHOTOS}: {photos: string[]}) {
     jumped.current = true
   }, [])
 
+  const toggle = useCallback(() => {
+    // 停止するときは静止帯の頭へ戻す。バーは停止と同時に遷移の終了地点へ
+    // 飛ぶので、内部を途中に残すと再生でバーが飛ぶ
+    if (autoplay) stateRef.current = pause(stateRef.current, timingRef.current)
+    setAutoplay(!autoplay)
+  }, [autoplay])
+
   // 再生操作はフッターに置く（HeroPlayer.tsx）。状態と操作をそこへ出す
   useEffect(() => {
-    setPlayer({
-      autoplay,
-      visible,
-      toggle: () => {
-        // 停止するときは静止帯の頭へ戻す。バーは停止と同時に遷移の終了地点へ
-        // 飛ぶので、内部を途中に残すと再生でバーが飛ぶ
-        if (autoplay) stateRef.current = pause(stateRef.current, timingRef.current)
-        setAutoplay(!autoplay)
-      }
-    })
-  }, [autoplay, visible])
+    setPlayer({autoplay, visible, toggle})
+  }, [autoplay, visible, toggle])
+
+  // 写真を押しても再生と停止を切り替える（動画のプレイヤーと同じ）。写真の上は粒子を押して遊ぶ場所でもあるので、
+  // ほとんど動かさず（TAP_MOVE 未満）短く（TAP_MS 未満）押して離したときだけにする。切り替えたら、写真の中央に
+  // 切り替えた先の記号を一瞬出す（flash。数を増やして描き直し、出る動きを最初からやり直す）
+  const press = useRef<{x: number; y: number; time: number} | null>(null)
+  const [flash, setFlash] = useState<{count: number; playing: boolean} | null>(null)
+  const onPointerDown = (event: PointerEvent) => {
+    press.current = event.button === 0 ? {x: event.clientX, y: event.clientY, time: event.timeStamp} : null
+  }
+  const onPointerUp = (event: PointerEvent) => {
+    const down = press.current
+    press.current = null
+    if (!down) return
+    const moved = Math.hypot(event.clientX - down.x, event.clientY - down.y)
+    if (moved >= TAP_MOVE || event.timeStamp - down.time >= TAP_MS) return
+    toggle()
+    setFlash((prev) => ({count: (prev?.count ?? 0) + 1, playing: !autoplay}))
+  }
   useEffect(() => () => setPlayer(null), [])
 
   // 写真の枠は JS で寸法を決める。canvas を写真ぴったりにすると、
@@ -269,8 +285,21 @@ export function Hero({photos: PHOTOS}: {photos: string[]}) {
         ref={frameRef}
         className="relative flex shrink-0 touch-none"
         style={{width: `${photo.width}px`, height: `${photo.height}px`}}
+        onPointerDown={onPointerDown}
+        onPointerUp={onPointerUp}
       >
         {canvas}
+        {flash && (
+          <div
+            key={flash.count}
+            aria-hidden
+            className="glow-mark pointer-events-none absolute inset-0 m-auto size-20 [--glow:var(--glow-hover)] [animation:hero-flash_1.6s_ease-out_both] max-sm:size-14"
+          >
+            <svg viewBox="0 0 24 24" className="size-full fill-ink">
+              {flash.playing ? <path d="M8 5 19 12 8 19z" /> : <path d="M8 5h3v14H8zM14 5h3v14h-3z" />}
+            </svg>
+          </div>
+        )}
       </div>
       <ControlPanel
         count={PHOTOS.length}
@@ -327,6 +356,10 @@ export function Hero({photos: PHOTOS}: {photos: string[]}) {
     </section>
   )
 }
+
+/** 写真を押して再生と停止を切り替えるとみなす、押してから離すまでの移動の上限 px と時間の上限 ms */
+const TAP_MOVE = 5
+const TAP_MS = 300
 
 /** フッターの再生操作を出しておく、写真の見えている割合の下限 */
 const CONTROLS_SHOWN = 0.4

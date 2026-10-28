@@ -212,6 +212,27 @@ input[data-slider]::-moz-range-thumb {
   }
 }
 
+/* hero の写真を押して再生と停止を切り替えたときに、中央に出す記号（src/hero/Hero.tsx）。
+   にじんで現れ、しばらく留まってから、少し広がりながら引く */
+@keyframes hero-flash {
+  0% {
+    opacity: 0;
+    scale: 0.9;
+  }
+  15% {
+    opacity: 0.9;
+    scale: 1;
+  }
+  55% {
+    opacity: 0.9;
+    scale: 1;
+  }
+  100% {
+    opacity: 0;
+    scale: 1.1;
+  }
+}
+
 /* マウスのカーソル（src/app/cursor.ts）。OS のカーソルは隠し、ふだんは小さな丸（線）、リンクの上では上向きの
    正三角形（線）、スライダーの上では横長の塗り、写真の上ではピントを合わせる枠（四隅だけ）にする。
    大きさ・塗り・角の丸み・切り抜きの形を変えて移り変わる。
