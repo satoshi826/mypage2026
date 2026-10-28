@@ -401,13 +401,17 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number, photos: string
     // ポインタ経由で干渉の状態テクスチャまで NaN で埋まり、以後まともに描けなくなる
     if (width <= 0 || height <= 0) return
     sized = true
-    renderer.resize({width, height})
+    // 描く解像度は、画面の画素と粒子の格子の小さいほうにする。粒子の格子より大きく描くと、半端な間隔の粒子が
+    // 画素に丸められて点の詰まり方に周期的なむらができ、干渉で粒子がずれると砂鉄の模様のような縞（モアレ）に
+    // 見える。格子の解像度で描けば粒子 1 つが 1 画素に乗り、拡大はブラウザがなめらかに行う
+    const ratio = pixelRatio * Math.min(1, grid.height / (height * pixelRatio))
+    renderer.resize({width, height, pixelRatio: ratio})
     // 画像を歪めずに収める
     const canvasAR = width / height
     fit = canvasAR > imageAspect ? [imageAspect / canvasAR, 1] : [1, canvasAR / imageAspect]
     // 点サイズはピクセル単位に丸められるので、切り上げないと格子状の隙間が出る。
     // 重なる分には後から描かれる明るい粒子が上書きするだけで害がない
-    const pointSize = Math.max(1, Math.ceil((height * pixelRatio * fit[1]) / grid.height))
+    const pointSize = Math.max(1, Math.ceil((height * ratio * fit[1]) / grid.height))
     program.setUniform({u_fit: fit, u_pointSize: pointSize})
   }
 
