@@ -30,11 +30,18 @@ export function Top() {
           差し込まれるので、空けておかないと下の紹介文が画面の外へ押し出される（レイアウトのずれ）。
           写真の一覧を読み終えて hero に使う写真が無かったときだけ詰める */}
       {(photos === null || heroPhotos.length > 0) && (
-        <div className="h-[100svh]">
+        <div className="relative h-[100svh]">
           {/* Hero は読み込んだ 1 つの部品で、描くたびに作り直すものではない。hero は起動時に写真をまとめて
               読み込むので、並びが変わったら作り直す（編集で hero を選び直したとき。訪問者には起きない） */}
           {/* oxlint-disable-next-line react/static-components */}
           {Hero && heroPhotos.length > 0 && <Hero key={heroPhotos.join()} photos={heroPhotos} />}
+          {/* 下へ続くことを示す目盛り（試し）。短い縦線の中を、小さな点がゆっくり下へ流れる。styles.css の [data-scroll-cue]。
+              中央へ寄せる translate は付けない。半画素にかかって線がにじむため */}
+          <div
+            data-scroll-cue
+            aria-hidden
+            className="pointer-events-none absolute bottom-[calc(var(--spacing-footer)+env(safe-area-inset-bottom)+12px)] left-1/2 h-10 w-px"
+          />
         </div>
       )}
       <Page title={NAME}>
