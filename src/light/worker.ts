@@ -47,6 +47,7 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number) {
     uniformTypes: {
       u_size: 'vec2',
       u_light: 'vec2',
+      u_lightSize: 'float',
       u_rays: 'float',
       u_bounces: 'float',
       u_albedo: 'float',
@@ -141,9 +142,11 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number) {
           energy = u_barPower / u_barRays;
         } else {
           // 全周を光線の数で等分する
+          // 光は半径 u_lightSize の円の中のどこかから出す。点から出すと影の縁がくっきりして、光の筋のように見える
           float pointRays = u_rays - u_barRays;
           float angle = (float(ray) - u_barRays + rand(ray, 0)) / pointRays * TAU;
-          pos = u_light;
+          float spread = TAU * rand(ray, ${2 * MAX_SEGMENTS + 2});
+          pos = u_light + u_lightSize * sqrt(rand(ray, ${2 * MAX_SEGMENTS + 3})) * vec2(cos(spread), sin(spread));
           dir = vec2(cos(angle), sin(angle));
           energy = u_power / pointRays;
         }
@@ -252,7 +255,8 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number) {
       u_bounces: tuning.bounces,
       u_albedo: tuning.albedo / 100,
       u_wall: tuning.wall / 100,
-      u_wallSpecular: tuning.wallSpecular / 100
+      u_wallSpecular: tuning.wallSpecular / 100,
+      u_lightSize: tuning.lightSize
     })
     // 頂点の数は光線の数と跳ね返りの回数で決まるので、変わったら作り直す
     const count = tuning.rays * (tuning.bounces + 1) * 2
