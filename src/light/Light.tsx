@@ -11,12 +11,12 @@ const SETTLE_SECONDS = 0.9
 /**
  * トップの舞台で、光が mu のロゴを照らす層（試し）。hero の後ろに画面いっぱいに重ねる。描くのは worker（worker.ts）。
  *
- * 光は画面に固定した位置（lightAt）にあり、粒子が集まった点（stage の source）でつく。ロゴの位置はページの中の要素（logo）
- * から取り、ロゴはその要素と一緒に、ページの中身としてスクロールで上がってきて光の下に入る
+ * 光は画面に固定した位置（lightAt）にあり、粒子が集まった点（stage の source）でつく。ロゴを置く部屋はページの中の要素
+ * （room）で、その要素と一緒に、ページの中身としてスクロールで上がってきて光の下に入る
  *
- * @param logo ロゴを置く場所の要素。大きさは問わず、中心にロゴを描く
+ * @param room ロゴを置く部屋の要素。左・右・下の辺が光を返す壁になり、中央にロゴを描く
  */
-export function Light({stage, logo}: {stage: {readonly current: Stage}; logo: {readonly current: HTMLElement | null}}) {
+export function Light({stage, room}: {stage: {readonly current: Stage}; room: {readonly current: HTMLElement | null}}) {
   const {canvas, post, ref} = useCanvas(Worker)
   useCanvasResize(post, ref)
   const [tuning, setTuning] = useState(DEFAULT_LIGHT)
@@ -31,21 +31,20 @@ export function Light({stage, logo}: {stage: {readonly current: Stage}; logo: {r
   const litAt = useRef<number | null>(null)
   useAnimationFrame(() => {
     const brightness = lightOf(stage.current)
-    const box = logo.current?.getBoundingClientRect()
+    const box = room.current?.getBoundingClientRect()
     if (brightness <= 0 || !box) {
-      if (litAt.current !== null) post({frame: {light: {x: 0, y: 0}, logo: {x: 0, y: 0}, brightness: 0}})
+      if (litAt.current !== null) post({frame: {light: {x: 0, y: 0}, room: box ?? new DOMRect(), brightness: 0}})
       litAt.current = null
       return
     }
     const now = performance.now()
     litAt.current ??= now
-    const center = {x: box.left + box.width / 2, y: box.top + box.height / 2}
     const home = lightAt({width: ref.current?.clientWidth ?? 0, height: ref.current?.clientHeight ?? 0})
     const {source} = stage.current
     const t = Math.min(1, (now - litAt.current) / 1000 / SETTLE_SECONDS)
     const settle = 1 - (1 - t) ** 3
     const light = {x: source.x + (home.x - source.x) * settle, y: source.y + (home.y - source.y) * settle}
-    post({frame: {light, logo: center, brightness}})
+    post({frame: {light, room: {left: box.left, top: box.top, right: box.right, bottom: box.bottom}, brightness}})
   })
 
   return (

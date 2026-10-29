@@ -37,7 +37,7 @@ export function Top() {
   const photos = usePhotos()
   const heroPhotos = photos ? heroesOf(photos).map(heroSrc) : []
   const stage = useStage()
-  const logo = useRef<HTMLDivElement>(null)
+  const room = useRef<HTMLDivElement>(null)
 
   return (
     <div className="relative">
@@ -47,17 +47,20 @@ export function Top() {
       <div className="sticky top-0 h-[100svh] overflow-hidden">
         {/* hero と光の層は読み込んだ 1 つの部品で、描くたびに作り直すものではない */}
         {/* oxlint-disable-next-line react/static-components */}
-        {Light && <Light stage={stage} logo={logo} />}
+        {Light && <Light stage={stage} room={room} />}
         {/* hero は起動時に写真をまとめて読み込むので、並びが変わったら作り直す（編集で hero を選び直したとき。
             訪問者には起きない） */}
         {/* oxlint-disable-next-line react/static-components */}
         {Hero && heroPhotos.length > 0 && <Hero key={heroPhotos.join()} photos={heroPhotos} stage={stage} />}
       </div>
       {/* ロゴと導線の段。ふつうのページの中身として舞台の上を下から上がってきて、ページの一番下で画面に収まる。
-          ロゴは光の層が描き、ここには置き場所（中心の点）だけを置く。舞台に重ねて始め、一番下までのスクロールを
-          SCENE_SCREENS にする */}
-      <div className="pointer-events-none relative h-[100svh]" style={{marginTop: `${(SCENE_SCREENS - 1) * 100}svh`}}>
-        <div ref={logo} className="absolute top-1/2 left-1/2" />
+          ロゴは光の層が段の中央に描き、段の左・右・下の辺を光を返す壁にする（部屋）。舞台に重ねて始め、
+          一番下までのスクロールを SCENE_SCREENS にする */}
+      <div
+        ref={room}
+        className="pointer-events-none relative h-[100svh]"
+        style={{marginTop: `${(SCENE_SCREENS - 1) * 100}svh`}}
+      >
         <div className="absolute inset-x-0 top-[68%] flex justify-center">
           <div className="pointer-events-auto h-12">
             <Tabs items={LINKS} />

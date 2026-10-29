@@ -4,16 +4,16 @@ import {DEFAULT_LIGHT, type LightTuning} from './tuning'
 
 // 光源から出た光線が mu のロゴに当たって跳ね返る様子を、光線の通った線を重ねて描く（2D の光の経路追跡）。
 // 光そのものは描かず、光線の線の重なりの明るさで光を見せる。ロゴに遮られたところは影になる。
-// 画面の左右と下の端は光を返す壁にでき（wall）、壁で跳ね返った光がロゴを横や下からも照らす。上の端は光を返さない。
-// 上は hero の写真があった空間で、上の端で返すと、光の空間に天井が見えてしまう。
+// ロゴは部屋（ページの中の要素）の中央に置き、部屋の左・右・下の辺は光を返す壁にできる（wall）。壁で跳ね返った光が
+// ロゴを横や下からも照らす。部屋の上は開いていて、部屋の外へ出た光線はそこで終わる。部屋はスクロールで上がってくるので、
+// 部屋がまだ画面の下にあるうちは、壁で返る光はほとんど届かない。
 //
 // 速さのための作り:
 // - ロゴは長方形 7 つ（logo.ts）なので、光線との交わりを式で直接求める。少しずつ進めて当たりを探さない
 // - 光線の経路は線を描く頂点シェーダの中で求める。頂点 1 つが「何本目の光線の、何回目の跳ね返りの、始点か終点か」
 //   を受け持ち、その点までの経路を自分で計算する。経路を一度テクスチャに書き出す段を挟まない
 // - 光線の向きは全周を等分した区画の中で毎フレームずらし、前のフレームの結果と混ぜて、光線のすき間をならす。
-//   ロゴと光はスクロールで一緒に動くので、前のフレームの結果は光が動いたぶんずらしてから混ぜる（跡を引かない）。
-//   ロゴの位置ではなく光の位置で合わせるのは、光がロゴより先に画面に入って待つあいだ、ロゴは動いても光は止まっているため
+//   光が動いたときは、前のフレームの結果を光が動いたぶんずらしてから混ぜる（跡を引かない）
 // - 光をためる層は画面より粗い解像度（resolution）で持ち、画面へはなめらかに拡大する
 
 /** 1 本の光線が描く線分の数の上限（光源からの 1 本 + 跳ね返り 8 回）。tuning.ts の跳ね返りの上限と合わせる */
@@ -52,6 +52,7 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number) {
       u_specular: 'float',
       u_power: 'float',
       u_seed: 'float',
+      u_room: 'vec4',
       u_rects: `vec4[${LOGO_RECTS.length}]`
     },
     vert: /* glsl */ `
@@ -84,16 +85,33 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number) {
         }
       }
 
-      // 光線 ro + rd t が最初に当たるところまでの距離と、当たった面の向き（normal）。ロゴに当たれば solid。
-      // ロゴに当たらなければ、画面の端（壁）に当たるところまで
-      float trace(vec2 ro, vec2 rd, out vec2 normal, out bool solid) {
+      // 光線 ro + rd t が最初に当たるところまでの距離と、当たった面の向き（normal）と、当たったもの（hit）。
+      // hit は 0 が何にも当たらない（部屋の外へ出る。遠くまで伸ばす）、1 がロゴ、2 が壁
+      float trace(vec2 ro, vec2 rd, out vec2 normal, out int hit) {
         vec2 safe = mix(rd, vec2(1e-6), lessThan(abs(rd), vec2(1e-6)));
         vec2 inv = 1.0 / safe;
-        vec2 far = max(-ro * inv, (u_size - ro) * inv);
-        float best = min(far.x, far.y);
-        solid = false;
-        normal = far.x < far.y ? vec2(-sign(rd.x), 0.0) : vec2(0.0, -sign(rd.y));
+        float best = 1e5;
+        normal = vec2(0.0);
+        hit = 0;
+        // 床（部屋の下の辺）
+        float t = (u_room.w - ro.y) * inv.y;
+        float x = ro.x + rd.x * t;
+        if (t > 1e-3 && t < best && x >= u_room.x && x <= u_room.z) {
+          best = t;
+          normal = vec2(0.0, -1.0);
+          hit = 2;
+        }
+        // 左右の壁（部屋の左右の辺）。向かっている側だけ見る
+        t = ((rd.x < 0.0 ? u_room.x : u_room.z) - ro.x) * inv.x;
+        float y = ro.y + rd.y * t;
+        if (t > 1e-3 && t < best && y >= u_room.y && y <= u_room.w) {
+          best = t;
+          normal = vec2(-sign(rd.x), 0.0);
+          hit = 2;
+        }
+        bool solid = false;
         for (int i = 0; i < ${LOGO_RECTS.length}; i++) hitRect(ro, rd, inv, u_rects[i], best, normal, solid);
+        if (solid) hit = 1;
         return best;
       }
 
@@ -115,16 +133,16 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number) {
         vec2 b = pos;
         for (int s = 0; s < ${MAX_SEGMENTS}; s++) {
           vec2 normal;
-          bool solid;
-          float t = trace(pos, dir, normal, solid);
+          int hit;
+          float t = trace(pos, dir, normal, hit);
           vec2 next = pos + dir * t;
           if (s == seg) {
             a = pos;
             b = next;
             break;
           }
-          // 壁に当たった光線は、壁が光を返さないならそこで終わる。上の端（面の向きが下）は返さない
-          float albedo = solid ? u_albedo : normal.y > 0.5 ? 0.0 : u_wall;
+          // 部屋の外へ出た光線と、光を返さない面に当たった光線はそこで終わる
+          float albedo = hit == 1 ? u_albedo : hit == 2 ? u_wall : 0.0;
           if (albedo <= 0.0) {
             energy = 0.0;
             break;
@@ -227,7 +245,7 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number) {
     layout()
   }
 
-  const draw = ({light, logo, brightness}: LightFrame) => {
+  const draw = ({light, room, brightness}: LightFrame) => {
     if (!lines) return
     // 消えているあいだは何も描かない。前の結果も捨て、次につくときはそのフレームだけで描き始める
     if (brightness <= 0) {
@@ -235,10 +253,10 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number) {
       fresh = true
       return
     }
-    // ロゴは画素にそろえる
+    // ロゴは部屋の中央に、画素にそろえて置く
     const unit = tuning.cell / 2
-    const left = Math.round(logo.x - (LOGO_WIDTH * unit) / 2)
-    const top = Math.round(logo.y - (LOGO_HEIGHT * unit) / 2)
+    const left = Math.round((room.left + room.right) / 2 - (LOGO_WIDTH * unit) / 2)
+    const top = Math.round((room.top + room.bottom) / 2 - (LOGO_HEIGHT * unit) / 2)
     const {width, height} = size
     blend.setUniform({u_shift: [-(light.x - lastLight.x) / width, (light.y - lastLight.y) / height]})
     lastLight = light
@@ -247,6 +265,7 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number) {
       u_seed: seed,
       u_power: tuning.power * brightness,
       u_light: [light.x, light.y],
+      u_room: [room.left, room.top, room.right, room.bottom],
       u_rects: LOGO_RECTS.flatMap(([l, t, r, b]) => [left + l * unit, top + t * unit, left + r * unit, top + b * unit])
     })
 
@@ -292,8 +311,8 @@ export type LightCommand = {
 /** 1 フレームぶんの光の状態。位置はどれも canvas の左上からの px */
 export type LightFrame = {
   light: {x: number; y: number}
-  /** ロゴの中心 */
-  logo: {x: number; y: number}
+  /** ロゴを置く部屋。左・右・下の辺が壁で、中央にロゴを置く */
+  room: {left: number; top: number; right: number; bottom: number}
   /** 光の明るさの割合。0 なら消す */
   brightness: number
 }
