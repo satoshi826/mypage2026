@@ -48,7 +48,7 @@
   --glow-text-blur: 16px;
   --glow-text: 1;
   --glow-hover: 1;
-  --glow-selected: 0.85;
+  --glow-selected: 0.5;
 }
 .glow-line {
   box-shadow:

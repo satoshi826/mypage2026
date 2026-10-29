@@ -23,7 +23,7 @@ const DEFAULT_GLOW: Glow = {
   textBlur: 16,
   text: 100,
   hover: 100,
-  selected: 85
+  selected: 50
 }
 
 const PARAMS: Param<Glow>[] = [
