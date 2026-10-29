@@ -1,13 +1,17 @@
-import {useEffect, useRef, useState} from 'preact/hooks'
+import {useCallback, useEffect, useRef, useState} from 'preact/hooks'
 import {DevPanel} from '../app/DevPanel'
 import {SCENE_SCREENS, lightAt, lightOf, type Stage} from '../app/stage'
 import {useAnimationFrame, useCanvas, useCanvasResize} from '../hero/useCanvas'
+import {setArrange} from './arrange'
 import {LOGO_HEIGHT, LOGO_WIDTH} from './logo'
 import {DEFAULT_LIGHT, LIGHT_PARAMS, type LightTuning} from './tuning'
 import Worker from './worker?worker'
 
 /** 光が集まった点でついてから、光の位置へ着くまでの秒数（集まった点が光の位置と違うときだけ動く） */
 const SETTLE_SECONDS = 0.9
+
+/** 動かしたロゴを、フッターの操作でもとの位置へ戻すのにかける秒数 */
+const RESET_SECONDS = 0.8
 
 /** ついた直後の光の明るさ。最大に対する割合。スクロールでロゴが近づくと最大になる */
 const DIM = 0.5
@@ -29,6 +33,7 @@ const FOCUS_AFTER_SCREENS = 0.5
  *
  * ロゴはドラッグで動かせる（マウスでも指でも）。ロゴの上に見えないつかみ場所を重ねて受ける。照明はロゴのもとの位置に
  * 合わせて固定したまま動かないので、光の外へ動かすと暗くなる。離した位置にとどまり、部屋の外へは出ない。
+ * 動かしたあとは、フッターの操作（LogoReset.tsx）でもとの位置へ戻せる。
  *
  * @param room ロゴを置く部屋の要素。中央（から logoShift ずらした位置）がロゴのもとの位置で、その下の床の上に下の光を置く
  */
@@ -47,7 +52,19 @@ export function Light({stage, room}: {stage: {readonly current: Stage}; room: {r
   const offset = useRef({x: 0, y: 0})
   const drag = useRef<{id: number; x: number; y: number; from: {x: number; y: number}} | null>(null)
   const handle = useRef<HTMLDivElement>(null)
+  // もとの位置へ戻している途中なら、戻し始めた時刻と、そのときの量
+  const returning = useRef<{at: number; from: {x: number; y: number}} | null>(null)
+  // フッターに出している「動いている」かどうか。変わったときだけ出し直す
+  const moved = useRef(false)
+  const reset = useCallback(() => {
+    returning.current = {at: performance.now(), from: {...offset.current}}
+  }, [])
+  useEffect(() => {
+    setArrange({moved: false, reset})
+    return () => setArrange(null)
+  }, [reset])
   const onPointerDown = (event: PointerEvent) => {
+    returning.current = null
     drag.current = {id: event.pointerId, x: event.clientX, y: event.clientY, from: {...offset.current}}
     ;(event.currentTarget as HTMLElement).setPointerCapture(event.pointerId)
     event.preventDefault()
@@ -67,6 +84,12 @@ export function Light({stage, room}: {stage: {readonly current: Stage}; room: {r
     const arrived = lightOf(stage.current)
     const box = room.current?.getBoundingClientRect()
     const grip = handle.current
+    // フッターの戻す操作は、ロゴが動いていて、光がつききっている（hero の再生操作が隠れている）あいだだけ出す
+    const nowMoved = arrived >= 1 && (offset.current.x !== 0 || offset.current.y !== 0)
+    if (nowMoved !== moved.current) {
+      moved.current = nowMoved
+      setArrange({moved: nowMoved, reset})
+    }
     if (arrived <= 0 || !box) {
       if (litAt.current !== null)
         post({
@@ -98,6 +121,14 @@ export function Light({stage, room}: {stage: {readonly current: Stage}; room: {r
     const light = {
       x: source.x + (lightHome.x - source.x) * settle,
       y: source.y + (lightHome.y - source.y) * settle
+    }
+    // もとの位置へ戻している途中なら、減速しながら量を 0 へ寄せる
+    const back = returning.current
+    if (back) {
+      const r = Math.min(1, (now - back.at) / 1000 / RESET_SECONDS)
+      const left = (1 - r) ** 3
+      offset.current = r < 1 ? {x: back.from.x * left, y: back.from.y * left} : {x: 0, y: 0}
+      if (r >= 1) returning.current = null
     }
     // ロゴのもとの位置は部屋の中央から logoShift ずらしたところ。動かした量は、ロゴが部屋からはみ出さない範囲に収める
     const home = {x: (box.left + box.right) / 2 + tuning.logoShift, y: (box.top + box.bottom) / 2}
@@ -131,6 +162,7 @@ export function Light({stage, room}: {stage: {readonly current: Stage}; room: {r
       {/* ロゴのつかみ場所。位置と大きさは毎フレーム書く。光が消えているあいだは出さない */}
       <div
         ref={handle}
+        data-grab
         className="pointer-events-auto absolute top-0 left-0 hidden cursor-grab touch-none active:cursor-grabbing"
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}

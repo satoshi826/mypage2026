@@ -1,7 +1,8 @@
 import {isEditing} from './editing'
 
 // マウスのカーソル。ふだんは小さな丸（線）で、リンクやボタンの上では上向きの正三角形（線）に、スライダーの上
-// では左右に動かせることを示す横長の塗りに、Photos の写真の上ではカメラのピントを合わせる枠（四隅だけ）になる。
+// では左右に動かせることを示す横長の塗りに、つかんで動かせる物（data-grab。トップのロゴ）の上では縦横に動かせることを
+// 示す小さな四角の塗りに（つかんでいるあいだは縮む）、Photos の写真の上ではカメラのピントを合わせる枠（四隅だけ）になる。
 // 広げた写真の上では、四隅を中心へ向けた「小さくする」形になる。
 // hero の上は粒子で遊ぶ場所なので丸のまま。
 // 見た目は styles.css の #cursor。
@@ -14,12 +15,15 @@ const SIZES = {
   // 正三角形（高さは幅の √3/2 ≈ 0.87）
   link: [12, 10],
   slider: [14, 6],
+  grab: [10, 10],
+  grabbing: [6, 6],
   photo: [28, 28],
   'photo-out': [28, 28]
 } as const
 
 const LINK_TARGET = 'a, button:not(:disabled), [role="button"], summary'
 const SLIDER_TARGET = 'input[type="range"]'
+const GRAB_TARGET = '[data-grab]'
 const PHOTO_TARGET = 'figure[data-file]:not([data-still])'
 const TEXT = 'input:not([type="range"]), textarea, select, [contenteditable]'
 
@@ -35,7 +39,7 @@ export function startCursor() {
   let x = 0
   let y = 0
   let over: Element | null = null
-  /** つかんでドラッグしているスライダー。指が外れても、離すまで横長のままにする */
+  /** つかんでドラッグしているスライダーかつかめる物。指が外れても、離すまで同じ形のままにする */
   let dragging: Element | null = null
   let frame = 0
 
@@ -44,16 +48,19 @@ export function startCursor() {
     root.classList.toggle('custom-cursor', !isEditing())
     cursor.style.opacity = isEditing() || !over || over.closest(TEXT) ? '0' : '1'
 
-    const state =
-      dragging || over?.closest(SLIDER_TARGET)
+    const state = dragging?.matches(GRAB_TARGET)
+      ? 'grabbing'
+      : dragging || over?.closest(SLIDER_TARGET)
         ? 'slider'
-        : over?.closest(LINK_TARGET)
-          ? 'link'
-          : over?.closest(PHOTO_TARGET)
-            ? over.closest('[data-expanded]')
-              ? 'photo-out'
-              : 'photo'
-            : 'idle'
+        : over?.closest(GRAB_TARGET)
+          ? 'grab'
+          : over?.closest(LINK_TARGET)
+            ? 'link'
+            : over?.closest(PHOTO_TARGET)
+              ? over.closest('[data-expanded]')
+                ? 'photo-out'
+                : 'photo'
+              : 'idle'
     const [width, height] = SIZES[state]
     cursor.dataset.state = state
     cursor.style.width = `${width}px`
@@ -73,7 +80,7 @@ export function startCursor() {
     schedule()
   })
   addEventListener('pointerdown', (event) => {
-    dragging = (event.target as Element).closest(SLIDER_TARGET)
+    dragging = (event.target as Element).closest(`${SLIDER_TARGET}, ${GRAB_TARGET}`)
   })
   addEventListener('pointerup', () => {
     dragging = null

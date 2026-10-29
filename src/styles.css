@@ -300,13 +300,19 @@ html.custom-cursor :is(input:not([type='range']), textarea, select, [contentedit
 }
 /* 塗りで描く形では、枠の線を消す。線と塗りが重なる縁だけ濃く見えるため */
 #cursor[data-state='link'],
-#cursor[data-state='slider'] {
+#cursor[data-state='slider'],
+#cursor[data-state='grab'],
+#cursor[data-state='grabbing'] {
   border-color: transparent;
   background-color: color-mix(in srgb, var(--color-ink) 90%, transparent);
 }
 /* 左右に動かせることを示す横長。端は丸める */
 #cursor[data-state='slider'] {
   border-radius: 3px;
+}
+/* つかんで縦横に動かせることを示す小さな四角。つかんでいるあいだは縮む（大きさは cursor.ts の SIZES） */
+#cursor:is([data-state='grab'], [data-state='grabbing']) {
+  border-radius: 1px;
 }
 /* 写真の上では四隅だけの枠（ピントを合わせる枠）。広げた写真の上では、四隅の L を中心へ向けた「小さくする」形。
    8 本の線を同じ順に並べ、位置だけを変えるので、線が滑って向きを変える。大きさは 28px（cursor.ts の SIZES） */
