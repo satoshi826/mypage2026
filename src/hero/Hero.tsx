@@ -49,17 +49,20 @@ const timingOf = ({cycleSeconds, dwellRatio}: Tuning): Timing => ({cycleSeconds,
  * @param available 読み込みが済んだ写真の番号。抽選はこの中から
  * @param stage トップの舞台。スクロールに合わせて写真を上げ、上がりきったら粒子を写真の中央へ集める。上がる距離と集まる点を書き込む
  * @param post 舞台の canvas（src/scene/worker.ts）へ指示を送る。粒子は舞台の canvas に、写真の枠（frame）の位置へ描かれる
+ * @param screen 舞台の canvas の入れ物。粒子が集まる光の位置は、この大きさから決める（光の層と同じ位置にするため）
  */
 export function Hero({
   photos: PHOTOS,
   available,
   stage,
-  post
+  post,
+  screen
 }: {
   photos: string[]
   available: number[]
   stage: {current: Stage}
   post: (command: SceneCommand) => void
+  screen: {readonly current: HTMLElement | null}
 }) {
   const sectionRef = useRef<HTMLElement | null>(null)
   const frameRef = useRef<HTMLDivElement>(null)
@@ -139,16 +142,17 @@ export function Hero({
     return box ? {x: box.left, y: box.top - rise, width: box.width, height: box.height} : undefined
   }, [])
 
-  // 粒子が出入りする点（stage の source。画面の上の位置）を、写真の枠が rise px 上がったときの枠の NDC に直す。
+  // 粒子が出入りする点（光の位置。画面の上の位置）を、写真の枠が rise px 上がったときの枠の NDC に直す。
   // 写真が上がり具合を変えても（集まっている途中でスクロールを戻したときなど）、粒子は画面の上の同じ点、つまり光から出入りする
   const gatherAtFor = useCallback(
     (rise: number): [number, number] => {
       const box = frameBox.current
-      if (!box) return [0, 0]
-      const {x, y} = stage.current.source
+      const size = screen.current
+      if (!box || !size) return [0, 0]
+      const {x, y} = lightAt({width: size.clientWidth, height: size.clientHeight})
       return [((x - box.left) / box.width) * 2 - 1, 1 - ((y - (box.top - rise)) / box.height) * 2]
     },
-    [stage]
+    [screen]
   )
 
   useAnimationFrame(
@@ -327,23 +331,13 @@ export function Hero({
   // 縦並びのパネルは写真と同じ幅に広げる。マスが上限に達したらそこで止める
   const panel = direction === 'side' ? panelWidth(layout) : Math.min(photo.width, panelWidth(layout))
 
-  // 写真が上がる距離と、粒子が集まる点を舞台へ書き、写真の枠と集まる点を worker へ渡す。集まる点は光の位置で、それが上がりきった
-  // 写真の外なら写真の中で一番近い点。舞台は画面に貼りついているので、画面の上の位置がそのまま舞台の上の位置。
-  // 測った位置には今上がっているぶんが入っているので、戻してから数える
+  // 写真が上がる距離を舞台へ書き、写真の枠と粒子が集まる点（光の位置）を worker へ渡す。舞台は画面に貼りついているので、
+  // 画面の上の位置がそのまま舞台の上の位置。測った位置には今上がっているぶんが入っているので、戻してから数える
   useLayoutEffect(() => {
-    const section = sectionRef.current
     const rect = frameRef.current?.getBoundingClientRect()
-    if (!section || !rect || rect.width <= 0) return
-    const box = {left: rect.left, top: rect.top + lastRise.current, width: rect.width, height: rect.height}
-    frameBox.current = box
-    const rise = photo.height * RISE_RATIO
-    const top = box.top - rise
-    const light = lightAt({width: section.clientWidth, height: section.clientHeight})
-    stage.current.rise = rise / innerHeight
-    stage.current.source = {
-      x: Math.min(Math.max(light.x, box.left), box.left + box.width),
-      y: Math.min(Math.max(light.y, top), top + box.height)
-    }
+    if (!rect || rect.width <= 0) return
+    frameBox.current = {left: rect.left, top: rect.top + lastRise.current, width: rect.width, height: rect.height}
+    stage.current.rise = (photo.height * RISE_RATIO) / innerHeight
     send({rect: rectFor(lastRise.current), gatherAt: gatherAtFor(lastRise.current)})
   }, [stage, send, gatherAtFor, rectFor, photo.width, photo.height, panel, direction, content])
 

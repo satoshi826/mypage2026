@@ -8,9 +8,6 @@ import {setArrange} from './arrange'
 import {LOGO_HEIGHT, LOGO_WIDTH} from './logo'
 import {DEFAULT_LIGHT, LIGHT_PARAMS, type LightTuning} from './tuning'
 
-/** 光が集まった点でついてから、光の位置へ着くまでの秒数（集まった点が光の位置と違うときだけ動く） */
-const SETTLE_SECONDS = 0.9
-
 /** 動かしたロゴを、フッターの操作でもとの位置へ戻すのにかける秒数 */
 const RESET_SECONDS = 0.8
 
@@ -26,7 +23,7 @@ const FOCUS_AFTER_SCREENS = 0.5
 /**
  * トップの舞台で、光が mu のロゴを照らす層（試し）。hero の後ろに画面いっぱいに重ねる。描くのは worker（worker.ts）。
  *
- * 光は画面の上の位置（lightAt）にあり、粒子が集まった点（stage の source）でつく。そこからページの一番下までスクロールする
+ * 光は画面の上の位置（lightAt）にあり、粒子がそこへ集まって光になる。そこからページの一番下までスクロールする
  * あいだに、少しずつ下がる（lightDrop）。少しスクロールしてからは、全周に広がる光から下向きの光に絞られていく（cone）。ついた直後は暗く、スクロールでロゴが
  * 近づくにつれて明るくなり、ロゴが画面に入る前に最大になる。部屋の床の上には上向きの下の光があり、
  * 部屋が画面の下端に近づくと光り始める。ロゴを置く部屋はページの中の要素
@@ -90,8 +87,8 @@ export function Light({
     if (drag.current?.id === event.pointerId) drag.current = null
   }
 
-  // 光がついた時刻。消えているあいだは null。消えたフレームも 1 回は送り、画面から光を消させる
-  const litAt = useRef<number | null>(null)
+  // 光の層を描いているか。消えたフレームも 1 回は送り、画面から光を消させる
+  const lit = useRef(false)
   useAnimationFrame(() => {
     const arrived = lightOf(stage.current)
     const box = room.current?.getBoundingClientRect()
@@ -104,7 +101,7 @@ export function Light({
     }
     // 粒子が光へ向けて飛び始めたら、光の層を描き始める（飛ぶ粒子も光の層に描くため）。光が明るくなるのは粒子が着いてから
     if (stage.current.gather <= 0 || !box) {
-      if (litAt.current !== null)
+      if (lit.current)
         send({
           frame: {
             on: false,
@@ -117,25 +114,19 @@ export function Light({
             focus: 0
           }
         })
-      litAt.current = null
+      lit.current = false
       grip?.style.setProperty('display', 'none')
       return
     }
+    lit.current = true
     const now = performance.now()
-    litAt.current ??= now
     const height = screen.current?.clientHeight ?? 0
-    const {source, progress, rise} = stage.current
+    const {progress, rise} = stage.current
     const top = lightAt({width: screen.current?.clientWidth ?? 0, height})
     // 光がついてからページの一番下までスクロールした割合。光はこれに合わせて下がる。下向きに絞るのは少しあとから
     const scrolled = ease((progress - rise) / (SCENE_SCREENS - rise))
     const focus = ease((progress - rise - FOCUS_AFTER_SCREENS) / (SCENE_SCREENS - rise - FOCUS_AFTER_SCREENS))
-    const lightHome = {x: top.x, y: top.y + ((height * tuning.lightDrop) / 100) * scrolled}
-    const t = Math.min(1, (now - litAt.current) / 1000 / SETTLE_SECONDS)
-    const settle = 1 - (1 - t) ** 3
-    const light = {
-      x: source.x + (lightHome.x - source.x) * settle,
-      y: source.y + (lightHome.y - source.y) * settle
-    }
+    const light = {x: top.x, y: top.y + ((height * tuning.lightDrop) / 100) * scrolled}
     // もとの位置へ戻している途中なら、減速しながら量を 0 へ寄せる
     const back = returning.current
     if (back) {

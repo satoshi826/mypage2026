@@ -159,7 +159,7 @@ const LINKS = [
  * 粒子が集まった割合は時間で進める
  */
 function useStage() {
-  const state = useRef<Stage>({progress: 0, rise: Infinity, gather: 0, source: {x: 0, y: 0}})
+  const state = useRef<Stage>({progress: 0, rise: Infinity, gather: 0})
   useEffect(() => {
     const current = state.current
     const measure = () => {
