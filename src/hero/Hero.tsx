@@ -17,7 +17,7 @@ import {
 import {ControlPanel} from './ControlPanel'
 import {progressLines, setPlayer} from './playback'
 import {DevPanel} from '../app/DevPanel'
-import {RISE_RATIO, lightAt, lightOf, riseOf, type Stage} from '../app/stage'
+import {RISE_RATIO, lightAt, riseOf, type Stage} from '../app/stage'
 import {
   LAYOUT_PARAMS,
   LAYOUT_PRESETS,
@@ -58,7 +58,6 @@ export function Hero({photos: PHOTOS, stage}: {photos: string[]; stage: {current
   const lastTime = useRef(0)
   const lastRise = useRef(0)
   const lastGather = useRef(0)
-  const lastFade = useRef(0)
   // フッターの再生操作を出し、写真を触れるようにするか。粒子が集まり始めて写真が崩れたら下げる
   const [visible, setVisible] = useState(true)
   const velocity = useRef({x: 0, y: 0})
@@ -135,12 +134,11 @@ export function Hero({photos: PHOTOS, stage}: {photos: string[]; stage: {current
 
       const command: Command = {}
 
-      // 写真とカレンダーは、まずスクロールと一緒に上がる。上がりきると粒子が集まり（時間で進む）、カレンダーは薄れる。
-      // 集まった点は、光がつくのと入れ替わりに消える。消えきったら写真は見えないので、時計も干渉も止める
+      // 写真とカレンダーは、まずスクロールと一緒に上がる。上がりきると粒子が光へ飛び込み（時間で進む）、カレンダーは薄れる。
+      // 粒子がすべて光に吸い込まれたら写真は見えないので、時計も干渉も止める
       const rise = riseOf(stage.current) * innerHeight
       const {gather} = stage.current
-      const fade = lightOf(stage.current)
-      const shown = fade < 1
+      const shown = gather < 1
       if (rise !== lastRise.current) {
         lastRise.current = rise
         sectionRef.current?.style.setProperty('translate', `0 ${-rise}px`)
@@ -150,10 +148,6 @@ export function Hero({photos: PHOTOS, stage}: {photos: string[]; stage: {current
         command.gather = gather
         sectionRef.current?.style.setProperty('--gather', String(gather))
         setVisible(gather < CONTROLS_SHOWN)
-      }
-      if (fade !== lastFade.current) {
-        lastFade.current = fade
-        frameRef.current?.style.setProperty('opacity', String(1 - fade))
       }
 
       const timing = timingRef.current

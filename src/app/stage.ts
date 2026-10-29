@@ -2,8 +2,8 @@
 // 進み具合はスクロール量を画面の高さで割った値（progress）で、Top が書き、hero と光の層が毎フレーム読む。
 //
 //   0 → rise        写真がスクロールと一緒に上がる（ふつうにスクロールしたように見せる）
-//   rise を越えた    粒子が光の位置（lightAt。画面に固定）へ集まって白い点になり、入れ替わりに同じ点から光がつく。
-//                   スクロール量によらず時間で進む。rise より戻ると、時間でほどけて写真に戻る
+//   rise を越えた    粒子が光の位置（lightAt。画面に固定）へ飛び込み、着いた粒子から順に光に吸い込まれて消える。光は着いた
+//                   粒子の分だけ明るくなる。スクロール量によらず時間で進む。rise より戻ると、時間で逆にたどって写真に戻る
 //   → SCENE_SCREENS  ロゴと導線が、ページの中身と同じくスクロールで上がってきて、光の下に入る
 
 export type Stage = {
@@ -29,14 +29,16 @@ export const RISE_RATIO = 0.3
 /** 粒子が集まりきるまで（ほどけきるまで）の秒数 */
 const GATHER_SECONDS = 1.6
 
+/**
+ * 粒子が集まるとき、一番暗い粒子が出発を遅らせる割合（集まりきるまでのうち）。明るい粒子ほど先に出発する。
+ * どの粒子も残りの (1 - GATHER_STAGGER) で光の位置に着くので、着くのは集まりきるまでの GATHER_STAGGER 以降
+ */
+export const GATHER_STAGGER = 0.5
+
 /** ページの一番下までのスクロールの長さ。画面の高さ単位。ロゴと導線の段は、ここで画面にちょうど収まる */
 export const SCENE_SCREENS = 1.4
 
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v))
-const smooth = (from: number, to: number, v: number) => {
-  const t = clamp01((v - from) / (to - from))
-  return t * t * (3 - 2 * t)
-}
 
 /** 写真が上がりきっていれば集め、戻っていればほどく。dt 秒ぶん進める */
 export function advanceGather(stage: Stage, dt: number) {
@@ -47,5 +49,11 @@ export function advanceGather(stage: Stage, dt: number) {
 /** 写真が上がった距離。画面の高さ単位 */
 export const riseOf = ({progress, rise}: Stage) => Math.min(progress, rise)
 
-/** 光がついている割合。粒子が集まりきる手前からつく。集まった点はこれと入れ替わりに消える */
-export const lightOf = ({gather}: Stage) => smooth(0.8, 1, gather)
+/**
+ * 光の明るさの割合。粒子が着いた分だけ明るくなる。明るい粒子ほど先に着くので、着き始めに早く明るくなり、
+ * 暗い粒子が着くころにはほぼ最大になる
+ */
+export const lightOf = ({gather}: Stage) => {
+  const arrived = clamp01((gather - (1 - GATHER_STAGGER)) / GATHER_STAGGER)
+  return 1 - (1 - arrived) ** 2
+}

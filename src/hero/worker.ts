@@ -1,6 +1,7 @@
 import {Core, Vao, Program, Renderer} from 'glaku'
 import {blockOrigin, buildTable, chooseGrid, layoutFor, loadPixels, type AtlasLayout, type Grid} from './table'
 import type {Frame} from './sequence'
+import {GATHER_STAGGER} from '../app/stage'
 import {DEFAULT_INTERACTION, DEFAULT_TUNING, type Interaction, type Tuning} from './tuning'
 
 /**
@@ -9,9 +10,6 @@ import {DEFAULT_INTERACTION, DEFAULT_TUNING, type Interaction, type Tuning} from
  * 並列数だけ同時に生きるので、際限なく上げる理由もない
  */
 const DECODE_LANES = 8
-
-/** 粒子が集まるとき、一番暗い粒子が出発を遅らせる割合（集まりきるまでのうち） */
-const GATHER_STAGGER = 0.5
 
 /**
  * 写真を1枚ずつ読み込み、アトラスの自分の区画へ直接上げる。1枚上がるごとに onLoaded を呼ぶ。
@@ -199,14 +197,16 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number, photos: string
         // 干渉によるズレ。更新パスが書いた値をそのまま足す
         vec2 offset = texelFetch(t_state, ivec2(k % ${grid.width}, k / ${grid.width}), 0).xy;
 
-        // 舞台を進めると、光の位置（u_gatherAt。canvas の NDC）へ集まりながら白くなり、1 つの白い点になる（光の層へ渡す）。
-        // 写真を切り替えるときと同じく、明るい粒子ほど先に出発する
+        // 舞台を進めると、光の位置（u_gatherAt。canvas の NDC）へ白くなりながら加速して飛び込み、着いたら光に吸い込まれて
+        // 消える（光の層は、着いた粒子の分だけ明るくなる）。写真を切り替えるときと同じく、明るい粒子ほど先に出発する。
+        // 減速して着くと、光の位置の周りに粒子が溜まって白い塊に見えるので、加速だけにする
         float delay = (1.0 - lum) * ${GATHER_STAGGER.toFixed(2)};
-        float gather = easeInOut(clamp((u_gather - delay) / ${(1 - GATHER_STAGGER).toFixed(2)}, 0.0, 1.0), 3.0);
+        float local = clamp((u_gather - delay) / ${(1 - GATHER_STAGGER).toFixed(2)}, 0.0, 1.0);
+        float gather = local * local * local;
 
         v_color = vec3(mix(lum, 1.0, gather));
 
-        gl_Position = vec4(mix((pos + offset) * u_fit, u_gatherAt, gather), 0.0, 1.0);
+        gl_Position = local < 1.0 ? vec4(mix((pos + offset) * u_fit, u_gatherAt, gather), 0.0, 1.0) : vec4(2.0, 2.0, 0.0, 1.0);
         gl_PointSize = u_pointSize;
       }`,
     frag: /* glsl */ `
