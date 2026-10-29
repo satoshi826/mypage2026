@@ -13,6 +13,11 @@ export type LightTuning = {
   power: number
   /** 光源の半径 px。大きいほど影の縁がぼける */
   lightSize: number
+  /**
+   * 光の広がり。真下から左右にこの角度（度）まで出し、真下が一番明るく、この角度で 0 になる。ついた直後は全周（180）に出し、
+   * ページの一番下までスクロールするあいだにこの角度まで絞る
+   */
+  cone: number
   /** 光がついた位置から、ページの一番下までスクロールするあいだに光が下がる量。画面の高さに対する % */
   lightDrop: number
   /** 床の上の棒の光（上向き）に回す光線の割合 %。下に開いたロゴの切り込みを照らす */
@@ -37,6 +42,7 @@ export const DEFAULT_LIGHT: LightTuning = {
   albedo: 70,
   power: 20,
   lightSize: 25,
+  cone: 60,
   lightDrop: 0,
   barShare: 30,
   barPower: 6,
@@ -60,6 +66,15 @@ export const LIGHT_PARAMS: Param<LightTuning>[] = [
     max: 100,
     step: 1,
     hint: 'px。半径。大きいほど影がぼける'
+  },
+  {
+    group: '見え方',
+    key: 'cone',
+    label: '光の広がり',
+    min: 5,
+    max: 180,
+    step: 1,
+    hint: '度。最後の画面で。真下から左右に'
   },
   {group: '見え方', key: 'keep', label: '残す割合', min: 0, max: 95, step: 5, hint: '%。前のフレーム'},
   {group: '見え方', key: 'resolution', label: '解像度', min: 25, max: 100, step: 25, hint: '%。光をためる層'},

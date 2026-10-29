@@ -19,7 +19,7 @@ const BRIGHTEN_SCREENS = 0.8
  * トップの舞台で、光が mu のロゴを照らす層（試し）。hero の後ろに画面いっぱいに重ねる。描くのは worker（worker.ts）。
  *
  * 光は画面の上の位置（lightAt）にあり、粒子が集まった点（stage の source）でつく。そこからページの一番下までスクロールする
- * あいだに、少しずつ下がる（lightDrop）。ついた直後は暗く、スクロールでロゴが
+ * あいだに、少しずつ下がり（lightDrop）、全周に広がる光から下向きの光に絞られていく（cone）。ついた直後は暗く、スクロールでロゴが
  * 近づくにつれて明るくなり、ロゴが画面に入る前に最大になる。部屋の床の上には上向きの棒の光があり、
  * 部屋が画面の下端に近づくと光り始める。ロゴを置く部屋はページの中の要素
  * （room）で、その要素と一緒に、ページの中身としてスクロールで上がってきて光の下に入る
@@ -44,7 +44,7 @@ export function Light({stage, room}: {stage: {readonly current: Stage}; room: {r
     const box = room.current?.getBoundingClientRect()
     if (arrived <= 0 || !box) {
       if (litAt.current !== null)
-        post({frame: {light: {x: 0, y: 0}, room: box ?? new DOMRect(), brightness: 0, bar: 0}})
+        post({frame: {light: {x: 0, y: 0}, room: box ?? new DOMRect(), brightness: 0, bar: 0, cone: 180}})
       litAt.current = null
       return
     }
@@ -53,8 +53,10 @@ export function Light({stage, room}: {stage: {readonly current: Stage}; room: {r
     const height = ref.current?.clientHeight ?? 0
     const {source, progress, rise} = stage.current
     const top = lightAt({width: ref.current?.clientWidth ?? 0, height})
-    const drop = (height * tuning.lightDrop) / 100
-    const home = {x: top.x, y: top.y + drop * ease((progress - rise) / (SCENE_SCREENS - rise))}
+    // 光がついてからページの一番下までスクロールした割合。光はこれに合わせて下がり、下向きに絞られる
+    const scrolled = ease((progress - rise) / (SCENE_SCREENS - rise))
+    const home = {x: top.x, y: top.y + ((height * tuning.lightDrop) / 100) * scrolled}
+    const cone = 180 + (tuning.cone - 180) * scrolled
     const t = Math.min(1, (now - litAt.current) / 1000 / SETTLE_SECONDS)
     const settle = 1 - (1 - t) ** 3
     const light = {x: source.x + (home.x - source.x) * settle, y: source.y + (home.y - source.y) * settle}
@@ -63,7 +65,9 @@ export function Light({stage, room}: {stage: {readonly current: Stage}; room: {r
     const brightness = arrived * (DIM + (1 - DIM) * ease(1 - (logoTop - height) / (height * BRIGHTEN_SCREENS)))
     // 棒の光は、部屋の床が画面の下端の半画面下まで来たところから光り始め、下端に着くと最大になる
     const bar = ease(1 - (box.bottom - height) / (height / 2))
-    post({frame: {light, room: {left: box.left, top: box.top, right: box.right, bottom: box.bottom}, brightness, bar}})
+    post({
+      frame: {light, room: {left: box.left, top: box.top, right: box.right, bottom: box.bottom}, brightness, bar, cone}
+    })
   })
 
   return (
