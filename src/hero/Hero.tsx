@@ -1,5 +1,5 @@
 import {useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState} from 'preact/hooks'
-import {useCanvas, useCanvasResize, useAnimationFrame} from './useCanvas'
+import {useAnimationFrame} from './useCanvas'
 import {
   advance,
   cycleProgress,
@@ -39,16 +39,28 @@ import {
   type Tuning
 } from './tuning'
 import {usePointer} from './pointer'
-import type {Command, Loaded} from './worker'
-import Worker from './worker?worker'
+import type {HeroCommand} from './scene'
+import type {SceneCommand} from '../scene/worker'
 
 const timingOf = ({cycleSeconds, dwellRatio}: Tuning): Timing => ({cycleSeconds, dwellRatio})
 
 /**
  * @param photos hero 用の派生画像の URL。空では呼ばない
+ * @param available 読み込みが済んだ写真の番号。抽選はこの中から
  * @param stage トップの舞台。スクロールに合わせて写真を上げ、上がりきったら粒子を写真の中央へ集める。上がる距離と集まる点を書き込む
+ * @param post 舞台の canvas（src/scene/worker.ts）へ指示を送る。粒子は舞台の canvas に、写真の枠（frame）の位置へ描かれる
  */
-export function Hero({photos: PHOTOS, stage}: {photos: string[]; stage: {current: Stage}}) {
+export function Hero({
+  photos: PHOTOS,
+  available,
+  stage,
+  post
+}: {
+  photos: string[]
+  available: number[]
+  stage: {current: Stage}
+  post: (command: SceneCommand) => void
+}) {
   const sectionRef = useRef<HTMLElement | null>(null)
   const frameRef = useRef<HTMLDivElement>(null)
   const stateRef = useRef<SequenceState>(initialState())
@@ -75,8 +87,6 @@ export function Hero({photos: PHOTOS, stage}: {photos: string[]; stage: {current
   const barHeld = useRef(false)
 
   const [index, setIndex] = useState(0)
-  // 読み込みが済んだ写真の番号。worker が1枚上げるごとに増える。抽選はこの中から
-  const [available, setAvailable] = useState<number[]>([])
   // この巡で表示した写真の番号。丸がその番号へ移った時点で数える。全部を表示し終えたら、今の1枚から数え直す
   const [seen, setSeen] = useState<number[]>([0])
   useEffect(
@@ -104,35 +114,32 @@ export function Hero({photos: PHOTOS, stage}: {photos: string[]; stage: {current
   // あとはトグルに委ねる（押せば動かせる）
   const [autoplay, setAutoplay] = useState(!reduced)
 
-  const {canvas, post, ref} = useCanvas<Loaded>(Worker, ({layer}) => {
-    // 計測の印（bench/）。canvas は LCP の対象にならないので、写真が届いた時刻をここで残す
-    performance.mark('hero:photo')
-    setAvailable((prev) => [...prev, layer].sort((a, b) => a - b))
-  })
-  useCanvasResize(post, ref)
-  const takePointer = usePointer(ref)
-
-  useEffect(() => {
-    post({photos: PHOTOS})
-  }, [post, PHOTOS])
+  const send = useCallback((command: HeroCommand) => post({hero: command}), [post])
+  const takePointer = usePointer(frameRef)
 
   const applyTuning = useCallback(
     (tuning: Tuning) => {
       timingRef.current = timingOf(tuning)
-      post({tuning})
+      send({tuning})
     },
-    [post]
+    [send]
   )
 
   const applyInteraction = useCallback(
     (interaction: Interaction) => {
       interactionRef.current = interaction
-      post({interaction})
+      send({interaction})
     },
-    [post]
+    [send]
   )
 
-  // 粒子が出入りする点（stage の source。画面の上の位置）を、写真の枠が rise px 上がったときの canvas の NDC に直す。
+  // 写真の枠が rise px 上がったときの、舞台の canvas の上の位置
+  const rectFor = useCallback((rise: number) => {
+    const box = frameBox.current
+    return box ? {x: box.left, y: box.top - rise, width: box.width, height: box.height} : undefined
+  }, [])
+
+  // 粒子が出入りする点（stage の source。画面の上の位置）を、写真の枠が rise px 上がったときの枠の NDC に直す。
   // 写真が上がり具合を変えても（集まっている途中でスクロールを戻したときなど）、粒子は画面の上の同じ点、つまり光から出入りする
   const gatherAtFor = useCallback(
     (rise: number): [number, number] => {
@@ -150,7 +157,7 @@ export function Hero({photos: PHOTOS, stage}: {photos: string[]; stage: {current
       const delta = Math.min((now - (lastTime.current || now)) / 1000, 0.1) // タブ復帰時の巨大な差分は捨てる
       lastTime.current = now
 
-      const command: Command = {}
+      const command: HeroCommand = {}
 
       // 写真はまずスクロールと一緒に上がり、上がりきったところで止まる。そこから粒子が光へ飛び込み（時間で進む）。
       // カレンダーは止まらず、ふつうのページの中身としてスクロールで上へ流れていきながら薄れる。
@@ -162,6 +169,7 @@ export function Hero({photos: PHOTOS, stage}: {photos: string[]; stage: {current
       if (rise !== lastRise.current) {
         lastRise.current = rise
         frameRef.current?.style.setProperty('translate', `0 ${-rise}px`)
+        command.rect = rectFor(rise)
         command.gatherAt = gatherAtFor(rise)
       }
       if (scrolled !== lastScrolled.current) {
@@ -243,7 +251,8 @@ export function Hero({photos: PHOTOS, stage}: {photos: string[]; stage: {current
         command.step = delta
       }
 
-      if (command.render || command.pointer || command.catchUp || command.gather !== undefined) post(command)
+      if (command.render || command.pointer || command.catchUp || command.gather !== undefined || command.rect)
+        send(command)
       // 進み具合も帯の境目も、プログレスの一番外側に CSS 変数として書く。
       // 中の3枚（遷移帯・静止帯・通過ぶん）はそれを継承して描き分ける
       // 停止中は遷移が終わった地点で止める。バーは次の遷移までの待ち時間なので、
@@ -258,7 +267,7 @@ export function Hero({photos: PHOTOS, stage}: {photos: string[]; stage: {current
         bar.style.setProperty('--progress', String(progress))
         bar.style.setProperty('--morph', `${morph * 100}%`)
       }
-    }, [autoplay, gatherAtFor, order, post, reduced, stage, takePointer])
+    }, [autoplay, gatherAtFor, order, rectFor, reduced, send, stage, takePointer])
   )
 
   // 行き先が変わったフレームは worker 側で位置の飛びを打ち消す（番号のクリック）
@@ -318,7 +327,7 @@ export function Hero({photos: PHOTOS, stage}: {photos: string[]; stage: {current
   // 縦並びのパネルは写真と同じ幅に広げる。マスが上限に達したらそこで止める
   const panel = direction === 'side' ? panelWidth(layout) : Math.min(photo.width, panelWidth(layout))
 
-  // 写真が上がる距離と、粒子が集まる点を舞台へ書き、集まる点を worker へ渡す。集まる点は光の位置で、それが上がりきった
+  // 写真が上がる距離と、粒子が集まる点を舞台へ書き、写真の枠と集まる点を worker へ渡す。集まる点は光の位置で、それが上がりきった
   // 写真の外なら写真の中で一番近い点。舞台は画面に貼りついているので、画面の上の位置がそのまま舞台の上の位置。
   // 測った位置には今上がっているぶんが入っているので、戻してから数える
   useLayoutEffect(() => {
@@ -335,8 +344,8 @@ export function Hero({photos: PHOTOS, stage}: {photos: string[]; stage: {current
       x: Math.min(Math.max(light.x, box.left), box.left + box.width),
       y: Math.min(Math.max(light.y, top), top + box.height)
     }
-    post({gatherAt: gatherAtFor(lastRise.current)})
-  }, [stage, post, gatherAtFor, photo.width, photo.height, panel, direction, content])
+    send({rect: rectFor(lastRise.current), gatherAt: gatherAtFor(lastRise.current)})
+  }, [stage, send, gatherAtFor, rectFor, photo.width, photo.height, panel, direction, content])
 
   // 段は画面全体を覆うので、触れられるのは写真とカレンダーだけにする（後ろの光の層のロゴをつかめるように）
   return (
@@ -359,7 +368,6 @@ export function Hero({photos: PHOTOS, stage}: {photos: string[]; stage: {current
         onPointerDown={onPointerDown}
         onPointerUp={onPointerUp}
       >
-        {canvas}
         {flash && (
           <div
             key={flash.count}

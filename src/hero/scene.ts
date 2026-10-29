@@ -1,4 +1,4 @@
-import {Core, Vao, Program, Renderer} from 'glaku'
+import {type Core, Vao, Program, Renderer} from 'glaku'
 import {blockOrigin, buildTable, chooseGrid, layoutFor, loadPixels, type AtlasLayout, type Grid} from './table'
 import type {Frame} from './sequence'
 import {GATHER_STAGGER} from '../app/stage'
@@ -63,12 +63,22 @@ async function fillAtlas(
   )
 }
 
-/** worker からメインスレッドへ返すもの。写真が1枚上がるごとに、その番号が届く */
-export type Loaded = {layer: number}
+/** 写真の枠。canvas の左上からの px */
+export type Rect = {x: number; y: number; width: number; height: number}
 
-function createScene(canvas: OffscreenCanvas, pixelRatio: number, photos: string[]) {
-  const core = new Core({canvas, pixelRatio})
-
+/**
+ * 写真の粒子を描く場面。舞台の canvas（src/scene/worker.ts）の中で、光の層と一緒に描く。粒子は写真の枠の大きさの層
+ * （layer）に描き、舞台がそれを枠の位置へ拡大して重ねる。
+ *
+ * @param onLoaded 写真が 1 枚上がるごとに、その番号で呼ぶ
+ * @param onChange 層を描き直したときに呼ぶ（舞台が重ね直す）
+ */
+export function createHeroScene(
+  core: Core,
+  pixelRatio: number,
+  photos: string[],
+  {onLoaded, onChange}: {onLoaded: (layer: number) => void; onChange: () => void}
+) {
   // 粒子グリッドは起動時に一度だけ決める。以後は変わらない
   const textureLimit = core.gl.getParameter(core.gl.MAX_TEXTURE_SIZE) as number
   const grid = chooseGrid({textureLimit, count: photos.length})
@@ -343,18 +353,28 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number, photos: string
   const loaded = new Set<number>()
   fillAtlas(core, table, photos, grid, layout, (layer) => {
     loaded.add(layer)
-    postMessage({layer} satisfies Loaded)
+    onLoaded(layer)
     // 待っていた写真が届いたら、次の指示を待たずに描く
-    if (layer === frame.from || layer === frame.to) draw()
+    if (layer === frame.from || layer === frame.to) {
+      draw()
+      onChange()
+    }
   }).catch((e) => console.error('hero: 写真の読み込みが止まった', e))
 
-  // 粒子のすき間は透明にして、ページの地（周辺減光と粒。styles.css）を透かす。粒子は不透明に描く
-  const renderer = new Renderer(core, {id: 'canvas', backgroundColor: [0, 0, 0, 0]})
+  // 粒子を描く層。写真の枠の大きさで、粒子のすき間は透明にする（舞台が重ねたとき、下の光の層や地を透かす）。
+  // 粒子は不透明に描く
+  const renderer = new Renderer(core, {
+    frameBuffer: [['RGBA8', 'RGBA', 'UNSIGNED_BYTE', 'LINEAR', 'CLAMP_TO_EDGE']],
+    screenFit: false,
+    backgroundColor: [0, 0, 0, 0],
+    width: 1,
+    height: 1
+  })
 
   // 粒子は u_fit を掛ける前の空間にいるので、ポインタも同じ空間へ戻してから渡す
   let fit = [1, 1]
-  // 正の寸法で resize されたか。canvas は枠の寸法が決まる前に 0×0 で渡ってくる
-  let sized = false
+  // 写真の枠。大きさが決まる前は null
+  let rect: Rect | null = null
 
   /** 基準位置の計算に要る uniform は描画と更新の両方が持つ */
   const setMorph = (values: Record<string, number>) => {
@@ -387,8 +407,8 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number, photos: string
   }
 
   const draw = () => {
-    // 枠の寸法が決まる前（0×0）と、両端の写真が揃う前は描かない
-    if (!sized || !loaded.has(frame.from) || !loaded.has(frame.to)) return
+    // 枠の寸法が決まる前と、両端の写真が揃う前は描かない
+    if (!drawable()) return
     core.setTexture('t_state', state[readIndex].renderTexture[0])
     renderer.clear()
     renderer.render(vao, program)
@@ -406,14 +426,22 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number, photos: string
     update.setUniform({u_catchUp: 0})
   }
 
-  const resize = ({width, height}: {width: number; height: number}) => {
+  const drawable = () => !!rect && loaded.has(frame.from) && loaded.has(frame.to)
+
+  /** 写真の枠を置く。位置だけ変わったときは描き直さない（舞台が重ねる位置を変えるだけ） */
+  const place = (next: Rect) => {
     // 枠が決まる前は 0×0 で届く。0 で割ると fit が NaN になり、描画だけでなく
     // ポインタ経由で干渉の状態テクスチャまで NaN で埋まり、以後まともに描けなくなる
-    if (width <= 0 || height <= 0) return
-    sized = true
+    if (next.width <= 0 || next.height <= 0) return
+    const resized = !rect || rect.width !== next.width || rect.height !== next.height
+    rect = next
+    if (resized) resize(next)
+  }
+
+  const resize = ({width, height}: {width: number; height: number}) => {
     // 描く解像度は、画面の画素と粒子の格子の小さいほうにする。粒子の格子より大きく描くと、半端な間隔の粒子が
     // 画素に丸められて点の詰まり方に周期的なむらができ、干渉で粒子がずれると砂鉄の模様のような縞（モアレ）に
-    // 見える。格子の解像度で描けば粒子 1 つが 1 画素に乗り、拡大はブラウザがなめらかに行う
+    // 見える。格子の解像度で描けば粒子 1 つが 1 画素に乗り、拡大は舞台が重ねるときになめらかに行う
     const ratio = pixelRatio * Math.min(1, grid.height / (height * pixelRatio))
     renderer.resize({width, height, pixelRatio: ratio})
     // 画像を歪めずに収める
@@ -429,11 +457,12 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number, photos: string
   applyInteraction(DEFAULT_INTERACTION)
   update.setUniform({u_prevFrom: 0, u_prevTo: 0, u_prevPhase: 0, u_catchUp: 0})
   program.setUniform({u_gather: 0, u_gatherAt: [0, 0]})
-  resize({width: core.canvasWidth, height: core.canvasHeight})
 
   return {
-    resize,
+    place,
     draw,
+    /** 粒子を描いた層と、その層を置く枠。まだ描けないあいだは null */
+    layer: () => (drawable() && rect ? {texture: renderer.renderTexture[0], rect} : null),
     step,
     tune: applyTuning,
     interact: applyInteraction,
@@ -460,12 +489,10 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number, photos: string
 /** ポインタの位置と速度。どちらも写真の半幅を 1 とした NDC（速度は 1秒あたり） */
 export type PointerCommand = {x: number; y: number; vx: number; vy: number}
 
-/** メインスレッドからの指示。届いた順に積み上げ、シーンができた時点で適用する */
-export type Command = {
-  canvas?: OffscreenCanvas
-  pixelRatio?: number
-  photos?: string[]
-  resize?: {width: number; height: number}
+/** メインスレッドからの指示 */
+export type HeroCommand = {
+  /** 写真の枠。canvas の左上からの px */
+  rect?: Rect
   render?: Frame
   /** 番号のクリックで行き先が変わったフレーム。基準位置の飛びをズレに振り替える */
   catchUp?: boolean
@@ -473,24 +500,18 @@ export type Command = {
   step?: number
   /** 粒子が集まった割合（src/app/stage.ts） */
   gather?: number
-  /** 粒子が集まる点。canvas の NDC */
+  /** 粒子が集まる点。写真の枠の NDC */
   gatherAt?: [number, number]
   tuning?: Tuning
   interaction?: Interaction
   pointer?: PointerCommand
 }
 
-type Scene = ReturnType<typeof createScene>
-
-const pending: Command = {}
-let scene: Scene | null = null
-
-/** uniform を全部入れてから1回だけ描く */
-const apply = (command: Command) => {
-  if (!scene) return
+/** 指示を場面に入れる。uniform を全部入れてから 1 回だけ描く */
+export function applyHero(scene: ReturnType<typeof createHeroScene>, command: HeroCommand) {
   if (command.tuning) scene.tune(command.tuning)
   if (command.interaction) scene.interact(command.interaction)
-  if (command.resize) scene.resize(command.resize)
+  if (command.rect) scene.place(command.rect)
   if (command.pointer) scene.setPointer(command.pointer)
   if (command.render) scene.setFrame(command.render, command.catchUp)
   if (command.gather !== undefined) scene.gather(command.gather)
@@ -498,13 +519,4 @@ const apply = (command: Command) => {
   // 打ち消しは更新パスの中で効くので、干渉が止まっていても1回は回す
   if (command.step !== undefined || command.catchUp) scene.step(command.step ?? 0)
   scene.draw()
-}
-
-onmessage = ({data}: {data: Command}) => {
-  Object.assign(pending, data)
-  if (scene) return apply(data)
-  if (!pending.canvas || !pending.photos) return
-
-  scene = createScene(pending.canvas, pending.pixelRatio ?? 1, pending.photos)
-  apply(pending)
 }

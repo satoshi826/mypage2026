@@ -6,35 +6,23 @@ import {SCENE_SCREENS, advanceGather, type Stage} from '../stage'
 import {TabLink, Tabs} from '../Tabs'
 import {DevPanel, type Param} from '../DevPanel'
 
-type HeroComponent = typeof import('../../hero/Hero').Hero
-let loaded: HeroComponent | null = null
-type LightComponent = typeof import('../../light/Light').Light
-let lightLoaded: LightComponent | null = null
+type SceneComponent = typeof import('../../scene/Scene').Scene
+let loaded: SceneComponent | null = null
 
 /**
- * Hero は Worker と OffscreenCanvas を使うのでサーバーでは動かせない。描いたあと（ブラウザで）初めて import
- * することで、プリレンダ時に worker のモジュールグラフに触れずに済む。読み込むまで null。2 回目からはすぐ返す
+ * 舞台（hero と光の層）は Worker と OffscreenCanvas を使うのでサーバーでは動かせない。描いたあと（ブラウザで）初めて
+ * import することで、プリレンダ時に worker のモジュールグラフに触れずに済む。読み込むまで null。2 回目からはすぐ返す
  */
-function useHero() {
-  const [Hero, setHero] = useState(() => loaded)
+function useScene() {
+  const [Scene, setScene] = useState(() => loaded)
   useEffect(() => {
-    if (!Hero) void import('../../hero/Hero').then((module) => setHero(() => (loaded = module.Hero)))
-  }, [Hero])
-  return Hero
-}
-
-/** 光の段（試し）。hero と同じく worker を使うので、ブラウザで初めて import する */
-function useLight() {
-  const [Light, setLight] = useState(() => lightLoaded)
-  useEffect(() => {
-    if (!Light) void import('../../light/Light').then((module) => setLight(() => (lightLoaded = module.Light)))
-  }, [Light])
-  return Light
+    if (!Scene) void import('../../scene/Scene').then((module) => setScene(() => (loaded = module.Scene)))
+  }, [Scene])
+  return Scene
 }
 
 export function Top() {
-  const Hero = useHero()
-  const Light = useLight()
+  const Scene = useScene()
   const photos = usePhotos()
   const heroPhotos = photos ? heroesOf(photos).map(heroSrc) : []
   const stage = useStage()
@@ -52,13 +40,10 @@ export function Top() {
           プリレンダの HTML から先に 1 画面ぶん空けておく。hero は JS が動いてから差し込まれる。
           光の層は、ツールバーが引っ込んで画面が伸びたときの高さ（100lvh）まで下にはみ出させるので、はみ出しを切らない */}
       <div className="sticky top-0 h-[100svh]">
-        {/* hero と光の層は読み込んだ 1 つの部品で、描くたびに作り直すものではない */}
+        {/* 舞台は読み込んだ 1 つの部品で、描くたびに作り直すものではない。写真の一覧が届いてから置く。hero は起動時に
+            写真をまとめて読み込むので、並びが変わったら作り直す（編集で hero を選び直したとき。訪問者には起きない） */}
         {/* oxlint-disable-next-line react/static-components */}
-        {Light && <Light stage={stage} room={room} />}
-        {/* hero は起動時に写真をまとめて読み込むので、並びが変わったら作り直す（編集で hero を選び直したとき。
-            訪問者には起きない） */}
-        {/* oxlint-disable-next-line react/static-components */}
-        {Hero && heroPhotos.length > 0 && <Hero key={heroPhotos.join()} photos={heroPhotos} stage={stage} />}
+        {Scene && photos && <Scene key={heroPhotos.join()} photos={heroPhotos} stage={stage} room={room} />}
       </div>
       {/* ロゴと導線の段。ふつうのページの中身として舞台の上を下から上がってきて、ページの一番下で画面に収まる。
           段は光の層にとっての部屋で、光の層が段の中央から左へずらしてロゴを描き（光とロゴのパネルの logoShift）、

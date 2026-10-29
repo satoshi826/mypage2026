@@ -1,4 +1,4 @@
-import {Core, Program, Renderer, Vao, plane2D} from 'glaku'
+import {type Core, Program, Renderer, Vao, plane2D} from 'glaku'
 import {LOGO_HEIGHT, LOGO_RECTS, LOGO_WIDTH} from './logo'
 import {DEFAULT_LIGHT, type LightTuning} from './tuning'
 
@@ -28,10 +28,11 @@ const MAX_SEGMENTS = 9
 
 const HALF_FLOAT = [['RGBA16F', 'RGBA', 'HALF_FLOAT', 'LINEAR', 'CLAMP_TO_EDGE']] as const
 
-function createScene(canvas: OffscreenCanvas, pixelRatio: number) {
-  const core = new Core({canvas, pixelRatio})
-  core.gl.getExtension('EXT_color_buffer_float')
-
+/**
+ * 光がロゴを照らす場面。舞台の canvas（src/scene/worker.ts）の中で、写真の粒子と一緒に描く。光は層（texture）にためて、
+ * 舞台がそれを明るさに直して重ねる。光がついているあいだだけ描く（lit）
+ */
+export function createLightScene(core: Core, pixelRatio: number) {
   const layer = () =>
     new Renderer(core, {
       frameBuffer: HALF_FLOAT.map((args) => [...args]) as never,
@@ -43,7 +44,6 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number) {
   // 1 フレームぶんの光線（frame）と、前のフレームと混ぜた結果（acc を 2 枚交互に使う）
   const frameLayer = layer()
   const acc = [layer(), layer()]
-  const screen = new Renderer(core, {id: 'canvas', backgroundColor: [0, 0, 0, 0]})
 
   const rays = new Program(core, {
     id: 'rays',
@@ -209,27 +209,14 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number) {
         o_color = vec4(mix(texture(t_frame, v_uv).rgb, texture(t_prev, v_uv + u_shift).rgb, u_keep), 1.0);
       }`
   })
-  // 画面へ。たまった光の量を明るさに直し、白い光として地の上に重ねる（プリマルチプライド）
-  const present = new Program(core, {
-    id: 'present',
-    attributeTypes: {a_position: 'vec2', a_textureCoord: 'vec2'},
-    texture: {t_light: acc[0].renderTexture[0]},
-    vert: quadVert,
-    frag: /* glsl */ `
-      in vec2 v_uv;
-      out vec4 o_color;
-      void main() {
-        float c = 1.0 - exp(-texture(t_light, v_uv).r);
-        o_color = vec4(vec3(c), c);
-      }`
-  })
-
   let tuning: LightTuning = DEFAULT_LIGHT
   let size = {width: 1, height: 1}
   let lines: Vao | null = null
   let lineCount = 0
   let seed = 0
   let fresh = true
+  /** 光がついているか。消えているあいだは層を空にしてあり、舞台は重ねない */
+  let lit = false
   /** 前のフレームの光の位置。前の結果をずらす量を出す */
   let lastLight = {x: 0, y: 0}
   /** 前のフレームのロゴの左上 */
@@ -242,7 +229,6 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number) {
     rays.setUniform({u_size: [width, height]})
     const scale = pixelRatio * (tuning.resolution / 100)
     for (const r of [frameLayer, ...acc]) r.resize({width, height, pixelRatio: scale})
-    screen.resize({width, height, pixelRatio})
     fresh = true
   }
 
@@ -270,10 +256,11 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number) {
     if (!lines) return
     // 消えているあいだは何も描かない。前の結果も捨て、次につくときはそのフレームだけで描き始める
     if (brightness <= 0) {
-      screen.clear()
+      lit = false
       fresh = true
       return
     }
+    lit = true
     // ロゴは画素にそろえて置く
     const unit = tuning.cell / 2
     const left = Math.round(logo.x - (LOGO_WIDTH * unit) / 2)
@@ -312,10 +299,6 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number) {
     acc[1].render(plane, blend)
     acc.reverse()
     fresh = false
-
-    present.setTexture({t_light: acc[0].renderTexture[0]})
-    screen.clear()
-    screen.render(plane, present)
   }
 
   tune(tuning)
@@ -326,15 +309,14 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number) {
       layout()
     },
     tune,
-    draw
+    draw,
+    /** ためた光の層。消えているあいだは null */
+    layer: () => (lit ? acc[0].renderTexture[0] : null)
   }
 }
 
 /** メインスレッドからの指示 */
 export type LightCommand = {
-  canvas?: OffscreenCanvas
-  pixelRatio?: number
-  resize?: {width: number; height: number}
   tuning?: LightTuning
   /** 1 フレーム描く */
   frame?: LightFrame
@@ -355,21 +337,4 @@ export type LightFrame = {
   under: number
   /** 上の光の絞れ具合。0 で全周に均一、1 で下向きに絞りきる（tuning の cone） */
   focus: number
-}
-
-let scene: ReturnType<typeof createScene> | null = null
-const pending: LightCommand = {}
-
-onmessage = ({data}: {data: LightCommand}) => {
-  Object.assign(pending, data)
-  if (!scene) {
-    if (!pending.canvas) return
-    scene = createScene(pending.canvas, pending.pixelRatio ?? 1)
-    if (pending.tuning) scene.tune(pending.tuning)
-    if (pending.resize) scene.resize(pending.resize)
-    return
-  }
-  if (data.tuning) scene.tune(data.tuning)
-  if (data.resize) scene.resize(data.resize)
-  if (data.frame) scene.draw(data.frame)
 }

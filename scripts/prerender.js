@@ -144,7 +144,7 @@ async function inlineStyles(html) {
  */
 async function preloadHints() {
   const manifest = JSON.parse(await readFile(join(dist, '.vite', 'manifest.json'), 'utf8'))
-  const hero = manifest['src/hero/Hero.tsx']?.file
+  const hero = manifest['src/scene/Scene.tsx']?.file
   const worker = (await readdir(join(dist, 'assets'))).find((name) => /^worker-.*\.js$/.test(name))
   if (!hero || !worker) throw new Error('hero のチャンクが見つからない。vite.config の build.manifest を確認する')
 

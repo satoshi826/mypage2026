@@ -1,11 +1,12 @@
 import {useCallback, useEffect, useRef, useState} from 'preact/hooks'
 import {DevPanel} from '../app/DevPanel'
 import {SCENE_SCREENS, lightAt, lightOf, type Stage} from '../app/stage'
-import {useAnimationFrame, useCanvas, useCanvasResize} from '../hero/useCanvas'
+import {useAnimationFrame} from '../hero/useCanvas'
+import type {SceneCommand} from '../scene/worker'
+import type {LightCommand} from './scene'
 import {setArrange} from './arrange'
 import {LOGO_HEIGHT, LOGO_WIDTH} from './logo'
 import {DEFAULT_LIGHT, LIGHT_PARAMS, type LightTuning} from './tuning'
-import Worker from './worker?worker'
 
 /** 光が集まった点でついてから、光の位置へ着くまでの秒数（集まった点が光の位置と違うときだけ動く） */
 const SETTLE_SECONDS = 0.9
@@ -36,17 +37,28 @@ const FOCUS_AFTER_SCREENS = 0.5
  * 動かしたあとは、フッターの操作（LogoReset.tsx）でもとの位置へ戻せる。
  *
  * @param room ロゴを置く部屋の要素。中央（から logoShift ずらした位置）がロゴのもとの位置で、その下の床の上に下の光を置く
+ * @param screen 舞台の canvas の入れ物。光の位置と明るさは、この大きさから決める
+ * @param post 舞台の canvas（src/scene/worker.ts）へ指示を送る
  */
-export function Light({stage, room}: {stage: {readonly current: Stage}; room: {readonly current: HTMLElement | null}}) {
-  const {canvas, post, ref} = useCanvas(Worker)
-  useCanvasResize(post, ref)
+export function Light({
+  stage,
+  room,
+  screen,
+  post
+}: {
+  stage: {readonly current: Stage}
+  room: {readonly current: HTMLElement | null}
+  screen: {readonly current: HTMLElement | null}
+  post: (command: SceneCommand) => void
+}) {
+  const send = useCallback((command: LightCommand) => post({light: command}), [post])
   const [tuning, setTuning] = useState(DEFAULT_LIGHT)
 
   // スマホは光線を半分にする
   useEffect(() => {
     const coarse = matchMedia('(pointer: coarse)').matches
-    post({tuning: {...tuning, rays: coarse ? Math.max(256, tuning.rays / 2) : tuning.rays}})
-  }, [post, tuning])
+    send({tuning: {...tuning, rays: coarse ? Math.max(256, tuning.rays / 2) : tuning.rays}})
+  }, [send, tuning])
 
   // ロゴをもとの位置から動かした量 px と、ドラッグ中なら押した位置と押したときの量
   const offset = useRef({x: 0, y: 0})
@@ -92,7 +104,7 @@ export function Light({stage, room}: {stage: {readonly current: Stage}; room: {r
     }
     if (arrived <= 0 || !box) {
       if (litAt.current !== null)
-        post({
+        send({
           frame: {
             light: {x: 0, y: 0},
             logo: {x: 0, y: 0},
@@ -109,9 +121,9 @@ export function Light({stage, room}: {stage: {readonly current: Stage}; room: {r
     }
     const now = performance.now()
     litAt.current ??= now
-    const height = ref.current?.clientHeight ?? 0
+    const height = screen.current?.clientHeight ?? 0
     const {source, progress, rise} = stage.current
-    const top = lightAt({width: ref.current?.clientWidth ?? 0, height})
+    const top = lightAt({width: screen.current?.clientWidth ?? 0, height})
     // 光がついてからページの一番下までスクロールした割合。光はこれに合わせて下がる。下向きに絞るのは少しあとから
     const scrolled = ease((progress - rise) / (SCENE_SCREENS - rise))
     const focus = ease((progress - rise - FOCUS_AFTER_SCREENS) / (SCENE_SCREENS - rise - FOCUS_AFTER_SCREENS))
@@ -151,14 +163,12 @@ export function Light({stage, room}: {stage: {readonly current: Stage}; room: {r
     const brightness = arrived * (DIM + (1 - DIM) * ease(1 - (logoTop - height) / (height * BRIGHTEN_SCREENS)))
     // 下の光は、部屋の床が画面の下端の半画面下まで来たところから光り始め、下端に着くと最大になる
     const under = ease(1 - (box.bottom - height) / (height / 2))
-    post({frame: {light, logo, home, floor: box.bottom, brightness, under, focus}})
+    send({frame: {light, logo, home, floor: box.bottom, brightness, under, focus}})
   })
 
   return (
-    // 舞台（100svh）より下へ、ツールバーが引っ込んで画面が伸びたときの高さ（100lvh）まで伸ばす。舞台に合わせると、
-    // ツールバーが引っ込んだとき（Android など）画面の下に光の届かない帯ができる
-    <div className="pointer-events-none absolute inset-x-0 top-0 flex h-[100lvh]" aria-hidden>
-      {canvas}
+    // ロゴのつかみ場所を置く層。舞台の canvas と同じ範囲に重ねる
+    <div className="pointer-events-none absolute inset-x-0 top-0 h-[100lvh]" aria-hidden>
       {/* ロゴのつかみ場所。位置と大きさは毎フレーム書く。光が消えているあいだは出さない */}
       <div
         ref={handle}
