@@ -12,7 +12,8 @@ import {DEFAULT_LIGHT, type LightTuning} from './tuning'
 // - 光線の経路は線を描く頂点シェーダの中で求める。頂点 1 つが「何本目の光線の、何回目の跳ね返りの、始点か終点か」
 //   を受け持ち、その点までの経路を自分で計算する。経路を一度テクスチャに書き出す段を挟まない
 // - 光線の向きは全周を等分した区画の中で毎フレームずらし、前のフレームの結果と混ぜて、光線のすき間をならす。
-//   ロゴと光はスクロールで動くので、前のフレームの結果はロゴが動いたぶんずらしてから混ぜる（跡を引かない）
+//   ロゴと光はスクロールで一緒に動くので、前のフレームの結果は光が動いたぶんずらしてから混ぜる（跡を引かない）。
+//   ロゴの位置ではなく光の位置で合わせるのは、光がロゴより先に画面に入って待つあいだ、ロゴは動いても光は止まっているため
 // - 光をためる層は画面より粗い解像度（resolution）で持ち、画面へはなめらかに拡大する
 
 /** 1 本の光線が描く線分の数の上限（光源からの 1 本 + 跳ね返り 8 回）。tuning.ts の跳ね返りの上限と合わせる */
@@ -196,8 +197,8 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number) {
   let lineCount = 0
   let seed = 0
   let fresh = true
-  /** 前のフレームのロゴの左上。前の結果をずらす量を出す */
-  let lastLogo = {x: 0, y: 0}
+  /** 前のフレームの光の位置。前の結果をずらす量を出す */
+  let lastLight = {x: 0, y: 0}
 
   const layout = () => {
     const {width, height} = size
@@ -239,8 +240,8 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number) {
     const left = Math.round(logo.x - (LOGO_WIDTH * unit) / 2)
     const top = Math.round(logo.y - (LOGO_HEIGHT * unit) / 2)
     const {width, height} = size
-    blend.setUniform({u_shift: [-(left - lastLogo.x) / width, (top - lastLogo.y) / height]})
-    lastLogo = {x: left, y: top}
+    blend.setUniform({u_shift: [-(light.x - lastLight.x) / width, (light.y - lastLight.y) / height]})
+    lastLight = light
     seed = (seed + 1) % 1_000_000
     rays.setUniform({
       u_seed: seed,

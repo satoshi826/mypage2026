@@ -34,7 +34,7 @@ export const DEFAULT_LIGHT: LightTuning = {
   power: 30,
   keep: 70,
   resolution: 50,
-  lightHeight: 200,
+  lightHeight: 240,
   cell: 16
 }
 

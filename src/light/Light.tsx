@@ -5,14 +5,18 @@ import {useAnimationFrame, useCanvas, useCanvasResize} from '../hero/useCanvas'
 import {DEFAULT_LIGHT, LIGHT_PARAMS, type LightTuning} from './tuning'
 import Worker from './worker?worker'
 
-/** 光がついてから、ロゴの上の自分の位置へ下りきるまでの秒数 */
+/** 光がついてから、下りた先へ着くまでの秒数 */
 const SETTLE_SECONDS = 0.9
+
+/** 光が下りる一番下。画面の高さに対する割合。ページの中の位置がまだこれより下なら、ここで待つ */
+const LOWEST = 0.8
 
 /**
  * トップの舞台で、光が mu のロゴを照らす層（試し）。hero の後ろに画面いっぱいに重ねる。描くのは worker（worker.ts）。
  *
  * ロゴの位置はページの中の要素（logo）から取る。ロゴと光はその要素と一緒に、ページの中身としてスクロールで上がってくる。
- * 光は粒子が集まった点（stage の source）でつき、時間をかけてロゴの上の自分の位置へ下りる。下りきったあとはロゴと一緒に動く
+ * 光は粒子が集まった点（stage の source）でつき、時間をかけてロゴの上の自分の位置へ下りる。その位置がまだ画面の下の方より
+ * 下にあるうちは画面の下の方（LOWEST）で待ち、上がってきた位置に合流してからはロゴと一緒に動く
  *
  * @param logo ロゴを置く場所の要素。大きさは問わず、中心にロゴを描く
  */
@@ -40,7 +44,7 @@ export function Light({stage, logo}: {stage: {readonly current: Stage}; logo: {r
     const now = performance.now()
     litAt.current ??= now
     const center = {x: box.left + box.width / 2, y: box.top + box.height / 2}
-    const home = {x: center.x, y: center.y - tuning.lightHeight}
+    const home = {x: center.x, y: Math.min(center.y - tuning.lightHeight, (ref.current?.clientHeight ?? 0) * LOWEST)}
     const {source} = stage.current
     const t = Math.min(1, (now - litAt.current) / 1000 / SETTLE_SECONDS)
     const settle = 1 - (1 - t) ** 3

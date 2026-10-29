@@ -57,8 +57,8 @@ export function Top() {
           ロゴは光の層が描き、ここには置き場所（中心の点）だけを置く。舞台に重ねて始め、一番下までのスクロールを
           SCENE_SCREENS にする */}
       <div className="pointer-events-none relative h-[100svh]" style={{marginTop: `${(SCENE_SCREENS - 1) * 100}svh`}}>
-        <div ref={logo} className="absolute top-[64%] left-1/2" />
-        <div className="absolute inset-x-0 top-[82%] flex justify-center">
+        <div ref={logo} className="absolute top-1/2 left-1/2" />
+        <div className="absolute inset-x-0 top-[68%] flex justify-center">
           <div className="pointer-events-auto h-12">
             <Tabs items={LINKS} />
           </div>
