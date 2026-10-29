@@ -2,7 +2,7 @@ import {useEffect, useRef, useState} from 'preact/hooks'
 import {DevPanel} from '../app/DevPanel'
 import {SCENE_SCREENS, lightAt, lightOf, type Stage} from '../app/stage'
 import {useAnimationFrame, useCanvas, useCanvasResize} from '../hero/useCanvas'
-import {LOGO_HEIGHT} from './logo'
+import {LOGO_HEIGHT, LOGO_WIDTH} from './logo'
 import {DEFAULT_LIGHT, LIGHT_PARAMS, type LightTuning} from './tuning'
 import Worker from './worker?worker'
 
@@ -27,7 +27,10 @@ const FOCUS_AFTER_SCREENS = 0.5
  * 部屋が画面の下端に近づくと光り始める。ロゴを置く部屋はページの中の要素
  * （room）で、その要素と一緒に、ページの中身としてスクロールで上がってきて光の下に入る
  *
- * @param room ロゴを置く部屋の要素。中央（から logoShift ずらした位置）にロゴを描き、その真下の床の上に下の光を置く
+ * ロゴはドラッグで動かせる（マウスでも指でも）。ロゴの上に見えないつかみ場所を重ねて受ける。照明はロゴのもとの位置に
+ * 合わせて固定したまま動かないので、光の外へ動かすと暗くなる。離した位置にとどまり、部屋の外へは出ない。
+ *
+ * @param room ロゴを置く部屋の要素。中央（から logoShift ずらした位置）がロゴのもとの位置で、その下の床の上に下の光を置く
  */
 export function Light({stage, room}: {stage: {readonly current: Stage}; room: {readonly current: HTMLElement | null}}) {
   const {canvas, post, ref} = useCanvas(Worker)
@@ -40,15 +43,45 @@ export function Light({stage, room}: {stage: {readonly current: Stage}; room: {r
     post({tuning: {...tuning, rays: coarse ? Math.max(256, tuning.rays / 2) : tuning.rays}})
   }, [post, tuning])
 
+  // ロゴをもとの位置から動かした量 px と、ドラッグ中なら押した位置と押したときの量
+  const offset = useRef({x: 0, y: 0})
+  const drag = useRef<{id: number; x: number; y: number; from: {x: number; y: number}} | null>(null)
+  const handle = useRef<HTMLDivElement>(null)
+  const onPointerDown = (event: PointerEvent) => {
+    drag.current = {id: event.pointerId, x: event.clientX, y: event.clientY, from: {...offset.current}}
+    ;(event.currentTarget as HTMLElement).setPointerCapture(event.pointerId)
+    event.preventDefault()
+  }
+  const onPointerMove = (event: PointerEvent) => {
+    const d = drag.current
+    if (!d || d.id !== event.pointerId) return
+    offset.current = {x: d.from.x + event.clientX - d.x, y: d.from.y + event.clientY - d.y}
+  }
+  const onPointerUp = (event: PointerEvent) => {
+    if (drag.current?.id === event.pointerId) drag.current = null
+  }
+
   // 光がついた時刻。消えているあいだは null。消えたフレームも 1 回は送り、画面から光を消させる
   const litAt = useRef<number | null>(null)
   useAnimationFrame(() => {
     const arrived = lightOf(stage.current)
     const box = room.current?.getBoundingClientRect()
+    const grip = handle.current
     if (arrived <= 0 || !box) {
       if (litAt.current !== null)
-        post({frame: {light: {x: 0, y: 0}, room: box ?? new DOMRect(), brightness: 0, under: 0, focus: 0}})
+        post({
+          frame: {
+            light: {x: 0, y: 0},
+            logo: {x: 0, y: 0},
+            home: {x: 0, y: 0},
+            floor: 0,
+            brightness: 0,
+            under: 0,
+            focus: 0
+          }
+        })
       litAt.current = null
+      grip?.style.setProperty('display', 'none')
       return
     }
     const now = performance.now()
@@ -59,24 +92,35 @@ export function Light({stage, room}: {stage: {readonly current: Stage}; room: {r
     // 光がついてからページの一番下までスクロールした割合。光はこれに合わせて下がる。下向きに絞るのは少しあとから
     const scrolled = ease((progress - rise) / (SCENE_SCREENS - rise))
     const focus = ease((progress - rise - FOCUS_AFTER_SCREENS) / (SCENE_SCREENS - rise - FOCUS_AFTER_SCREENS))
-    const home = {x: top.x, y: top.y + ((height * tuning.lightDrop) / 100) * scrolled}
+    const lightHome = {x: top.x, y: top.y + ((height * tuning.lightDrop) / 100) * scrolled}
     const t = Math.min(1, (now - litAt.current) / 1000 / SETTLE_SECONDS)
     const settle = 1 - (1 - t) ** 3
-    const light = {x: source.x + (home.x - source.x) * settle, y: source.y + (home.y - source.y) * settle}
+    const light = {
+      x: source.x + (lightHome.x - source.x) * settle,
+      y: source.y + (lightHome.y - source.y) * settle
+    }
+    // ロゴのもとの位置は部屋の中央から logoShift ずらしたところ。動かした量は、ロゴが部屋からはみ出さない範囲に収める
+    const home = {x: (box.left + box.right) / 2 + tuning.logoShift, y: (box.top + box.bottom) / 2}
+    const logoWidth = (LOGO_WIDTH * tuning.cell) / 2
+    const logoHeight = (LOGO_HEIGHT * tuning.cell) / 2
+    const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v))
+    offset.current = {
+      x: clamp(offset.current.x, box.left + logoWidth / 2 - home.x, box.right - logoWidth / 2 - home.x),
+      y: clamp(offset.current.y, box.top + logoHeight / 2 - home.y, box.bottom - logoHeight / 2 - home.y)
+    }
+    const logo = {x: home.x + offset.current.x, y: home.y + offset.current.y}
+    if (grip) {
+      grip.style.setProperty('display', 'block')
+      grip.style.setProperty('width', `${logoWidth}px`)
+      grip.style.setProperty('height', `${logoHeight}px`)
+      grip.style.setProperty('transform', `translate(${logo.x - logoWidth / 2}px, ${logo.y - logoHeight / 2}px)`)
+    }
     // 光は、ロゴの上端（部屋の中央からロゴの高さの半分上）が画面の下端に届くところで最大になる
     const logoTop = (box.top + box.bottom) / 2 - (LOGO_HEIGHT * tuning.cell) / 4
     const brightness = arrived * (DIM + (1 - DIM) * ease(1 - (logoTop - height) / (height * BRIGHTEN_SCREENS)))
     // 下の光は、部屋の床が画面の下端の半画面下まで来たところから光り始め、下端に着くと最大になる
     const under = ease(1 - (box.bottom - height) / (height / 2))
-    post({
-      frame: {
-        light,
-        room: {left: box.left, top: box.top, right: box.right, bottom: box.bottom},
-        brightness,
-        under,
-        focus
-      }
-    })
+    post({frame: {light, logo, home, floor: box.bottom, brightness, under, focus}})
   })
 
   return (
@@ -84,6 +128,15 @@ export function Light({stage, room}: {stage: {readonly current: Stage}; room: {r
     // ツールバーが引っ込んだとき（Android など）画面の下に光の届かない帯ができる
     <div className="pointer-events-none absolute inset-x-0 top-0 flex h-[100lvh]" aria-hidden>
       {canvas}
+      {/* ロゴのつかみ場所。位置と大きさは毎フレーム書く。光が消えているあいだは出さない */}
+      <div
+        ref={handle}
+        className="pointer-events-auto absolute top-0 left-0 hidden cursor-grab touch-none active:cursor-grabbing"
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerUp}
+      />
       {import.meta.env.DEV && (
         <DevPanel<LightTuning>
           title="光とロゴ"

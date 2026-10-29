@@ -61,6 +61,7 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number) {
       u_power: 'float',
       u_seed: 'float',
       u_under: 'vec2',
+      u_aim: 'vec2',
       u_underRays: 'float',
       u_underPower: 'float',
       u_underSize: 'float',
@@ -109,11 +110,6 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number) {
         return best;
       }
 
-      // ロゴの中心。左端の棒の左上と、右端の棒の右下の中点
-      vec2 logoCenter() {
-        return (u_rects[0].xy + u_rects[${LOGO_RECTS.length - 1}].zw) * 0.5;
-      }
-
       void main() {
         // 頂点は光線ごとに「線分の数 × 2」個並ぶ
         int segments = int(u_bounces) + 1;
@@ -130,7 +126,7 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number) {
         if (float(ray) < u_underRays) {
           // 半径 u_underSize の円の中から、ロゴの中心を向く円錐（中心の向きから左右に u_underCone）に出す。
           // 中心の向きが一番明るく、端に向かってなめらかに 0 になる（上の光を絞りきったときと同じ）
-          vec2 aim = logoCenter() - u_under;
+          vec2 aim = u_aim - u_under;
           float across = 2.0 * (float(ray) + rand(ray, 0)) / u_underRays - 1.0;
           float angle = atan(aim.y, aim.x) + across * u_underCone;
           float spread = TAU * rand(ray, ${MAX_SEGMENTS + 1});
@@ -145,7 +141,7 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number) {
           // 光は半径 u_lightSize の円の中のどこかから出す。点から出すと影の縁がくっきりして、光の筋のように見える
           float pointRays = u_rays - u_underRays;
           float across = 2.0 * (float(ray) - u_underRays + rand(ray, 0)) / pointRays - 1.0;
-          vec2 aim = logoCenter() - u_light;
+          vec2 aim = u_aim - u_light;
           float angle = atan(aim.y, aim.x) + across * mix(TAU * 0.5, u_cone, u_focus);
           float spread = TAU * rand(ray, ${MAX_SEGMENTS + 1});
           pos = u_light + u_lightSize * sqrt(rand(ray, ${MAX_SEGMENTS + 2})) * vec2(cos(spread), sin(spread));
@@ -270,7 +266,7 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number) {
     layout()
   }
 
-  const draw = ({light, room, brightness, under, focus}: LightFrame) => {
+  const draw = ({light, logo, home, floor, brightness, under, focus}: LightFrame) => {
     if (!lines) return
     // 消えているあいだは何も描かない。前の結果も捨て、次につくときはそのフレームだけで描き始める
     if (brightness <= 0) {
@@ -278,11 +274,10 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number) {
       fresh = true
       return
     }
-    // ロゴは部屋の中央から logoShift ずらして、画素にそろえて置く
+    // ロゴは画素にそろえて置く
     const unit = tuning.cell / 2
-    const logoX = (room.left + room.right) / 2 + tuning.logoShift
-    const left = Math.round(logoX - (LOGO_WIDTH * unit) / 2)
-    const top = Math.round((room.top + room.bottom) / 2 - (LOGO_HEIGHT * unit) / 2)
+    const left = Math.round(logo.x - (LOGO_WIDTH * unit) / 2)
+    const top = Math.round(logo.y - (LOGO_HEIGHT * unit) / 2)
     const {width, height} = size
     blend.setUniform({u_shift: [-(light.x - lastLight.x) / width, (light.y - lastLight.y) / height]})
     const moved =
@@ -296,8 +291,10 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number) {
       u_power: tuning.power * brightness,
       u_light: [light.x, light.y],
       u_focus: focus,
-      // 下の光は部屋の床の上の、ロゴの中心から underShift ずらした位置に置く。消えているあいだは光線を回さない
-      u_under: [logoX + tuning.underShift, room.bottom - tuning.underHeight],
+      // 照明はロゴのもとの位置に合わせて固定する。どちらの光もそこを向き、下の光はその真下から underShift ずらした床の上に
+      // 置く。ロゴを動かしても照明は動かないので、光の外へ動かすと暗くなる。消えているあいだは下の光に光線を回さない
+      u_aim: [home.x, home.y],
+      u_under: [home.x + tuning.underShift, floor - tuning.underHeight],
       u_underRays: under > 0 ? Math.round((tuning.rays * tuning.underShare) / 100) : 0,
       u_underPower: tuning.underPower * under,
       u_rects: LOGO_RECTS.flatMap(([l, t, r, b]) => [left + l * unit, top + t * unit, left + r * unit, top + b * unit])
@@ -346,8 +343,12 @@ export type LightCommand = {
 /** 1 フレームぶんの光の状態。位置はどれも canvas の左上からの px */
 export type LightFrame = {
   light: {x: number; y: number}
-  /** ロゴを置く部屋。中央にロゴを、床の上に下の光を置く */
-  room: {left: number; top: number; right: number; bottom: number}
+  /** ロゴの中心 */
+  logo: {x: number; y: number}
+  /** ロゴのもとの位置の中心。照明はここに合わせて固定する（どちらの光もここを向き、下の光はこの真下に置く） */
+  home: {x: number; y: number}
+  /** 部屋の床の高さ。下の光はこの上に置く */
+  floor: number
   /** 上の光の明るさの割合。0 なら消す（下の光も） */
   brightness: number
   /** 下の光の明るさの割合 */

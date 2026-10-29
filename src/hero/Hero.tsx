@@ -338,10 +338,11 @@ export function Hero({photos: PHOTOS, stage}: {photos: string[]; stage: {current
     post({gatherAt: gatherAtFor(lastRise.current)})
   }, [stage, post, gatherAtFor, photo.width, photo.height, panel, direction, content])
 
+  // 段は画面全体を覆うので、触れられるのは写真とカレンダーだけにする（後ろの光の層のロゴをつかめるように）
   return (
     <section
       ref={sectionRef}
-      className={`flex h-[100svh] items-center justify-center ${direction === 'side' ? 'flex-row' : 'flex-col'}`}
+      className={`pointer-events-none flex h-[100svh] items-center justify-center ${direction === 'side' ? 'flex-row' : 'flex-col'}`}
       style={{
         gap: `${layout.photoGap}px`,
         padding: `${layout.padding}px`,
@@ -353,7 +354,7 @@ export function Hero({photos: PHOTOS, stage}: {photos: string[]; stage: {current
           pointercancel で干渉が切れてしまうため */}
       <div
         ref={frameRef}
-        className={`relative flex shrink-0 touch-none ${visible ? '' : 'pointer-events-none'}`}
+        className={`relative flex shrink-0 touch-none ${visible ? 'pointer-events-auto' : ''}`}
         style={{width: `${photo.width}px`, height: `${photo.height}px`}}
         onPointerDown={onPointerDown}
         onPointerUp={onPointerUp}
@@ -376,7 +377,7 @@ export function Hero({photos: PHOTOS, stage}: {photos: string[]; stage: {current
       </div>
       {/* カレンダーはスクロールで上へ流れ、粒子が集まるあいだをかけてゆっくり薄れ、ほどけるときは早く現れる。
           位置と濃さは毎フレーム書く */}
-      <div ref={calendarRef} className={`shrink-0 ${visible ? '' : 'pointer-events-none'}`}>
+      <div ref={calendarRef} className={`shrink-0 ${visible ? 'pointer-events-auto' : ''}`}>
         <ControlPanel
           count={PHOTOS.length}
           available={available}
