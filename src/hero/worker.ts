@@ -197,14 +197,14 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number, photos: string
         // 干渉によるズレ。更新パスが書いた値をそのまま足す
         vec2 offset = texelFetch(t_state, ivec2(k % ${grid.width}, k / ${grid.width}), 0).xy;
 
-        // 舞台を進めると、光の位置（u_gatherAt。canvas の NDC）へ白くなりながら加速して飛び込み、着いたら光に吸い込まれて
+        // 舞台を進めると、光の位置（u_gatherAt。canvas の NDC）へ自分の明るさのまま加速して飛び込み、着いたら光に吸い込まれて
         // 消える（光の層は、着いた粒子の分だけ明るくなる）。写真を切り替えるときと同じく、明るい粒子ほど先に出発する。
         // 減速して着くと、光の位置の周りに粒子が溜まって白い塊に見えるので、加速だけにする
         float delay = (1.0 - lum) * ${GATHER_STAGGER.toFixed(2)};
         float local = clamp((u_gather - delay) / ${(1 - GATHER_STAGGER).toFixed(2)}, 0.0, 1.0);
         float gather = local * local;
 
-        v_color = vec3(mix(lum, 1.0, gather));
+        v_color = vec3(lum);
 
         gl_Position = local < 1.0 ? vec4(mix((pos + offset) * u_fit, u_gatherAt, gather), 0.0, 1.0) : vec4(2.0, 2.0, 0.0, 1.0);
         gl_PointSize = u_pointSize;
