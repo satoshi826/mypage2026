@@ -16,12 +16,14 @@ export type LightTuning = {
   /** 光源の半径 px。大きいほど影の縁がぼける */
   lightSize: number
   /**
-   * 光の広がり。真下から左右にこの角度（度）まで出し、真下が一番明るく、この角度で 0 になる。ついた直後は全周（180）に出し、
+   * 光の広がり。ロゴの中心を向く向きから左右にこの角度（度）まで出し、その向きが一番明るく、この角度で 0 になる。ついた直後は全周（180）に出し、
    * ページの一番下までスクロールするあいだにこの角度まで絞る
    */
   cone: number
   /** 光がついた位置から、ページの一番下までスクロールするあいだに光が下がる量。画面の高さに対する % */
   lightDrop: number
+  /** 同じあいだに光が横へずれる量 px。負で左。ずらすと、ロゴのその側の側面が照らされる */
+  lightShift: number
   /** 床の上の棒の光（上向き）に回す光線の割合 %。下に開いたロゴの切り込みを照らす */
   barShare: number
   /** 棒の光の強さ */
@@ -32,8 +34,10 @@ export type LightTuning = {
   barWidth: number
   /** スポットの光源の半径 px（spot のとき） */
   barSize: number
-  /** スポットの光の広がり。真上から左右にこの角度（度）まで出し、真上が一番明るく、この角度で 0 になる（spot のとき） */
+  /** スポットの光の広がり。ロゴの中心を向く向きから左右にこの角度（度）まで出し、その向きが一番明るく、この角度で 0 になる（spot のとき） */
   barCone: number
+  /** スポットの横のずれ px。負で左（spot のとき） */
+  barShift: number
   /** 棒の高さ。床から上へ px */
   barHeight: number
   /** 前のフレームの結果を残す割合 %。光線のすき間をならす */
@@ -52,12 +56,14 @@ export const DEFAULT_LIGHT: LightTuning = {
   lightSize: 25,
   cone: 60,
   lightDrop: 0,
+  lightShift: 0,
   barShare: 30,
   barPower: 6,
   barShape: 'spot',
   barWidth: 600,
   barSize: 25,
   barCone: 30,
+  barShift: 0,
   barHeight: 30,
   keep: 70,
   resolution: 50,
@@ -85,7 +91,7 @@ export const LIGHT_PARAMS: Param<LightTuning>[] = [
     min: 5,
     max: 180,
     step: 1,
-    hint: '度。最後の画面で。真下から左右に'
+    hint: '度。最後の画面で。ロゴを向く向きから左右に'
   },
   {group: '見え方', key: 'keep', label: '残す割合', min: 0, max: 95, step: 5, hint: '%。前のフレーム'},
   {group: '見え方', key: 'resolution', label: '解像度', min: 25, max: 100, step: 25, hint: '%。光をためる層'},
@@ -100,6 +106,7 @@ export const LIGHT_PARAMS: Param<LightTuning>[] = [
   },
   {group: '棒の光', key: 'barWidth', label: '長さ', min: 0, max: 1200, step: 10, hint: 'px。bar のとき'},
   {group: '棒の光', key: 'barSize', label: '光源の大きさ', min: 0, max: 100, step: 1, hint: 'px。半径。spot のとき'},
+  {group: '棒の光', key: 'barShift', label: '横のずれ', min: -400, max: 400, step: 10, hint: 'px。負で左。spot のとき'},
   {
     group: '棒の光',
     key: 'barCone',
@@ -107,9 +114,18 @@ export const LIGHT_PARAMS: Param<LightTuning>[] = [
     min: 5,
     max: 90,
     step: 1,
-    hint: '度。真上から左右に。spot のとき'
+    hint: '度。ロゴを向く向きから左右に。spot のとき'
   },
   {group: '棒の光', key: 'barHeight', label: '高さ', min: 0, max: 400, step: 10, hint: 'px。床から上へ'},
+  {
+    group: '配置',
+    key: 'lightShift',
+    label: '光の横のずれ',
+    min: -400,
+    max: 400,
+    step: 10,
+    hint: 'px。負で左。スクロールでずれる'
+  },
   {
     group: '配置',
     key: 'lightDrop',

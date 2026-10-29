@@ -5,7 +5,7 @@ import {DEFAULT_LIGHT, type LightTuning} from './tuning'
 // 光源から出た光線が mu のロゴに当たって跳ね返る様子を、光線の通った線を重ねて描く（2D の光の経路追跡）。
 // 光そのものは描かず、光線の線の重なりの明るさで光を見せる。ロゴに遮られたところは影になる。
 // ロゴは部屋（ページの中の要素）の中央に置く。ロゴは光をばらばらの向きに散らして返し、ロゴに当たらなかった光線はそこで終わる。
-// 光源は 2 つ。上の光（u_light。下向きに出す）と、部屋の床の上に置く下の光（u_bar。上向きに出す。横長の棒か、点からのスポット）。ロゴの切り込みのうち 2 本は
+// 光源は 2 つ。上の光（u_light）と、部屋の床の上に置く下の光（u_bar。横長の棒か、点からのスポット）。スポットはロゴの中心を向く。ロゴの切り込みのうち 2 本は
 // 下に開いていて、上の光は奥まで入らないので、棒の光で下から照らす。光線の数は 2 つで分け合う。
 //
 // 速さのための作り:
@@ -59,6 +59,7 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number) {
       u_barSpot: 'float',
       u_barSize: 'float',
       u_barCone: 'float',
+      u_barShift: 'float',
       u_rects: `vec4[${LOGO_RECTS.length}]`
     },
     vert: /* glsl */ `
@@ -103,6 +104,11 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number) {
         return best;
       }
 
+      // ロゴの中心。左端の棒の左上と、右端の棒の右下の中点
+      vec2 logoCenter() {
+        return (u_rects[0].xy + u_rects[${LOGO_RECTS.length - 1}].zw) * 0.5;
+      }
+
       void main() {
         // 頂点は光線ごとに「線分の数 × 2」個並ぶ
         int segments = int(u_bounces) + 1;
@@ -117,12 +123,13 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number) {
         vec2 dir;
         float energy;
         if (float(ray) < u_barRays && u_barSpot > 0.5) {
-          // スポット: 棒の中央の、半径 u_barSize の円の中から、上向きの円錐（真上から左右に u_barCone）に出す。
-          // 真上が一番明るく、端に向かってなめらかに 0 になる（上の光を絞りきったときと同じ）
+          // スポット: 棒の中央から u_barShift ずらした、半径 u_barSize の円の中から、ロゴの中心を向く円錐（中心の向きから
+          // 左右に u_barCone）に出す。中心の向きが一番明るく、端に向かってなめらかに 0 になる（上の光を絞りきったときと同じ）
+          vec2 center = vec2((u_bar.x + u_bar.z) * 0.5 + u_barShift, u_bar.y);
+          vec2 aim = logoCenter() - center;
           float across = 2.0 * (float(ray) + rand(ray, 0)) / u_barRays - 1.0;
-          float angle = -TAU * 0.25 + across * u_barCone;
+          float angle = atan(aim.y, aim.x) + across * u_barCone;
           float spread = TAU * rand(ray, ${MAX_SEGMENTS + 2});
-          vec2 center = vec2((u_bar.x + u_bar.z) * 0.5, u_bar.y);
           pos = center + u_barSize * sqrt(rand(ray, ${MAX_SEGMENTS + 3})) * vec2(cos(spread), sin(spread));
           dir = vec2(cos(angle), sin(angle));
           float falloff = cos(across * TAU * 0.25);
@@ -134,13 +141,14 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number) {
           dir = vec2(sn, -sqrt(1.0 - sn * sn));
           energy = u_barPower / u_barRays;
         } else {
-          // 絞れ具合（u_focus）が 0 なら全周に均一に出す。1 なら下向きの円錐（真下から左右に u_cone）だけに出し、
+          // 絞れ具合（u_focus）が 0 なら全周に均一に出す。1 ならロゴの中心を向く円錐（中心の向きから左右に u_cone）だけに出し、
           // 真下が一番明るく、端に向かってなめらかに 0 になるよう重みを付ける。あいだは広がりも重みもなめらかに移す。
           // 出す範囲を光線の数で等分する。重みの平均（均一なら 1、cos² なら 1/2）で割り、全体の強さは u_power のまま
           // 光は半径 u_lightSize の円の中のどこかから出す。点から出すと影の縁がくっきりして、光の筋のように見える
           float pointRays = u_rays - u_barRays;
           float across = 2.0 * (float(ray) - u_barRays + rand(ray, 0)) / pointRays - 1.0;
-          float angle = TAU * 0.25 + across * mix(TAU * 0.5, u_cone, u_focus);
+          vec2 aim = logoCenter() - u_light;
+          float angle = atan(aim.y, aim.x) + across * mix(TAU * 0.5, u_cone, u_focus);
           float spread = TAU * rand(ray, ${MAX_SEGMENTS + 2});
           pos = u_light + u_lightSize * sqrt(rand(ray, ${MAX_SEGMENTS + 3})) * vec2(cos(spread), sin(spread));
           dir = vec2(cos(angle), sin(angle));
@@ -250,6 +258,7 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number) {
       u_barSpot: tuning.barShape === 'spot' ? 1 : 0,
       u_barSize: tuning.barSize,
       u_barCone: (tuning.barCone * Math.PI) / 180,
+      u_barShift: tuning.barShift,
       u_cone: (tuning.cone * Math.PI) / 180
     })
     // 頂点の数は光線の数と跳ね返りの回数で決まるので、変わったら作り直す
