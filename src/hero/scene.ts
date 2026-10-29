@@ -172,6 +172,23 @@ export function createHeroScene(
     u_easePower: 'float'
   } as const
 
+  /** 舞台を進めたときの粒子の位置。写真のあいだの描画と、光の層への描画が同じ式で出す */
+  const flightUniforms = {u_fit: 'vec2', u_gather: 'float', u_gatherAt: 'vec2'} as const
+  const flight = /* glsl */ `
+      // 粒子 k の、写真の枠の NDC での位置と輝度（lum）と、光へ向けて出発してからの進み（local。0 でまだ写真の中、1 で光に着いた）。
+      // 舞台を進めると、光の位置（u_gatherAt）へ自分の明るさのまま加速して飛び込み、着いたら光に吸い込まれて消える。
+      // 写真を切り替えるときと同じく、明るい粒子ほど先に出発する。減速して着くと、光の位置の周りに粒子が溜まって
+      // 塊に見えるので、加速だけにする
+      vec2 flightOf(int k, out float lum, out float local) {
+        vec2 pos;
+        baseOf(k, u_from, u_to, u_phase, pos, lum);
+        // 干渉によるズレ。更新パスが書いた値をそのまま足す
+        vec2 offset = texelFetch(t_state, ivec2(k % ${grid.width}, k / ${grid.width}), 0).xy;
+        float delay = (1.0 - lum) * ${GATHER_STAGGER.toFixed(2)};
+        local = clamp((u_gather - delay) / ${(1 - GATHER_STAGGER).toFixed(2)}, 0.0, 1.0);
+        return mix((pos + offset) * u_fit, u_gatherAt, local * local);
+      }`
+
   // 中身は空で確保し、写真ごとに区画へ上げる
   const table = core.createTexture({
     width: layout.width,
@@ -187,36 +204,23 @@ export function createHeroScene(
     attributeTypes: {a_rank: 'float'},
     uniformTypes: {
       ...morphUniforms,
-      u_fit: 'vec2',
-      u_pointSize: 'float',
-      u_gather: 'float',
-      u_gatherAt: 'vec2'
+      ...flightUniforms,
+      u_pointSize: 'float'
     },
     texture: {t_table: table, t_state: state[0].renderTexture[0]},
     primitive: 'POINTS',
     vert: /* glsl */ `
       out vec3 v_color;
       ${shared}
+      ${flight}
 
+      // 写真のあいだの粒子。光へ向けて出発した粒子は、光の層（glow）へ移るのでここでは描かない
       void main() {
-        int k = int(a_rank);
-        vec2 pos;
         float lum;
-        baseOf(k, u_from, u_to, u_phase, pos, lum);
-
-        // 干渉によるズレ。更新パスが書いた値をそのまま足す
-        vec2 offset = texelFetch(t_state, ivec2(k % ${grid.width}, k / ${grid.width}), 0).xy;
-
-        // 舞台を進めると、光の位置（u_gatherAt。canvas の NDC）へ自分の明るさのまま加速して飛び込み、着いたら光に吸い込まれて
-        // 消える（光の層は、着いた粒子の分だけ明るくなる）。写真を切り替えるときと同じく、明るい粒子ほど先に出発する。
-        // 減速して着くと、光の位置の周りに粒子が溜まって白い塊に見えるので、加速だけにする
-        float delay = (1.0 - lum) * ${GATHER_STAGGER.toFixed(2)};
-        float local = clamp((u_gather - delay) / ${(1 - GATHER_STAGGER).toFixed(2)}, 0.0, 1.0);
-        float gather = local * local;
-
+        float local;
+        vec2 pos = flightOf(int(a_rank), lum, local);
         v_color = vec3(lum);
-
-        gl_Position = local < 1.0 ? vec4(mix((pos + offset) * u_fit, u_gatherAt, gather), 0.0, 1.0) : vec4(2.0, 2.0, 0.0, 1.0);
+        gl_Position = local <= 0.0 ? vec4(pos, 0.0, 1.0) : vec4(2.0, 2.0, 0.0, 1.0);
         gl_PointSize = u_pointSize;
       }`,
     frag: /* glsl */ `
@@ -224,6 +228,42 @@ export function createHeroScene(
       out vec4 o_color;
       void main() {
         o_color = vec4(v_color, 1.0);
+      }`
+  })
+
+  // 光へ向けて飛んでいる粒子。光の層（light/scene.ts の 1 フレームぶんの層）に、自分の明るさの光の粒として加算で描く。
+  // 光と同じ層・同じ描き方なので、粒子がそのまま光になって光源に集まる。画面全体に描くので、写真の枠の外へも出られる
+  const glow = new Program(core, {
+    id: 'glow',
+    attributeTypes: {a_rank: 'float'},
+    uniformTypes: {
+      ...morphUniforms,
+      ...flightUniforms,
+      u_rect: 'vec4',
+      u_glow: 'float',
+      u_glowSize: 'float'
+    },
+    texture: {t_table: table, t_state: state[0].renderTexture[0]},
+    primitive: 'POINTS',
+    vert: /* glsl */ `
+      out float v_energy;
+      ${shared}
+      ${flight}
+
+      void main() {
+        float lum;
+        float local;
+        vec2 pos = flightOf(int(a_rank), lum, local);
+        v_energy = lum * u_glow;
+        // 写真の枠の NDC を、画面の NDC へ（u_rect は枠の中心と半分の大きさ）
+        gl_Position = local > 0.0 && local < 1.0 ? vec4(u_rect.xy + pos * u_rect.zw, 0.0, 1.0) : vec4(2.0, 2.0, 0.0, 1.0);
+        gl_PointSize = u_glowSize;
+      }`,
+    frag: /* glsl */ `
+      in float v_energy;
+      out vec4 o_color;
+      void main() {
+        o_color = vec4(vec3(v_energy), 1.0);
       }`
   })
 
@@ -376,11 +416,19 @@ export function createHeroScene(
   // 写真の枠。大きさが決まる前は null
   let rect: Rect | null = null
 
-  /** 基準位置の計算に要る uniform は描画と更新の両方が持つ */
+  /** 基準位置の計算に要る uniform は、描画（写真と光の層）と更新のすべてが持つ */
   const setMorph = (values: Record<string, number>) => {
     program.setUniform(values)
+    glow.setUniform(values)
     update.setUniform(values)
   }
+  /** 舞台を進めたときの位置の uniform は、写真と光の層の描画が持つ */
+  const setFlight = (values: Record<string, number | number[]>) => {
+    program.setUniform(values)
+    glow.setUniform(values)
+  }
+  // 粒子が集まった割合。0 より大きく 1 より小さいあいだ、粒子が光へ向けて飛んでいる
+  let gathered = 0
 
   const applyTuning = (tuning: Tuning) =>
     setMorph({
@@ -450,13 +498,14 @@ export function createHeroScene(
     // 点サイズはピクセル単位に丸められるので、切り上げないと格子状の隙間が出る。
     // 重なる分には後から描かれる明るい粒子が上書きするだけで害がない
     const pointSize = Math.max(1, Math.ceil((height * ratio * fit[1]) / grid.height))
-    program.setUniform({u_fit: fit, u_pointSize: pointSize})
+    setFlight({u_fit: fit})
+    program.setUniform({u_pointSize: pointSize})
   }
 
   applyTuning(DEFAULT_TUNING)
   applyInteraction(DEFAULT_INTERACTION)
   update.setUniform({u_prevFrom: 0, u_prevTo: 0, u_prevPhase: 0, u_catchUp: 0})
-  program.setUniform({u_gather: 0, u_gatherAt: [0, 0]})
+  setFlight({u_gather: 0, u_gatherAt: [0, 0]})
 
   return {
     place,
@@ -466,8 +515,38 @@ export function createHeroScene(
     step,
     tune: applyTuning,
     interact: applyInteraction,
-    gather: (amount: number) => program.setUniform({u_gather: amount}),
-    gatherAt: (point: [number, number]) => program.setUniform({u_gatherAt: point}),
+    gather: (amount: number) => {
+      gathered = amount
+      setFlight({u_gather: amount})
+    },
+    gatherAt: (point: [number, number]) => setFlight({u_gatherAt: point}),
+    /**
+     * 光へ向けて飛んでいる粒子を、光の層（target）に加算で描く。飛んでいる粒子がなければ描かず false を返す。
+     * 呼ぶ側が加算の合成にしておくこと
+     *
+     * @param screen 舞台の canvas の大きさ（CSS px）
+     * @param energy 粒子の光の強さ。輝度に掛ける。1 で、写真の粒子と同じくらいの明るさ
+     * @param scale target の、CSS px あたりの画素数
+     */
+    glow(target: Renderer, screen: {width: number; height: number}, energy: number, scale: number) {
+      if (!drawable() || !rect || gathered <= 0 || gathered >= 1) return false
+      // 粒子の格子は target の画素より細かいことがあり、そのぶん 1 画素に何粒も重なって足される。写真の枠の中の
+      // 1 画素あたりの粒の数で割り、重なっても写真と同じくらいの明るさにする
+      const perPixel = Math.max(1, grid.count / (rect.width * scale * rect.height * scale))
+      glow.setUniform({
+        u_rect: [
+          ((rect.x + rect.width / 2) / screen.width) * 2 - 1,
+          1 - ((rect.y + rect.height / 2) / screen.height) * 2,
+          rect.width / screen.width,
+          rect.height / screen.height
+        ],
+        u_glow: energy / perPixel,
+        u_glowSize: Math.max(1, Math.round(scale))
+      })
+      core.setTexture('t_state', state[readIndex].renderTexture[0])
+      target.render(vao, glow)
+      return true
+    },
     setPointer({x, y, vx, vy}: PointerCommand) {
       update.setUniform({u_pointer: [x / fit[0], y / fit[1]], u_pointerVelocity: [vx / fit[0], vy / fit[1]]})
     },

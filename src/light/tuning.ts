@@ -43,6 +43,8 @@ export type LightTuning = {
   keepMoving: number
   /** 光をためる層の解像度。画面の画素に対する % */
   resolution: number
+  /** 光へ飛んでいる粒子の光の強さ。粒子の輝度に掛ける。1 で、写真の粒子と同じくらいの明るさ */
+  particleGlow: number
   /** ロゴの格子 1 マスの大きさ px（ロゴは 12 マス × 11 マス） */
   cell: number
 }
@@ -57,6 +59,7 @@ export const DEFAULT_LIGHT: LightTuning = {
   keep: 95,
   keepMoving: 60,
   resolution: 100,
+  particleGlow: 1.5,
   underShare: 50,
   underPower: 54.5,
   underSize: 4,
@@ -109,6 +112,7 @@ export const LIGHT_PARAMS: Param<LightTuning>[] = [
     step: 5,
     hint: '%。前のフレーム'
   },
+  {group: '見え方', key: 'particleGlow', label: '飛ぶ粒子の光', min: 0, max: 10, step: 0.1, hint: '粒子の輝度に掛ける'},
   {group: '見え方', key: 'resolution', label: '解像度', min: 25, max: 100, step: 25, hint: '%。光をためる層'},
   {group: '下の光', key: 'underShare', label: '光線の割合', min: 0, max: 90, step: 5, hint: '%。下の光に回す光線'},
   {group: '下の光', key: 'underPower', label: '強さ', min: 0, max: 200, step: 0.5, hint: ''},

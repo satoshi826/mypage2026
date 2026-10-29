@@ -252,10 +252,17 @@ export function createLightScene(core: Core, pixelRatio: number) {
     layout()
   }
 
-  const draw = ({light, logo, home, floor, brightness, under, focus}: LightFrame) => {
+  /**
+   * 1 フレーム描く。extra は、光線を描いた 1 フレームぶんの層に、加算の合成のまま重ねて描くもの（光へ飛んでいる粒子）。
+   * 描いたら true を返す。そのあいだは動いているものとして、前のフレームを残す割合を弱める
+   */
+  const draw = (
+    {on, light, logo, home, floor, brightness, under, focus}: LightFrame,
+    extra?: (target: Renderer) => boolean
+  ) => {
     if (!lines) return
     // 消えているあいだは何も描かない。前の結果も捨て、次につくときはそのフレームだけで描き始める
-    if (brightness <= 0) {
+    if (!on) {
       lit = false
       fresh = true
       return
@@ -290,6 +297,7 @@ export function createLightScene(core: Core, pixelRatio: number) {
     frameLayer.clear()
     core.blend('ADDITIVE')
     frameLayer.render(lines, rays)
+    if (extra?.(frameLayer)) moving = 1
     core.gl.disable(core.gl.BLEND)
 
     // 大きさが変わった直後は前の結果が無いので、このフレームだけで描く
@@ -324,6 +332,8 @@ export type LightCommand = {
 
 /** 1 フレームぶんの光の状態。位置はどれも canvas の左上からの px */
 export type LightFrame = {
+  /** 光の層を描くか。粒子が光へ向けて飛び始めたら描く（光が明るくなるのは粒子が着いてから） */
+  on: boolean
   light: {x: number; y: number}
   /** ロゴの中心 */
   logo: {x: number; y: number}
@@ -331,7 +341,7 @@ export type LightFrame = {
   home: {x: number; y: number}
   /** 部屋の床の高さ。下の光はこの上に置く */
   floor: number
-  /** 上の光の明るさの割合。0 なら消す（下の光も） */
+  /** 上の光の明るさの割合 */
   brightness: number
   /** 下の光の明るさの割合 */
   under: number

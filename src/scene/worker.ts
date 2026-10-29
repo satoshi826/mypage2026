@@ -1,6 +1,7 @@
 import {Core, Program, Renderer, Vao, plane2D} from 'glaku'
 import {applyHero, createHeroScene, type HeroCommand} from '../hero/scene'
 import {createLightScene, type LightCommand} from '../light/scene'
+import {DEFAULT_LIGHT} from '../light/tuning'
 
 // トップの舞台の canvas。写真の粒子（hero）と、光がロゴを照らす層（light）を 1 枚の canvas に描く。
 // どちらも自分の層に描き、ここで 1 回の全画面の描画で重ねる（光の上に写真の粒子）。
@@ -35,6 +36,7 @@ function createStage(canvas: OffscreenCanvas, pixelRatio: number) {
   // hero の場面を作る前（写真が届く前）に届いた hero への指示。作ったら入れる
   const early: HeroCommand = {}
   let size = {width: 1, height: 1}
+  let tuning = DEFAULT_LIGHT
   // どちらの層もまだ無いあいだ、重ねる描画に持たせておく空の画像
   const empty = core.createTexture({
     width: 1,
@@ -117,8 +119,14 @@ function createStage(canvas: OffscreenCanvas, pixelRatio: number) {
       schedule()
     },
     light(command: LightCommand) {
-      if (command.tuning) light.tune(command.tuning)
-      if (command.frame) light.draw(command.frame)
+      if (command.tuning) {
+        tuning = command.tuning
+        light.tune(tuning)
+      }
+      // 光へ飛んでいる粒子は、光線と同じ層に光の粒として描く
+      const scale = pixelRatio * (tuning.resolution / 100)
+      if (command.frame)
+        light.draw(command.frame, (target) => hero?.glow(target, size, tuning.particleGlow, scale) ?? false)
       schedule()
     }
   }

@@ -102,10 +102,12 @@ export function Light({
       moved.current = nowMoved
       setArrange({moved: nowMoved, reset})
     }
-    if (arrived <= 0 || !box) {
+    // 粒子が光へ向けて飛び始めたら、光の層を描き始める（飛ぶ粒子も光の層に描くため）。光が明るくなるのは粒子が着いてから
+    if (stage.current.gather <= 0 || !box) {
       if (litAt.current !== null)
         send({
           frame: {
+            on: false,
             light: {x: 0, y: 0},
             logo: {x: 0, y: 0},
             home: {x: 0, y: 0},
@@ -163,7 +165,7 @@ export function Light({
     const brightness = arrived * (DIM + (1 - DIM) * ease(1 - (logoTop - height) / (height * BRIGHTEN_SCREENS)))
     // 下の光は、部屋の床が画面の下端の半画面下まで来たところから光り始め、下端に着くと最大になる
     const under = ease(1 - (box.bottom - height) / (height / 2))
-    send({frame: {light, logo, home, floor: box.bottom, brightness, under, focus}})
+    send({frame: {on: true, light, logo, home, floor: box.bottom, brightness, under, focus}})
   })
 
   return (
