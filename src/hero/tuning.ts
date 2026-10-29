@@ -95,8 +95,8 @@ export type Interaction = {
 }
 
 export const DEFAULT_INTERACTION: Interaction = {
-  radius: 0.25,
-  push: 0.2,
+  radius: 0.3,
+  push: 0.3,
   drag: 0.01,
   massGain: 1.5,
   massCurve: 1.5,
@@ -104,8 +104,8 @@ export const DEFAULT_INTERACTION: Interaction = {
   scatter: 0.1,
   attack: 2,
   release: 0.15,
-  returnSeconds: 0.6,
-  damping: 0.2,
+  returnSeconds: 0.55,
+  damping: 0.25,
   stopBelow: 0
 }
 
