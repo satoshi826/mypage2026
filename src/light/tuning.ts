@@ -49,25 +49,25 @@ export type LightTuning = {
 }
 
 export const DEFAULT_LIGHT: LightTuning = {
-  rays: 4096,
-  bounces: 2,
-  albedo: 70,
-  power: 20,
-  lightSize: 25,
-  cone: 60,
-  lightDrop: 0,
-  lightShift: 80,
-  barShare: 30,
-  barPower: 6,
+  rays: 10496,
+  bounces: 6,
+  albedo: 100,
+  power: 50.5,
+  lightSize: 2,
+  cone: 61,
+  keep: 70,
+  resolution: 100,
+  barShare: 50,
+  barPower: 54.5,
   barShape: 'spot',
   barWidth: 600,
-  barSize: 25,
-  barCone: 30,
-  barShift: -32,
-  barHeight: 30,
-  keep: 70,
-  resolution: 50,
-  cell: 16
+  barSize: 2,
+  barShift: -90,
+  barCone: 29,
+  barHeight: 80,
+  lightShift: 90,
+  lightDrop: 0,
+  cell: 12
 }
 
 export const LIGHT_PARAMS: Param<LightTuning>[] = [
