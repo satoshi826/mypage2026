@@ -57,6 +57,8 @@ export function Hero({photos: PHOTOS, stage}: {photos: string[]; stage: {current
   const lastFrame = useRef<Frame>({from: -1, to: -1, phase: -1})
   const lastTime = useRef(0)
   const lastRise = useRef(0)
+  // 上がる前の写真の枠（画面の上の位置）。粒子が出入りする点を、写真の上がり具合によらず画面の上の同じ位置に保つのに使う
+  const frameBox = useRef<{left: number; top: number; width: number; height: number} | null>(null)
   const lastGather = useRef(0)
   // フッターの再生操作を出し、写真を触れるようにするか。粒子が集まり始めて写真が崩れたら下げる
   const [visible, setVisible] = useState(true)
@@ -126,6 +128,18 @@ export function Hero({photos: PHOTOS, stage}: {photos: string[]; stage: {current
     [post]
   )
 
+  // 粒子が出入りする点（stage の source。画面の上の位置）を、写真の枠が rise px 上がったときの canvas の NDC に直す。
+  // 写真が上がり具合を変えても（集まっている途中でスクロールを戻したときなど）、粒子は画面の上の同じ点、つまり光から出入りする
+  const gatherAtFor = useCallback(
+    (rise: number): [number, number] => {
+      const box = frameBox.current
+      if (!box) return [0, 0]
+      const {x, y} = stage.current.source
+      return [((x - box.left) / box.width) * 2 - 1, 1 - ((y - (box.top - rise)) / box.height) * 2]
+    },
+    [stage]
+  )
+
   useAnimationFrame(
     useCallback(() => {
       const now = performance.now()
@@ -142,6 +156,7 @@ export function Hero({photos: PHOTOS, stage}: {photos: string[]; stage: {current
       if (rise !== lastRise.current) {
         lastRise.current = rise
         sectionRef.current?.style.setProperty('translate', `0 ${-rise}px`)
+        command.gatherAt = gatherAtFor(rise)
       }
       if (gather !== lastGather.current) {
         lastGather.current = gather
@@ -225,7 +240,7 @@ export function Hero({photos: PHOTOS, stage}: {photos: string[]; stage: {current
         bar.style.setProperty('--progress', String(progress))
         bar.style.setProperty('--morph', `${morph * 100}%`)
       }
-    }, [autoplay, order, post, reduced, stage, takePointer])
+    }, [autoplay, gatherAtFor, order, post, reduced, stage, takePointer])
   )
 
   // 行き先が変わったフレームは worker 側で位置の飛びを打ち消す（番号のクリック）
@@ -292,15 +307,18 @@ export function Hero({photos: PHOTOS, stage}: {photos: string[]; stage: {current
     const section = sectionRef.current
     const rect = frameRef.current?.getBoundingClientRect()
     if (!section || !rect || rect.width <= 0) return
+    const box = {left: rect.left, top: rect.top + lastRise.current, width: rect.width, height: rect.height}
+    frameBox.current = box
     const rise = photo.height * RISE_RATIO
-    const top = rect.top + lastRise.current - rise
+    const top = box.top - rise
     const light = lightAt({width: section.clientWidth, height: section.clientHeight})
-    const x = Math.min(Math.max(light.x, rect.left), rect.right)
-    const y = Math.min(Math.max(light.y, top), top + rect.height)
     stage.current.rise = rise / innerHeight
-    stage.current.source = {x, y}
-    post({gatherAt: [((x - rect.left) / rect.width) * 2 - 1, 1 - ((y - top) / rect.height) * 2]})
-  }, [stage, post, photo.width, photo.height, panel, direction, content])
+    stage.current.source = {
+      x: Math.min(Math.max(light.x, box.left), box.left + box.width),
+      y: Math.min(Math.max(light.y, top), top + box.height)
+    }
+    post({gatherAt: gatherAtFor(lastRise.current)})
+  }, [stage, post, gatherAtFor, photo.width, photo.height, panel, direction, content])
 
   return (
     <section

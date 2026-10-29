@@ -29,6 +29,9 @@ export const RISE_RATIO = 0.3
 /** 粒子が集まりきるまで（ほどけきるまで）の秒数 */
 const GATHER_SECONDS = 1.6
 
+/** 写真が上がりきってから、時間によらず粒子が集まりきるスクロールの長さ。画面の高さ単位 */
+const GATHER_SCROLL = 0.4
+
 /**
  * 粒子が集まるとき、一番暗い粒子が出発を遅らせる割合（集まりきるまでのうち）。明るい粒子ほど先に出発する。
  * どの粒子も残りの (1 - GATHER_STAGGER) で光の位置に着くので、着くのは集まりきるまでの GATHER_STAGGER 以降
@@ -40,10 +43,17 @@ export const SCENE_SCREENS = 1.4
 
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v))
 
-/** 写真が上がりきっていれば集め、戻っていればほどく。dt 秒ぶん進める */
+/**
+ * 写真が上がりきっていれば集め、戻っていればほどく。dt 秒ぶん進める。上がりきったあとも速くスクロールしたときは、
+ * スクロール量に合わせて先へ進める（GATHER_SCROLL 進むと集まりきる）。時間だけで進めると、速く送った人は集まる途中の粒子と
+ * 上がってくるロゴを一緒に見ることになる
+ */
 export function advanceGather(stage: Stage, dt: number) {
   const step = dt / GATHER_SECONDS
-  stage.gather = stage.progress >= stage.rise ? Math.min(1, stage.gather + step) : Math.max(0, stage.gather - step)
+  stage.gather =
+    stage.progress >= stage.rise
+      ? Math.max(Math.min(1, stage.gather + step), clamp01((stage.progress - stage.rise) / GATHER_SCROLL))
+      : Math.max(0, stage.gather - step)
 }
 
 /** 写真が上がった距離。画面の高さ単位 */

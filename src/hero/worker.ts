@@ -202,7 +202,7 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number, photos: string
         // 減速して着くと、光の位置の周りに粒子が溜まって白い塊に見えるので、加速だけにする
         float delay = (1.0 - lum) * ${GATHER_STAGGER.toFixed(2)};
         float local = clamp((u_gather - delay) / ${(1 - GATHER_STAGGER).toFixed(2)}, 0.0, 1.0);
-        float gather = local * local * local;
+        float gather = local * local;
 
         v_color = vec3(mix(lum, 1.0, gather));
 
