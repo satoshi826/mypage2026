@@ -15,6 +15,14 @@ export type LightTuning = {
   wallSpecular: number
   /** 光の強さ */
   power: number
+  /** 床の上の棒の光（上向き）に回す光線の割合 %。下に開いたロゴの切り込みを照らす */
+  barShare: number
+  /** 棒の光の強さ */
+  barPower: number
+  /** 棒の長さ px */
+  barWidth: number
+  /** 棒の高さ。床から上へ px */
+  barHeight: number
   /** 前のフレームの結果を残す割合 %。光線のすき間をならす */
   keep: number
   /** 光をためる層の解像度。画面の画素に対する % */
@@ -30,6 +38,10 @@ export const DEFAULT_LIGHT: LightTuning = {
   wall: 50,
   wallSpecular: 100,
   power: 30,
+  barShare: 30,
+  barPower: 10,
+  barWidth: 240,
+  barHeight: 100,
   keep: 70,
   resolution: 50,
   cell: 16
@@ -42,6 +54,10 @@ export const LIGHT_PARAMS: Param<LightTuning>[] = [
   {group: '光線', key: 'wall', label: '壁が返す割合', min: 0, max: 100, step: 5, hint: '%。部屋の左右と床。0 で壁なし'},
   {group: '光線', key: 'wallSpecular', label: '壁の鏡の割合', min: 0, max: 100, step: 5, hint: '%'},
   {group: '見え方', key: 'power', label: '強さ', min: 0.5, max: 200, step: 0.5, hint: ''},
+  {group: '棒の光', key: 'barShare', label: '光線の割合', min: 0, max: 90, step: 5, hint: '%。棒に回す光線'},
+  {group: '棒の光', key: 'barPower', label: '強さ', min: 0, max: 200, step: 0.5, hint: ''},
+  {group: '棒の光', key: 'barWidth', label: '長さ', min: 0, max: 1200, step: 10, hint: 'px'},
+  {group: '棒の光', key: 'barHeight', label: '高さ', min: 0, max: 400, step: 10, hint: 'px。床から上へ'},
   {group: '見え方', key: 'keep', label: '残す割合', min: 0, max: 95, step: 5, hint: '%。前のフレーム'},
   {group: '見え方', key: 'resolution', label: '解像度', min: 25, max: 100, step: 25, hint: '%。光をためる層'},
   {group: '配置', key: 'cell', label: 'ロゴの 1 マス', min: 4, max: 40, step: 1, hint: 'px'}

@@ -5,7 +5,9 @@ import {DEFAULT_LIGHT, type LightTuning} from './tuning'
 // 光源から出た光線が mu のロゴに当たって跳ね返る様子を、光線の通った線を重ねて描く（2D の光の経路追跡）。
 // 光そのものは描かず、光線の線の重なりの明るさで光を見せる。ロゴに遮られたところは影になる。
 // ロゴは部屋（ページの中の要素）の中央に置き、部屋の左・右・下の辺は光を返す壁にできる（wall）。壁で跳ね返った光が
-// ロゴを横や下からも照らす。ロゴはばらばらの向きに散らして返し、壁は鏡にできる（wallSpecular）。部屋の上は開いていて、部屋の外へ出た光線はそこで終わる。部屋はスクロールで上がってくるので、
+// ロゴを横や下からも照らす。ロゴはばらばらの向きに散らして返し、壁は鏡にできる（wallSpecular）。
+// 光源は 2 つ。上の光（u_light）と、床の上に置く横長の棒の光（u_bar。上向きに出す）。ロゴの切り込みのうち 2 本は
+// 下に開いていて、上の光は（壁や床で返っても）奥まで入らないので、棒の光で下から照らす。光線の数は 2 つで分け合う。部屋の上は開いていて、部屋の外へ出た光線はそこで終わる。部屋はスクロールで上がってくるので、
 // 部屋がまだ画面の下にあるうちは、壁で返る光はほとんど届かない。
 //
 // 速さのための作り:
@@ -53,6 +55,9 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number) {
       u_power: 'float',
       u_seed: 'float',
       u_room: 'vec4',
+      u_bar: 'vec4',
+      u_barRays: 'float',
+      u_barPower: 'float',
       u_rects: `vec4[${LOGO_RECTS.length}]`
     },
     vert: /* glsl */ `
@@ -124,11 +129,24 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number) {
         int ray = id / (2 * segments);
         v_energy = a_index * 0.0;
 
-        // 全周を光線の数で等分し、その区画の中でフレームごとに向きをずらす
-        float angle = (float(ray) + rand(ray, 0)) / u_rays * TAU;
-        vec2 pos = u_light;
-        vec2 dir = vec2(cos(angle), sin(angle));
-        float energy = u_power / u_rays;
+        // 先頭の u_barRays 本は棒の光、残りは上の光から出す。どちらも等分した区画の中でフレームごとにずらす
+        vec2 pos;
+        vec2 dir;
+        float energy;
+        if (float(ray) < u_barRays) {
+          // 棒を等分した位置から、上向きに出す。面の向きに近いほど多く出す
+          pos = vec2(mix(u_bar.x, u_bar.z, (float(ray) + rand(ray, 0)) / u_barRays), u_bar.y);
+          float sn = 2.0 * rand(ray, ${2 * MAX_SEGMENTS + 1}) - 1.0;
+          dir = vec2(sn, -sqrt(1.0 - sn * sn));
+          energy = u_barPower / u_barRays;
+        } else {
+          // 全周を光線の数で等分する
+          float pointRays = u_rays - u_barRays;
+          float angle = (float(ray) - u_barRays + rand(ray, 0)) / pointRays * TAU;
+          pos = u_light;
+          dir = vec2(cos(angle), sin(angle));
+          energy = u_power / pointRays;
+        }
         vec2 a = pos;
         vec2 b = pos;
         for (int s = 0; s < ${MAX_SEGMENTS}; s++) {
@@ -245,7 +263,7 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number) {
     layout()
   }
 
-  const draw = ({light, room, brightness}: LightFrame) => {
+  const draw = ({light, room, brightness, bar}: LightFrame) => {
     if (!lines) return
     // 消えているあいだは何も描かない。前の結果も捨て、次につくときはそのフレームだけで描き始める
     if (brightness <= 0) {
@@ -266,6 +284,15 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number) {
       u_power: tuning.power * brightness,
       u_light: [light.x, light.y],
       u_room: [room.left, room.top, room.right, room.bottom],
+      // 棒は部屋の下の中央に置く。消えているあいだは光線を回さない
+      u_bar: [
+        (room.left + room.right - tuning.barWidth) / 2,
+        room.bottom - tuning.barHeight,
+        (room.left + room.right + tuning.barWidth) / 2,
+        0
+      ],
+      u_barRays: bar > 0 ? Math.round((tuning.rays * tuning.barShare) / 100) : 0,
+      u_barPower: tuning.barPower * bar,
       u_rects: LOGO_RECTS.flatMap(([l, t, r, b]) => [left + l * unit, top + t * unit, left + r * unit, top + b * unit])
     })
 
@@ -313,8 +340,10 @@ export type LightFrame = {
   light: {x: number; y: number}
   /** ロゴを置く部屋。左・右・下の辺が壁で、中央にロゴを置く */
   room: {left: number; top: number; right: number; bottom: number}
-  /** 光の明るさの割合。0 なら消す */
+  /** 上の光の明るさの割合。0 なら消す（棒の光も） */
   brightness: number
+  /** 棒の光の明るさの割合 */
+  bar: number
 }
 
 let scene: ReturnType<typeof createScene> | null = null
