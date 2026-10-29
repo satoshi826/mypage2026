@@ -23,11 +23,10 @@ export function Light({stage}: {stage: {readonly current: Stage}}) {
   // 消えたフレームも 1 回は送り、画面から光を消させる
   const lit = useRef(false)
   useAnimationFrame(() => {
-    const {progress, source} = stage.current
-    const intensity = lightOf(progress)
+    const intensity = lightOf(stage.current)
     if (intensity <= 0 && !lit.current) return
     lit.current = intensity > 0
-    post({frame: {source, travel: travelOf(progress), intensity}})
+    post({frame: {source: stage.current.source, travel: travelOf(stage.current), intensity}})
   })
 
   return (

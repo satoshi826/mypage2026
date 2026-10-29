@@ -212,46 +212,6 @@ input[data-slider]::-moz-range-thumb {
   }
 }
 
-/* トップの hero の下端に置く、下へ続くことを示す目盛り（試し。src/app/pages/Top.tsx）。短い縦線（溝）の中を、
-   小さな点が上から下へゆっくり流れて消える。動きを減らす設定では、点を止めて線の中ほどに置く */
-[data-scroll-cue] {
-  background: color-mix(in srgb, var(--color-ink) 18%, transparent);
-  overflow: hidden;
-}
-[data-scroll-cue]::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0;
-  width: 1px;
-  height: 10px;
-  background: var(--color-ink);
-  animation: scroll-cue 2.4s cubic-bezier(0.65, 0, 0.35, 1) infinite;
-}
-@keyframes scroll-cue {
-  0% {
-    translate: 0 -10px;
-    opacity: 0;
-  }
-  20% {
-    opacity: 0.9;
-  }
-  80% {
-    opacity: 0.9;
-  }
-  100% {
-    translate: 0 40px;
-    opacity: 0;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  [data-scroll-cue]::after {
-    animation: none;
-    translate: 0 15px;
-    opacity: 0.9;
-  }
-}
-
 /* hero の写真を押して再生と停止を切り替えたときの合図（src/hero/Hero.tsx）。写真を一瞬暗くし（hero-dim）、
    中央に記号を出す（hero-flash）。記号はにじんで現れ、少し留まってから、少し広がりながら引く */
 @keyframes hero-dim {

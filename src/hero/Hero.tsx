@@ -17,7 +17,7 @@ import {
 import {ControlPanel} from './ControlPanel'
 import {progressLines, setPlayer} from './playback'
 import {DevPanel} from '../app/DevPanel'
-import {gatherOf, lightOf, type Stage} from '../app/stage'
+import {RISE_RATIO, gatherOf, lightOf, riseOf, type Stage} from '../app/stage'
 import {
   LAYOUT_PARAMS,
   LAYOUT_PRESETS,
@@ -46,7 +46,7 @@ const timingOf = ({cycleSeconds, dwellRatio}: Tuning): Timing => ({cycleSeconds,
 
 /**
  * @param photos hero 用の派生画像の URL。空では呼ばない
- * @param stage トップの舞台。進み具合に合わせて粒子を写真の中央へ集め、集まる点（写真の中央）を書き込む
+ * @param stage トップの舞台。進み具合に合わせて写真を上げてから粒子を写真の中央へ集める。上がる距離と集まる点を書き込む
  */
 export function Hero({photos: PHOTOS, stage}: {photos: string[]; stage: {current: Stage}}) {
   const sectionRef = useRef<HTMLElement | null>(null)
@@ -56,6 +56,7 @@ export function Hero({photos: PHOTOS, stage}: {photos: string[]; stage: {current
   const interactionRef = useRef<Interaction>(DEFAULT_INTERACTION)
   const lastFrame = useRef<Frame>({from: -1, to: -1, phase: -1})
   const lastTime = useRef(0)
+  const lastRise = useRef(0)
   const lastGather = useRef(0)
   const lastFade = useRef(0)
   // フッターの再生操作を出し、写真を触れるようにするか。粒子が集まり始めて写真が崩れたら下げる
@@ -134,14 +135,20 @@ export function Hero({photos: PHOTOS, stage}: {photos: string[]; stage: {current
 
       const command: Command = {}
 
+      // 写真とカレンダーは、まずスクロールと一緒に上がる。上がりきってから粒子が集まり、カレンダーは薄れる。
       // 集まった点は、光がつくのと入れ替わりに消える。消えきったら写真は見えないので、時計も干渉も止める
-      const {progress: stageProgress} = stage.current
-      const gather = gatherOf(stageProgress)
-      const fade = lightOf(stageProgress)
+      const rise = riseOf(stage.current) * innerHeight
+      const gather = gatherOf(stage.current)
+      const fade = lightOf(stage.current)
       const shown = fade < 1
+      if (rise !== lastRise.current) {
+        lastRise.current = rise
+        sectionRef.current?.style.setProperty('translate', `0 ${-rise}px`)
+      }
       if (gather !== lastGather.current) {
         lastGather.current = gather
         command.gather = gather
+        sectionRef.current?.style.setProperty('--gather', String(gather))
         setVisible(gather < CONTROLS_SHOWN)
       }
       if (fade !== lastFade.current) {
@@ -284,10 +291,14 @@ export function Hero({photos: PHOTOS, stage}: {photos: string[]; stage: {current
   // 縦並びのパネルは写真と同じ幅に広げる。マスが上限に達したらそこで止める
   const panel = direction === 'side' ? panelWidth(layout) : Math.min(photo.width, panelWidth(layout))
 
-  // 粒子が集まる点（写真の中央）を舞台へ書く。舞台は画面に貼りついているので、画面の上の位置がそのまま舞台の上の位置
+  // 写真が上がる距離と、粒子が集まる点（上がりきった写真の中央）を舞台へ書く。舞台は画面に貼りついているので、画面の上の
+  // 位置がそのまま舞台の上の位置。測った位置には今上がっているぶんが入っているので、戻してから数える
   useLayoutEffect(() => {
     const rect = frameRef.current?.getBoundingClientRect()
-    if (rect) stage.current.source = {x: rect.left + rect.width / 2, y: rect.top + rect.height / 2}
+    if (!rect) return
+    const rise = photo.height * RISE_RATIO
+    stage.current.rise = rise / innerHeight
+    stage.current.source = {x: rect.left + rect.width / 2, y: rect.top + lastRise.current + rect.height / 2 - rise}
   }, [stage, photo.width, photo.height, panel, direction, content])
 
   return (
@@ -326,9 +337,9 @@ export function Hero({photos: PHOTOS, stage}: {photos: string[]; stage: {current
           </div>
         )}
       </div>
-      {/* カレンダーは粒子が集まり始めると薄れて消える。舞台の --stage（進み具合）で決める */}
+      {/* カレンダーは粒子が集まり始めると薄れて消える。--gather（粒子が集まった割合）は毎フレーム書く */}
       <div
-        className={`shrink-0 opacity-[clamp(0,calc(1-var(--stage,0)*2.5),1)] ${visible ? '' : 'pointer-events-none'}`}
+        className={`shrink-0 opacity-[clamp(0,calc(1-var(--gather,0)*2.5),1)] ${visible ? '' : 'pointer-events-none'}`}
       >
         <ControlPanel
           count={PHOTOS.length}

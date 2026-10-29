@@ -36,10 +36,10 @@ export function Top() {
   const Light = useLight()
   const photos = usePhotos()
   const heroPhotos = photos ? heroesOf(photos).map(heroSrc) : []
-  const [stageRef, stage] = useStage()
+  const stage = useStage()
 
   return (
-    <div ref={stageRef} className="relative">
+    <div className="relative">
       <h1 className="sr-only">{NAME}</h1>
       {/* 舞台。hero と光の段を重ねて画面に貼りつけ、スクロールで場面を進める（src/app/stage.ts）。
           プリレンダの HTML から先に 1 画面ぶん空けておく。hero は JS が動いてから差し込まれる */}
@@ -51,13 +51,6 @@ export function Top() {
             訪問者には起きない） */}
         {/* oxlint-disable-next-line react/static-components */}
         {Hero && heroPhotos.length > 0 && <Hero key={heroPhotos.join()} photos={heroPhotos} stage={stage} />}
-        {/* 下へ続くことを示す目盛り（試し）。短い縦線の中を、小さな点がゆっくり下へ流れる。styles.css の [data-scroll-cue]。
-            中央へ寄せる translate は付けない。半画素にかかって線がにじむため。スクロールし始めると薄れて消える */}
-        <div
-          data-scroll-cue
-          aria-hidden
-          className="pointer-events-none absolute bottom-[calc(var(--spacing-footer)+env(safe-area-inset-bottom)+12px)] left-1/2 h-10 w-px opacity-[clamp(0,calc(1-var(--stage,0)*4),1)]"
-        />
       </div>
       <div style={{height: `${STAGE_SCREENS * 100}svh`}} />
       {/* 導線。舞台の上を下から上がってきて、ロゴの下で止まる */}
@@ -76,25 +69,16 @@ const LINKS = [
   {href: '/contact', label: 'Contact', current: false}
 ]
 
-/**
- * 舞台の進み具合（スクロール量を画面の高さで割った値）を、hero と光の段が毎フレーム読む state に書き、CSS からも
- * 使えるよう ref の要素に --stage として書く
- */
+/** 舞台の進み具合（スクロール量を画面の高さで割った値）を、hero と光の段が毎フレーム読む state に書く */
 function useStage() {
-  const ref = useRef<HTMLDivElement>(null)
-  const state = useRef<Stage>({progress: 0, source: {x: 0, y: 0}})
+  const state = useRef<Stage>({progress: 0, rise: 0, source: {x: 0, y: 0}})
   useEffect(() => {
-    const el = ref.current
     const current = state.current
     const measure = () => {
-      const progress = scrollY / innerHeight
-      return () => {
-        current.progress = progress
-        el?.style.setProperty('--stage', String(progress))
-      }
+      current.progress = scrollY / innerHeight
     }
-    measure()()
+    measure()
     return onScrollFrame(measure)
   }, [])
-  return [ref, state] as const
+  return state
 }
