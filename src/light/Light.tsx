@@ -16,7 +16,7 @@ const DIM = 0.5
 const BRIGHTEN_SCREENS = 0.8
 
 /** 光がついてから、下向きに絞り始めるまでのスクロールの長さ。画面の高さ単位。それまでは全周に均一な丸い光 */
-const FOCUS_AFTER_SCREENS = 0.3
+const FOCUS_AFTER_SCREENS = 0.5
 
 /**
  * トップの舞台で、光が mu のロゴを照らす層（試し）。hero の後ろに画面いっぱいに重ねる。描くのは worker（worker.ts）。

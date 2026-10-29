@@ -2,6 +2,8 @@ import type {Param} from '../app/DevPanel'
 
 // 光とロゴの調整値。worker の既定値と開発用パネルの両方がここを使う
 
+export const BAR_SHAPES = ['bar', 'spot'] as const
+
 export type LightTuning = {
   /** 光源から出す光線の数（スマホは半分） */
   rays: number
@@ -24,8 +26,14 @@ export type LightTuning = {
   barShare: number
   /** 棒の光の強さ */
   barPower: number
-  /** 棒の長さ px */
+  /** 下の光の形。bar は横長の棒の全体から上向きに出す。spot は棒の中央の点から上向きの円錐に出す */
+  barShape: (typeof BAR_SHAPES)[number]
+  /** 棒の長さ px（bar のとき） */
   barWidth: number
+  /** スポットの光源の半径 px（spot のとき） */
+  barSize: number
+  /** スポットの光の広がり。真上から左右にこの角度（度）まで出し、真上が一番明るく、この角度で 0 になる（spot のとき） */
+  barCone: number
   /** 棒の高さ。床から上へ px */
   barHeight: number
   /** 前のフレームの結果を残す割合 %。光線のすき間をならす */
@@ -46,7 +54,10 @@ export const DEFAULT_LIGHT: LightTuning = {
   lightDrop: 0,
   barShare: 30,
   barPower: 6,
+  barShape: 'spot',
   barWidth: 600,
+  barSize: 25,
+  barCone: 30,
   barHeight: 30,
   keep: 70,
   resolution: 50,
@@ -80,7 +91,24 @@ export const LIGHT_PARAMS: Param<LightTuning>[] = [
   {group: '見え方', key: 'resolution', label: '解像度', min: 25, max: 100, step: 25, hint: '%。光をためる層'},
   {group: '棒の光', key: 'barShare', label: '光線の割合', min: 0, max: 90, step: 5, hint: '%。棒に回す光線'},
   {group: '棒の光', key: 'barPower', label: '強さ', min: 0, max: 200, step: 0.5, hint: ''},
-  {group: '棒の光', key: 'barWidth', label: '長さ', min: 0, max: 1200, step: 10, hint: 'px'},
+  {
+    group: '棒の光',
+    key: 'barShape',
+    label: '形',
+    options: BAR_SHAPES,
+    hint: 'bar は横長の棒、spot は点から上向きの円錐'
+  },
+  {group: '棒の光', key: 'barWidth', label: '長さ', min: 0, max: 1200, step: 10, hint: 'px。bar のとき'},
+  {group: '棒の光', key: 'barSize', label: '光源の大きさ', min: 0, max: 100, step: 1, hint: 'px。半径。spot のとき'},
+  {
+    group: '棒の光',
+    key: 'barCone',
+    label: '光の広がり',
+    min: 5,
+    max: 90,
+    step: 1,
+    hint: '度。真上から左右に。spot のとき'
+  },
   {group: '棒の光', key: 'barHeight', label: '高さ', min: 0, max: 400, step: 10, hint: 'px。床から上へ'},
   {
     group: '配置',

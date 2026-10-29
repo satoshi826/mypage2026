@@ -5,7 +5,7 @@ import {DEFAULT_LIGHT, type LightTuning} from './tuning'
 // 光源から出た光線が mu のロゴに当たって跳ね返る様子を、光線の通った線を重ねて描く（2D の光の経路追跡）。
 // 光そのものは描かず、光線の線の重なりの明るさで光を見せる。ロゴに遮られたところは影になる。
 // ロゴは部屋（ページの中の要素）の中央に置く。ロゴは光をばらばらの向きに散らして返し、ロゴに当たらなかった光線はそこで終わる。
-// 光源は 2 つ。上の光（u_light。下向きに出す）と、部屋の床の上に置く横長の棒の光（u_bar。上向きに出す）。ロゴの切り込みのうち 2 本は
+// 光源は 2 つ。上の光（u_light。下向きに出す）と、部屋の床の上に置く下の光（u_bar。上向きに出す。横長の棒か、点からのスポット）。ロゴの切り込みのうち 2 本は
 // 下に開いていて、上の光は奥まで入らないので、棒の光で下から照らす。光線の数は 2 つで分け合う。
 //
 // 速さのための作り:
@@ -56,6 +56,9 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number) {
       u_bar: 'vec4',
       u_barRays: 'float',
       u_barPower: 'float',
+      u_barSpot: 'float',
+      u_barSize: 'float',
+      u_barCone: 'float',
       u_rects: `vec4[${LOGO_RECTS.length}]`
     },
     vert: /* glsl */ `
@@ -113,7 +116,18 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number) {
         vec2 pos;
         vec2 dir;
         float energy;
-        if (float(ray) < u_barRays) {
+        if (float(ray) < u_barRays && u_barSpot > 0.5) {
+          // スポット: 棒の中央の、半径 u_barSize の円の中から、上向きの円錐（真上から左右に u_barCone）に出す。
+          // 真上が一番明るく、端に向かってなめらかに 0 になる（上の光を絞りきったときと同じ）
+          float across = 2.0 * (float(ray) + rand(ray, 0)) / u_barRays - 1.0;
+          float angle = -TAU * 0.25 + across * u_barCone;
+          float spread = TAU * rand(ray, ${MAX_SEGMENTS + 2});
+          vec2 center = vec2((u_bar.x + u_bar.z) * 0.5, u_bar.y);
+          pos = center + u_barSize * sqrt(rand(ray, ${MAX_SEGMENTS + 3})) * vec2(cos(spread), sin(spread));
+          dir = vec2(cos(angle), sin(angle));
+          float falloff = cos(across * TAU * 0.25);
+          energy = u_barPower * falloff * falloff / (u_barRays * 0.5);
+        } else if (float(ray) < u_barRays) {
           // 棒を等分した位置から、上向きに出す。面の向きに近いほど多く出す
           pos = vec2(mix(u_bar.x, u_bar.z, (float(ray) + rand(ray, 0)) / u_barRays), u_bar.y);
           float sn = 2.0 * rand(ray, ${MAX_SEGMENTS + 1}) - 1.0;
@@ -233,6 +247,9 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number) {
       u_bounces: tuning.bounces,
       u_albedo: tuning.albedo / 100,
       u_lightSize: tuning.lightSize,
+      u_barSpot: tuning.barShape === 'spot' ? 1 : 0,
+      u_barSize: tuning.barSize,
+      u_barCone: (tuning.barCone * Math.PI) / 180,
       u_cone: (tuning.cone * Math.PI) / 180
     })
     // 頂点の数は光線の数と跳ね返りの回数で決まるので、変わったら作り直す
