@@ -57,6 +57,8 @@ export function Hero({photos: PHOTOS, stage}: {photos: string[]; stage: {current
   const lastFrame = useRef<Frame>({from: -1, to: -1, phase: -1})
   const lastTime = useRef(0)
   const lastRise = useRef(0)
+  const lastScrolled = useRef(0)
+  const calendarRef = useRef<HTMLDivElement>(null)
   // 上がる前の写真の枠（画面の上の位置）。粒子が出入りする点を、写真の上がり具合によらず画面の上の同じ位置に保つのに使う
   const frameBox = useRef<{left: number; top: number; width: number; height: number} | null>(null)
   const lastGather = useRef(0)
@@ -148,15 +150,21 @@ export function Hero({photos: PHOTOS, stage}: {photos: string[]; stage: {current
 
       const command: Command = {}
 
-      // 写真とカレンダーは、まずスクロールと一緒に上がる。上がりきると粒子が光へ飛び込み（時間で進む）、カレンダーは薄れる。
+      // 写真はまずスクロールと一緒に上がり、上がりきったところで止まる。そこから粒子が光へ飛び込み（時間で進む）。
+      // カレンダーは止まらず、ふつうのページの中身としてスクロールで上へ流れていきながら薄れる。
       // 粒子がすべて光に吸い込まれたら写真は見えないので、時計も干渉も止める
       const rise = riseOf(stage.current) * innerHeight
+      const scrolled = stage.current.progress * innerHeight
       const {gather} = stage.current
       const shown = gather < 1
       if (rise !== lastRise.current) {
         lastRise.current = rise
-        sectionRef.current?.style.setProperty('translate', `0 ${-rise}px`)
+        frameRef.current?.style.setProperty('translate', `0 ${-rise}px`)
         command.gatherAt = gatherAtFor(rise)
+      }
+      if (scrolled !== lastScrolled.current) {
+        lastScrolled.current = scrolled
+        calendarRef.current?.style.setProperty('translate', `0 ${-scrolled}px`)
       }
       if (gather !== lastGather.current) {
         lastGather.current = gather
@@ -356,8 +364,9 @@ export function Hero({photos: PHOTOS, stage}: {photos: string[]; stage: {current
           </div>
         )}
       </div>
-      {/* カレンダーは粒子が集まり始めると薄れて消える。--gather（粒子が集まった割合）は毎フレーム書く */}
+      {/* カレンダーはスクロールで上へ流れ、粒子が集まり始めると薄れて消える。位置と --gather（粒子が集まった割合）は毎フレーム書く */}
       <div
+        ref={calendarRef}
         className={`shrink-0 opacity-[clamp(0,calc(1-var(--gather,0)*2.5),1)] ${visible ? '' : 'pointer-events-none'}`}
       >
         <ControlPanel
