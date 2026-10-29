@@ -62,8 +62,8 @@ export const LIGHT_PARAMS: Param<LightTuning>[] = [
     key: 'lightSize',
     label: '光源の大きさ',
     min: 0,
-    max: 200,
-    step: 5,
+    max: 100,
+    step: 1,
     hint: 'px。半径。大きいほど影がぼける'
   },
   {group: '棒の光', key: 'barShare', label: '光線の割合', min: 0, max: 90, step: 5, hint: '%。棒に回す光線'},
