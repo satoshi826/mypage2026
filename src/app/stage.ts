@@ -30,7 +30,7 @@ export const RISE_RATIO = 0.3
 const GATHER_SECONDS = 1.6
 
 /** 写真が上がりきってから、時間によらず粒子が集まりきるスクロールの長さ。画面の高さ単位 */
-const GATHER_SCROLL = 0.4
+const GATHER_SCROLL = 0.5
 
 /**
  * 粒子が集まるとき、一番暗い粒子が出発を遅らせる割合（集まりきるまでのうち）。明るい粒子ほど先に出発する。
@@ -39,7 +39,7 @@ const GATHER_SCROLL = 0.4
 export const GATHER_STAGGER = 0.5
 
 /** ページの一番下までのスクロールの長さ。画面の高さ単位。ロゴと導線の段は、ここで画面にちょうど収まる */
-export const SCENE_SCREENS = 1.4
+export const SCENE_SCREENS = 1.8
 
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v))
 
