@@ -80,7 +80,9 @@ export function Light({stage, room}: {stage: {readonly current: Stage}; room: {r
   })
 
   return (
-    <div className="pointer-events-none absolute inset-0 flex" aria-hidden>
+    // 舞台（100svh）より下へ、ツールバーが引っ込んで画面が伸びたときの高さ（100lvh）まで伸ばす。舞台に合わせると、
+    // ツールバーが引っ込んだとき（Android など）画面の下に光の届かない帯ができる
+    <div className="pointer-events-none absolute inset-x-0 top-0 flex h-[100lvh]" aria-hidden>
       {canvas}
       {import.meta.env.DEV && (
         <DevPanel<LightTuning>

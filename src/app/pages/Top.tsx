@@ -49,8 +49,9 @@ export function Top() {
     <div className="relative">
       <h1 className="sr-only">{NAME}</h1>
       {/* 舞台。hero と光の層を重ねて画面に貼りつけ、スクロールで場面を進める（src/app/stage.ts）。
-          プリレンダの HTML から先に 1 画面ぶん空けておく。hero は JS が動いてから差し込まれる */}
-      <div className="sticky top-0 h-[100svh] overflow-hidden">
+          プリレンダの HTML から先に 1 画面ぶん空けておく。hero は JS が動いてから差し込まれる。
+          光の層は、ツールバーが引っ込んで画面が伸びたときの高さ（100lvh）まで下にはみ出させるので、はみ出しを切らない */}
+      <div className="sticky top-0 h-[100svh]">
         {/* hero と光の層は読み込んだ 1 つの部品で、描くたびに作り直すものではない */}
         {/* oxlint-disable-next-line react/static-components */}
         {Light && <Light stage={stage} room={room} />}
