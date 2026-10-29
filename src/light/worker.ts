@@ -13,8 +13,15 @@ import {DEFAULT_LIGHT, type LightTuning} from './tuning'
 // - 光線の経路は線を描く頂点シェーダの中で求める。頂点 1 つが「何本目の光線の、何回目の跳ね返りの、始点か終点か」
 //   を受け持ち、その点までの経路を自分で計算する。経路を一度テクスチャに書き出す段を挟まない
 // - 光線の向きは全周を等分した区画の中で毎フレームずらし、前のフレームの結果と混ぜて、光線のすき間をならす。
-//   光が動いたときは、前のフレームの結果を光が動いたぶんずらしてから混ぜる（跡を引かない）
+//   光が動いたときは、前のフレームの結果を光が動いたぶんずらしてから混ぜる（跡を引かない）。ロゴや光が動いているあいだは
+//   前の結果を残す割合を弱め（keepMoving）、跡を引かないようにする。止まるとなめらかに元の割合（keep）へ戻す
 // - 光をためる層は画面より粗い解像度（resolution）で持ち、画面へはなめらかに拡大する
+
+/** 動いているとみなす、1 フレームでのロゴと光の動き px。これ以上動いたら、残す割合を動いているときの値にする */
+const MOVING_PX = 2
+
+/** 止まってから、残す割合が元へ戻る速さ。1 フレームごとに、動いている度合いをこの割合に減らす */
+const SETTLE_RATE = 0.9
 
 /** 1 本の光線が描く線分の数の上限（光源からの 1 本 + 跳ね返り 8 回）。tuning.ts の跳ね返りの上限と合わせる */
 const MAX_SEGMENTS = 9
@@ -229,6 +236,10 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number) {
   let fresh = true
   /** 前のフレームの光の位置。前の結果をずらす量を出す */
   let lastLight = {x: 0, y: 0}
+  /** 前のフレームのロゴの左上 */
+  let lastLogo = {x: 0, y: 0}
+  /** 動いている度合い（0〜1）。動くと上がり、止まるとなめらかに 0 へ戻る */
+  let moving = 0
 
   const layout = () => {
     const {width, height} = size
@@ -274,7 +285,11 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number) {
     const top = Math.round((room.top + room.bottom) / 2 - (LOGO_HEIGHT * unit) / 2)
     const {width, height} = size
     blend.setUniform({u_shift: [-(light.x - lastLight.x) / width, (light.y - lastLight.y) / height]})
+    const moved =
+      Math.hypot(light.x - lastLight.x, light.y - lastLight.y) + Math.hypot(left - lastLogo.x, top - lastLogo.y)
+    moving = Math.max(Math.min(1, moved / MOVING_PX), moving * SETTLE_RATE)
     lastLight = light
+    lastLogo = {x: left, y: top}
     seed = (seed + 1) % 1_000_000
     rays.setUniform({
       u_seed: seed,
@@ -294,7 +309,8 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number) {
     core.gl.disable(core.gl.BLEND)
 
     // 大きさが変わった直後は前の結果が無いので、このフレームだけで描く
-    blend.setUniform({u_keep: fresh ? 0 : tuning.keep / 100})
+    const keep = (tuning.keep + (tuning.keepMoving - tuning.keep) * moving) / 100
+    blend.setUniform({u_keep: fresh ? 0 : keep})
     blend.setTexture({t_prev: acc[0].renderTexture[0]})
     acc[1].render(plane, blend)
     acc.reverse()

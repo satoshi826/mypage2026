@@ -37,8 +37,10 @@ export type LightTuning = {
   underShift: number
   /** 下の光の高さ。床から上へ px */
   underHeight: number
-  /** 前のフレームの結果を残す割合 %。光線のすき間をならす */
+  /** 前のフレームの結果を残す割合 %。光線のすき間をならす（時間の平均）。ロゴや光が止まっているとき */
   keep: number
+  /** ロゴや光が動いているときに、前のフレームの結果を残す割合 %。弱めにして跡を引かないようにする */
+  keepMoving: number
   /** 光をためる層の解像度。画面の画素に対する % */
   resolution: number
   /** ロゴの格子 1 マスの大きさ px（ロゴは 12 マス × 11 マス） */
@@ -53,6 +55,7 @@ export const DEFAULT_LIGHT: LightTuning = {
   lightSize: 2,
   cone: 61,
   keep: 70,
+  keepMoving: 30,
   resolution: 100,
   underShare: 50,
   underPower: 54.5,
@@ -88,7 +91,24 @@ export const LIGHT_PARAMS: Param<LightTuning>[] = [
     step: 1,
     hint: '度。最後の画面で。ロゴを向く向きから左右に'
   },
-  {group: '見え方', key: 'keep', label: '残す割合', min: 0, max: 95, step: 5, hint: '%。前のフレーム'},
+  {
+    group: '見え方',
+    key: 'keep',
+    label: '残す割合',
+    min: 0,
+    max: 95,
+    step: 5,
+    hint: '%。前のフレーム。止まっているとき'
+  },
+  {
+    group: '見え方',
+    key: 'keepMoving',
+    label: '動いているときに残す割合',
+    min: 0,
+    max: 95,
+    step: 5,
+    hint: '%。前のフレーム'
+  },
   {group: '見え方', key: 'resolution', label: '解像度', min: 25, max: 100, step: 25, hint: '%。光をためる層'},
   {group: '下の光', key: 'underShare', label: '光線の割合', min: 0, max: 90, step: 5, hint: '%。下の光に回す光線'},
   {group: '下の光', key: 'underPower', label: '強さ', min: 0, max: 200, step: 0.5, hint: ''},
