@@ -47,6 +47,7 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number) {
       u_light: 'vec2',
       u_lightSize: 'float',
       u_cone: 'float',
+      u_focus: 'float',
       u_rays: 'float',
       u_bounces: 'float',
       u_albedo: 'float',
@@ -119,17 +120,18 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number) {
           dir = vec2(sn, -sqrt(1.0 - sn * sn));
           energy = u_barPower / u_barRays;
         } else {
-          // 下向きの円錐（真下から左右に u_cone）だけに出す。円錐を光線の数で等分し、真下が一番明るく、端に向かって
-          // なめらかに 0 になるよう重みを付ける（cos² の重みの平均は 1/2 なので、全体の強さは u_power のまま）
+          // 絞れ具合（u_focus）が 0 なら全周に均一に出す。1 なら下向きの円錐（真下から左右に u_cone）だけに出し、
+          // 真下が一番明るく、端に向かってなめらかに 0 になるよう重みを付ける。あいだは広がりも重みもなめらかに移す。
+          // 出す範囲を光線の数で等分する。重みの平均（均一なら 1、cos² なら 1/2）で割り、全体の強さは u_power のまま
           // 光は半径 u_lightSize の円の中のどこかから出す。点から出すと影の縁がくっきりして、光の筋のように見える
           float pointRays = u_rays - u_barRays;
           float across = 2.0 * (float(ray) - u_barRays + rand(ray, 0)) / pointRays - 1.0;
-          float angle = TAU * 0.25 + across * u_cone;
+          float angle = TAU * 0.25 + across * mix(TAU * 0.5, u_cone, u_focus);
           float spread = TAU * rand(ray, ${MAX_SEGMENTS + 2});
           pos = u_light + u_lightSize * sqrt(rand(ray, ${MAX_SEGMENTS + 3})) * vec2(cos(spread), sin(spread));
           dir = vec2(cos(angle), sin(angle));
           float falloff = cos(across * TAU * 0.25);
-          energy = u_power * falloff * falloff / (pointRays * 0.5);
+          energy = u_power * mix(1.0, falloff * falloff, u_focus) / (pointRays * mix(1.0, 0.5, u_focus));
         }
         vec2 a = pos;
         vec2 b = pos;
@@ -230,7 +232,8 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number) {
       u_rays: tuning.rays,
       u_bounces: tuning.bounces,
       u_albedo: tuning.albedo / 100,
-      u_lightSize: tuning.lightSize
+      u_lightSize: tuning.lightSize,
+      u_cone: (tuning.cone * Math.PI) / 180
     })
     // 頂点の数は光線の数と跳ね返りの回数で決まるので、変わったら作り直す
     const count = tuning.rays * (tuning.bounces + 1) * 2
@@ -241,7 +244,7 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number) {
     layout()
   }
 
-  const draw = ({light, room, brightness, bar, cone}: LightFrame) => {
+  const draw = ({light, room, brightness, bar, focus}: LightFrame) => {
     if (!lines) return
     // 消えているあいだは何も描かない。前の結果も捨て、次につくときはそのフレームだけで描き始める
     if (brightness <= 0) {
@@ -261,7 +264,7 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number) {
       u_seed: seed,
       u_power: tuning.power * brightness,
       u_light: [light.x, light.y],
-      u_cone: (cone * Math.PI) / 180,
+      u_focus: focus,
       // 棒は部屋の下の中央に置く。消えているあいだは光線を回さない
       u_bar: [
         (room.left + room.right - tuning.barWidth) / 2,
@@ -322,8 +325,8 @@ export type LightFrame = {
   brightness: number
   /** 棒の光の明るさの割合 */
   bar: number
-  /** 上の光の広がり。真下から左右にこの角度（度）まで出す */
-  cone: number
+  /** 上の光の絞れ具合。0 で全周に均一、1 で下向きに絞りきる（tuning の cone） */
+  focus: number
 }
 
 let scene: ReturnType<typeof createScene> | null = null

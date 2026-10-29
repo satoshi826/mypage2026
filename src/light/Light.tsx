@@ -44,7 +44,7 @@ export function Light({stage, room}: {stage: {readonly current: Stage}; room: {r
     const box = room.current?.getBoundingClientRect()
     if (arrived <= 0 || !box) {
       if (litAt.current !== null)
-        post({frame: {light: {x: 0, y: 0}, room: box ?? new DOMRect(), brightness: 0, bar: 0, cone: 180}})
+        post({frame: {light: {x: 0, y: 0}, room: box ?? new DOMRect(), brightness: 0, bar: 0, focus: 0}})
       litAt.current = null
       return
     }
@@ -56,7 +56,6 @@ export function Light({stage, room}: {stage: {readonly current: Stage}; room: {r
     // 光がついてからページの一番下までスクロールした割合。光はこれに合わせて下がり、下向きに絞られる
     const scrolled = ease((progress - rise) / (SCENE_SCREENS - rise))
     const home = {x: top.x, y: top.y + ((height * tuning.lightDrop) / 100) * scrolled}
-    const cone = 180 + (tuning.cone - 180) * scrolled
     const t = Math.min(1, (now - litAt.current) / 1000 / SETTLE_SECONDS)
     const settle = 1 - (1 - t) ** 3
     const light = {x: source.x + (home.x - source.x) * settle, y: source.y + (home.y - source.y) * settle}
@@ -66,7 +65,13 @@ export function Light({stage, room}: {stage: {readonly current: Stage}; room: {r
     // 棒の光は、部屋の床が画面の下端の半画面下まで来たところから光り始め、下端に着くと最大になる
     const bar = ease(1 - (box.bottom - height) / (height / 2))
     post({
-      frame: {light, room: {left: box.left, top: box.top, right: box.right, bottom: box.bottom}, brightness, bar, cone}
+      frame: {
+        light,
+        room: {left: box.left, top: box.top, right: box.right, bottom: box.bottom},
+        brightness,
+        bar,
+        focus: scrolled
+      }
     })
   })
 
