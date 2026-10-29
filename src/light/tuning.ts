@@ -17,6 +17,8 @@ export type LightTuning = {
   power: number
   /** 光源の半径 px。大きいほど影の縁がぼける */
   lightSize: number
+  /** 光がついた位置から、ページの一番下までスクロールするあいだに光が下がる量。画面の高さに対する % */
+  lightDrop: number
   /** 床の上の棒の光（上向き）に回す光線の割合 %。下に開いたロゴの切り込みを照らす */
   barShare: number
   /** 棒の光の強さ */
@@ -41,6 +43,7 @@ export const DEFAULT_LIGHT: LightTuning = {
   wallSpecular: 0,
   power: 20,
   lightSize: 25,
+  lightDrop: 0,
   barShare: 30,
   barPower: 6,
   barWidth: 600,
@@ -72,5 +75,14 @@ export const LIGHT_PARAMS: Param<LightTuning>[] = [
   {group: '棒の光', key: 'barPower', label: '強さ', min: 0, max: 200, step: 0.5, hint: ''},
   {group: '棒の光', key: 'barWidth', label: '長さ', min: 0, max: 1200, step: 10, hint: 'px'},
   {group: '棒の光', key: 'barHeight', label: '高さ', min: 0, max: 400, step: 10, hint: 'px。床から上へ'},
+  {
+    group: '配置',
+    key: 'lightDrop',
+    label: '光が下がる量',
+    min: 0,
+    max: 40,
+    step: 1,
+    hint: '%。画面の高さ。スクロールで下がる'
+  },
   {group: '配置', key: 'cell', label: 'ロゴの 1 マス', min: 4, max: 40, step: 1, hint: 'px'}
 ]

@@ -4,6 +4,7 @@ import {heroesOf, heroSrc, usePhotos} from '../../photos'
 import {onScrollFrame} from '../scrollFrame'
 import {SCENE_SCREENS, advanceGather, type Stage} from '../stage'
 import {Tabs} from '../Tabs'
+import {DevPanel, type Param} from '../DevPanel'
 
 type HeroComponent = typeof import('../../hero/Hero').Hero
 let loaded: HeroComponent | null = null
@@ -38,6 +39,8 @@ export function Top() {
   const heroPhotos = photos ? heroesOf(photos).map(heroSrc) : []
   const stage = useStage()
   const room = useRef<HTMLDivElement>(null)
+  // 開発用パネルで触っているあいだだけ上書きする
+  const [placement, setPlacement] = useState(PLACEMENT)
 
   return (
     <div className="relative">
@@ -61,15 +64,38 @@ export function Top() {
         className="pointer-events-none relative h-[100svh]"
         style={{marginTop: `${(SCENE_SCREENS - 1) * 100}svh`}}
       >
-        <div className="absolute inset-x-0 top-[68%] flex justify-center">
+        <div className="absolute inset-x-0 flex justify-center" style={{top: `${placement.links}%`}}>
           <div className="pointer-events-auto h-12">
             <Tabs items={LINKS} />
           </div>
         </div>
       </div>
+      {import.meta.env.DEV && (
+        <DevPanel<Placement>
+          title="ロゴの段の配置"
+          typeName="Placement"
+          constName="PLACEMENT"
+          params={PLACEMENT_PARAMS}
+          defaults={PLACEMENT}
+          storageKey="mypage2026.placement"
+          onChange={setPlacement}
+        />
+      )}
     </div>
   )
 }
+
+/** ロゴと導線の段の中の配置。ロゴは段の中央に置く */
+type Placement = {
+  /** 導線の上端。段の上端からの %（段は一番下までスクロールすると画面にちょうど収まる） */
+  links: number
+}
+
+const PLACEMENT: Placement = {links: 68}
+
+const PLACEMENT_PARAMS: Param<Placement>[] = [
+  {key: 'links', label: '導線の高さ', min: 50, max: 95, step: 1, hint: '%。段（最後の画面）の上端から'}
+]
 
 const LINKS = [
   {href: '/photos/street', label: 'Photos', current: false},
