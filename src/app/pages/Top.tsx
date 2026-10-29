@@ -69,9 +69,9 @@ export function Top() {
         style={{marginTop: `${(SCENE_SCREENS - 1) * 100}svh`}}
       >
         {/* 導線の高さの半分だけ上げて、中心を links の位置に置く（translate は使わない。半画素にかかって文字がにじむ）。
-            左右に寄せるときはナビと同じ余白にそろえる */}
+            置く範囲と寄せ方は BOX */}
         <div
-          className={`absolute inset-x-0 flex px-8 max-sm:px-5 ${JUSTIFY[placement.align]}`}
+          className={`absolute flex ${BOX[placement.align]}`}
           style={{
             top: `calc(${placement.links}% - ${(placement.direction === 'row' ? ROW_HEIGHT : LINKS.length * ROW_HEIGHT) / 2}px)`
           }}
@@ -120,20 +120,32 @@ type Placement = {
   direction: (typeof DIRECTIONS)[number]
 }
 
-const ALIGNS = ['left', 'center', 'right'] as const
+const ALIGNS = ['left', 'center', 'right', 'right-half'] as const
 const DIRECTIONS = ['row', 'column'] as const
-const JUSTIFY = {left: 'justify-start', center: 'justify-center', right: 'justify-end'}
-const ITEMS = {left: 'items-start', center: 'items-center', right: 'items-end'}
+/** 導線を置く横の範囲と、その中での寄せ方。左右に寄せるときはナビと同じ余白にそろえ、right-half は画面の右半分の中央に置く */
+const BOX = {
+  left: 'inset-x-0 justify-start px-8 max-sm:px-5',
+  center: 'inset-x-0 justify-center',
+  right: 'inset-x-0 justify-end px-8 max-sm:px-5',
+  'right-half': 'right-0 left-1/2 justify-center'
+}
+/** 縦に並べるときの、行の文字のそろえ方 */
+const ITEMS = {left: 'items-start', center: 'items-center', right: 'items-end', 'right-half': 'items-center'}
 
 /** 導線 1 行（横並びなら全体）の高さ px */
 const ROW_HEIGHT = 48
 
-const WIDE_PLACEMENT: Placement = {links: 50, align: 'right', direction: 'row'}
-const NARROW_PLACEMENT: Placement = {links: 78, align: 'right', direction: 'column'}
+const WIDE_PLACEMENT: Placement = {links: 50, align: 'right-half', direction: 'row'}
+const NARROW_PLACEMENT: Placement = {links: 50, align: 'right-half', direction: 'column'}
 
 const PLACEMENT_PARAMS: Param<Placement>[] = [
   {key: 'links', label: '導線の高さ', min: 5, max: 95, step: 1, hint: '%。中心の位置。段（最後の画面）の上端から'},
-  {key: 'align', label: '導線の横の位置', options: ALIGNS, hint: '左右はナビと同じ余白に寄せる'},
+  {
+    key: 'align',
+    label: '導線の横の位置',
+    options: ALIGNS,
+    hint: '左右はナビと同じ余白に寄せる。right-half は右半分の中央'
+  },
   {key: 'direction', label: '導線の並べ方', options: DIRECTIONS, hint: 'row は横、column は縦'}
 ]
 
