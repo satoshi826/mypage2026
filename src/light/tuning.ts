@@ -43,11 +43,11 @@ export const DEFAULT_LIGHT: LightTuning = {
 
 export const LIGHT_PARAMS: Param<LightTuning>[] = [
   {group: '光線', key: 'rays', label: '光線の数', min: 256, max: 16384, step: 256, hint: '本。スマホは半分'},
-  {group: '光線', key: 'bounces', label: '跳ね返り', min: 0, max: 3, step: 1, hint: '回'},
+  {group: '光線', key: 'bounces', label: '跳ね返り', min: 0, max: 8, step: 1, hint: '回'},
   {group: '光線', key: 'albedo', label: '返す割合', min: 0, max: 100, step: 5, hint: '%'},
   {group: '光線', key: 'wall', label: '壁が返す割合', min: 0, max: 100, step: 5, hint: '%。画面の端。0 で壁なし'},
   {group: '光線', key: 'specular', label: '鏡の割合', min: 0, max: 100, step: 5, hint: '%'},
-  {group: '見え方', key: 'power', label: '強さ', min: 0.5, max: 30, step: 0.5, hint: ''},
+  {group: '見え方', key: 'power', label: '強さ', min: 0.5, max: 200, step: 0.5, hint: ''},
   {group: '見え方', key: 'keep', label: '残す割合', min: 0, max: 95, step: 5, hint: '%。前のフレーム'},
   {group: '見え方', key: 'resolution', label: '解像度', min: 25, max: 100, step: 25, hint: '%。光をためる層'},
   {group: '配置', key: 'lightY', label: '光源の高さ', min: 0, max: 100, step: 1, hint: '%。上端から'},

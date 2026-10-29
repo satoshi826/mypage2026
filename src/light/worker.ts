@@ -13,8 +13,8 @@ import {DEFAULT_LIGHT, type LightTuning} from './tuning'
 // - 光線の向きは全周を等分した区画の中で毎フレームずらし、前のフレームの結果と混ぜて、光線のすき間をならす
 // - 光をためる層は画面より粗い解像度（resolution）で持ち、画面へはなめらかに拡大する
 
-/** 1 本の光線が描く線分の数の上限（光源からの 1 本 + 跳ね返り 3 回） */
-const MAX_SEGMENTS = 4
+/** 1 本の光線が描く線分の数の上限（光源からの 1 本 + 跳ね返り 8 回）。tuning.ts の跳ね返りの上限と合わせる */
+const MAX_SEGMENTS = 9
 
 const HALF_FLOAT = [['RGBA16F', 'RGBA', 'HALF_FLOAT', 'LINEAR', 'CLAMP_TO_EDGE']] as const
 
@@ -95,15 +95,13 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number) {
       }
 
       void main() {
+        // 頂点は光線ごとに「線分の数 × 2」個並ぶ
+        int segments = int(u_bounces) + 1;
         int id = gl_VertexID;
         int end = id % 2;
-        int seg = (id / 2) % ${MAX_SEGMENTS};
-        int ray = id / ${2 * MAX_SEGMENTS};
+        int seg = (id / 2) % segments;
+        int ray = id / (2 * segments);
         v_energy = a_index * 0.0;
-        if (float(seg) > u_bounces) {
-          gl_Position = vec4(2.0, 2.0, 0.0, 1.0);
-          return;
-        }
 
         // 全周を光線の数で等分し、その区画の中でフレームごとに向きをずらす
         float angle = (float(ray) + rand(ray, 0)) / u_rays * TAU;
@@ -193,7 +191,7 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number) {
   let tuning: LightTuning = DEFAULT_LIGHT
   let size = {width: 1, height: 1}
   let lines: Vao | null = null
-  let lineRays = 0
+  let lineCount = 0
   let seed = 0
   let fresh = true
 
@@ -224,10 +222,10 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number) {
       u_specular: tuning.specular / 100,
       u_power: tuning.power
     })
-    // 頂点の数は光線の数で決まるので、変わったら作り直す
-    if (tuning.rays !== lineRays) {
-      lineRays = tuning.rays
-      const count = lineRays * MAX_SEGMENTS * 2
+    // 頂点の数は光線の数と跳ね返りの回数で決まるので、変わったら作り直す
+    const count = tuning.rays * (tuning.bounces + 1) * 2
+    if (count !== lineCount) {
+      lineCount = count
       lines = new Vao(core, {attributes: {a_index: new Float32Array(count) as unknown as number[]}})
     }
     layout()
