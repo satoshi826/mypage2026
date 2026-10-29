@@ -5,7 +5,7 @@ import {DEFAULT_LIGHT, type LightTuning} from './tuning'
 // 光源から出た光線が mu のロゴに当たって跳ね返る様子を、光線の通った線を重ねて描く（2D の光の経路追跡）。
 // 光そのものは描かず、光線の線の重なりの明るさで光を見せる。ロゴに遮られたところは影になる。
 // ロゴは部屋（ページの中の要素）の中央に置き、部屋の左・右・下の辺は光を返す壁にできる（wall）。壁で跳ね返った光が
-// ロゴを横や下からも照らす。部屋の上は開いていて、部屋の外へ出た光線はそこで終わる。部屋はスクロールで上がってくるので、
+// ロゴを横や下からも照らす。ロゴはばらばらの向きに散らして返し、壁は鏡にできる（wallSpecular）。部屋の上は開いていて、部屋の外へ出た光線はそこで終わる。部屋はスクロールで上がってくるので、
 // 部屋がまだ画面の下にあるうちは、壁で返る光はほとんど届かない。
 //
 // 速さのための作り:
@@ -49,7 +49,7 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number) {
       u_bounces: 'float',
       u_albedo: 'float',
       u_wall: 'float',
-      u_specular: 'float',
+      u_wallSpecular: 'float',
       u_power: 'float',
       u_seed: 'float',
       u_room: 'vec4',
@@ -147,7 +147,7 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number) {
             energy = 0.0;
             break;
           }
-          if (rand(ray, s * 2 + 1) < u_specular) {
+          if (hit == 2 && rand(ray, s * 2 + 1) < u_wallSpecular) {
             dir = reflect(dir, normal);
           } else {
             // ばらばらの向きに散る。面の向きに近いほど多く返す（2D の完全拡散）
@@ -234,7 +234,7 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number) {
       u_bounces: tuning.bounces,
       u_albedo: tuning.albedo / 100,
       u_wall: tuning.wall / 100,
-      u_specular: tuning.specular / 100
+      u_wallSpecular: tuning.wallSpecular / 100
     })
     // 頂点の数は光線の数と跳ね返りの回数で決まるので、変わったら作り直す
     const count = tuning.rays * (tuning.bounces + 1) * 2
