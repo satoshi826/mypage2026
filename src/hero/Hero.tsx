@@ -17,7 +17,7 @@ import {
 import {ControlPanel} from './ControlPanel'
 import {progressLines, setPlayer} from './playback'
 import {DevPanel} from '../app/DevPanel'
-import {RISE_RATIO, gatherOf, lightOf, riseOf, type Stage} from '../app/stage'
+import {RISE_RATIO, lightOf, riseOf, type Stage} from '../app/stage'
 import {
   LAYOUT_PARAMS,
   LAYOUT_PRESETS,
@@ -46,7 +46,7 @@ const timingOf = ({cycleSeconds, dwellRatio}: Tuning): Timing => ({cycleSeconds,
 
 /**
  * @param photos hero 用の派生画像の URL。空では呼ばない
- * @param stage トップの舞台。進み具合に合わせて写真を上げてから粒子を写真の中央へ集める。上がる距離と集まる点を書き込む
+ * @param stage トップの舞台。スクロールに合わせて写真を上げ、上がりきったら粒子を写真の中央へ集める。上がる距離と集まる点を書き込む
  */
 export function Hero({photos: PHOTOS, stage}: {photos: string[]; stage: {current: Stage}}) {
   const sectionRef = useRef<HTMLElement | null>(null)
@@ -135,10 +135,10 @@ export function Hero({photos: PHOTOS, stage}: {photos: string[]; stage: {current
 
       const command: Command = {}
 
-      // 写真とカレンダーは、まずスクロールと一緒に上がる。上がりきってから粒子が集まり、カレンダーは薄れる。
+      // 写真とカレンダーは、まずスクロールと一緒に上がる。上がりきると粒子が集まり（時間で進む）、カレンダーは薄れる。
       // 集まった点は、光がつくのと入れ替わりに消える。消えきったら写真は見えないので、時計も干渉も止める
       const rise = riseOf(stage.current) * innerHeight
-      const gather = gatherOf(stage.current)
+      const {gather} = stage.current
       const fade = lightOf(stage.current)
       const shown = fade < 1
       if (rise !== lastRise.current) {

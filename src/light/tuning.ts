@@ -36,8 +36,8 @@ export const DEFAULT_LIGHT: LightTuning = {
   power: 30,
   keep: 70,
   resolution: 50,
-  lightY: 18,
-  logoY: 62,
+  lightY: 40,
+  logoY: 64,
   cell: 16
 }
 

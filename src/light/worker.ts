@@ -17,6 +17,9 @@ import {DEFAULT_LIGHT, type LightTuning} from './tuning'
 /** 1 本の光線が描く線分の数の上限（光源からの 1 本 + 跳ね返り 8 回）。tuning.ts の跳ね返りの上限と合わせる */
 const MAX_SEGMENTS = 9
 
+/** 光が行き先へ追いつく速さ。残りの距離が 1/e になるまでの秒数 */
+const FOLLOW_SECONDS = 0.25
+
 const HALF_FLOAT = [['RGBA16F', 'RGBA', 'HALF_FLOAT', 'LINEAR', 'CLAMP_TO_EDGE']] as const
 
 function createScene(canvas: OffscreenCanvas, pixelRatio: number) {
@@ -195,6 +198,8 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number) {
   let lineCount = 0
   let seed = 0
   let fresh = true
+  /** 今の光の位置。消えているあいだは null */
+  let light: {x: number; y: number} | null = null
 
   const layout = () => {
     const {width, height} = size
@@ -230,22 +235,26 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number) {
     layout()
   }
 
-  const draw = ({source, travel, intensity}: LightFrame) => {
+  const draw = ({source, travel, intensity, dt}: LightFrame) => {
     if (!lines) return
     // 消えているあいだは何も描かない。前の結果も捨て、次につくときはそのフレームだけで描き始める
     if (intensity <= 0) {
       screen.clear()
       fresh = true
+      light = null
       return
     }
+    // 光は出てくる点でつき、スクロールで決まる行き先へ遅れて追いつく。行き先へ直接置くと、
+    // 粒子が集まりきる前にスクロールが進んでいたとき、出てくる点から跳んで現れる
     const {width, height} = size
-    const t = 1 - (1 - travel) ** 3
+    const target = {
+      x: source.x + (width / 2 - source.x) * travel,
+      y: source.y + ((height * tuning.lightY) / 100 - source.y) * travel
+    }
+    const rate = 1 - Math.exp(-dt / FOLLOW_SECONDS)
+    light = light ? {x: light.x + (target.x - light.x) * rate, y: light.y + (target.y - light.y) * rate} : {...source}
     seed = (seed + 1) % 1_000_000
-    rays.setUniform({
-      u_seed: seed,
-      u_power: tuning.power * intensity,
-      u_light: [source.x + (width / 2 - source.x) * t, source.y + ((height * tuning.lightY) / 100 - source.y) * t]
-    })
+    rays.setUniform({u_seed: seed, u_power: tuning.power * intensity, u_light: [light.x, light.y]})
 
     frameLayer.clear()
     core.blend('ADDITIVE')
@@ -290,10 +299,12 @@ export type LightCommand = {
 export type LightFrame = {
   /** 光が出てくる点（hero の粒子が集まる点）。canvas の左上からの px */
   source: {x: number; y: number}
-  /** 出てくる点から、ロゴを照らす位置（tuning の lightY）へ移った割合 */
+  /** 出てくる点から、ロゴを照らす位置（tuning の lightY）へ移った割合。光はこの位置へ遅れて追いつく */
   travel: number
   /** 強さの割合。0 なら消す */
   intensity: number
+  /** 前のフレームからの秒数 */
+  dt: number
 }
 
 let scene: ReturnType<typeof createScene> | null = null

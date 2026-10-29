@@ -2,7 +2,7 @@ import {useEffect, useRef, useState} from 'preact/hooks'
 import {NAME} from '../routes'
 import {heroesOf, heroSrc, usePhotos} from '../../photos'
 import {onScrollFrame} from '../scrollFrame'
-import {STAGE_SCREENS, type Stage} from '../stage'
+import {STAGE_SCREENS, advanceGather, type Stage} from '../stage'
 import {Tabs} from '../Tabs'
 
 type HeroComponent = typeof import('../../hero/Hero').Hero
@@ -54,7 +54,7 @@ export function Top() {
       </div>
       <div style={{height: `${STAGE_SCREENS * 100}svh`}} />
       {/* 導線。舞台の上を下から上がってきて、ロゴの下で止まる */}
-      <div className="relative flex h-[100svh] justify-center pt-[78svh]">
+      <div className="relative flex h-[100svh] justify-center pt-[82svh]">
         <div className="h-12">
           <Tabs items={LINKS} />
         </div>
@@ -69,16 +69,29 @@ const LINKS = [
   {href: '/contact', label: 'Contact', current: false}
 ]
 
-/** 舞台の進み具合（スクロール量を画面の高さで割った値）を、hero と光の段が毎フレーム読む state に書く */
+/**
+ * 舞台の state。hero と光の段が毎フレーム読む。進み具合（スクロール量を画面の高さで割った値）はスクロールのたびに書き、
+ * 粒子が集まった割合は時間で進める
+ */
 function useStage() {
-  const state = useRef<Stage>({progress: 0, rise: 0, source: {x: 0, y: 0}})
+  const state = useRef<Stage>({progress: 0, rise: Infinity, gather: 0, source: {x: 0, y: 0}})
   useEffect(() => {
     const current = state.current
     const measure = () => {
       current.progress = scrollY / innerHeight
     }
     measure()
-    return onScrollFrame(measure)
+    const stop = onScrollFrame(measure)
+    let last = performance.now()
+    let frame = requestAnimationFrame(function tick(now) {
+      advanceGather(current, Math.min((now - last) / 1000, 0.1))
+      last = now
+      frame = requestAnimationFrame(tick)
+    })
+    return () => {
+      stop()
+      cancelAnimationFrame(frame)
+    }
   }, [])
   return state
 }
