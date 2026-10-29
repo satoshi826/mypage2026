@@ -24,7 +24,7 @@ export type Stage = {
 export const lightAt = ({width, height}: {width: number; height: number}) => ({x: width / 2, y: height * 0.2})
 
 /** 写真が上がる距離。写真の高さに対する割合 */
-export const RISE_RATIO = 0.4
+export const RISE_RATIO = 0.3
 
 /** 粒子が集まりきるまで（ほどけきるまで）の秒数 */
 const GATHER_SECONDS = 1.6
