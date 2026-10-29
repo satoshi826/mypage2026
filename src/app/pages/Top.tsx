@@ -2,7 +2,7 @@ import {useEffect, useRef, useState} from 'preact/hooks'
 import {NAME} from '../routes'
 import {heroesOf, heroSrc, usePhotos} from '../../photos'
 import {onScrollFrame} from '../scrollFrame'
-import {STAGE_SCREENS, advanceGather, type Stage} from '../stage'
+import {SCENE_SCREENS, advanceGather, type Stage} from '../stage'
 import {Tabs} from '../Tabs'
 
 type HeroComponent = typeof import('../../hero/Hero').Hero
@@ -37,26 +37,31 @@ export function Top() {
   const photos = usePhotos()
   const heroPhotos = photos ? heroesOf(photos).map(heroSrc) : []
   const stage = useStage()
+  const logo = useRef<HTMLDivElement>(null)
 
   return (
     <div className="relative">
       <h1 className="sr-only">{NAME}</h1>
-      {/* 舞台。hero と光の段を重ねて画面に貼りつけ、スクロールで場面を進める（src/app/stage.ts）。
+      {/* 舞台。hero と光の層を重ねて画面に貼りつけ、スクロールで場面を進める（src/app/stage.ts）。
           プリレンダの HTML から先に 1 画面ぶん空けておく。hero は JS が動いてから差し込まれる */}
       <div className="sticky top-0 h-[100svh] overflow-hidden">
-        {/* hero と光の段は読み込んだ 1 つの部品で、描くたびに作り直すものではない */}
+        {/* hero と光の層は読み込んだ 1 つの部品で、描くたびに作り直すものではない */}
         {/* oxlint-disable-next-line react/static-components */}
-        {Light && <Light stage={stage} />}
+        {Light && <Light stage={stage} logo={logo} />}
         {/* hero は起動時に写真をまとめて読み込むので、並びが変わったら作り直す（編集で hero を選び直したとき。
             訪問者には起きない） */}
         {/* oxlint-disable-next-line react/static-components */}
         {Hero && heroPhotos.length > 0 && <Hero key={heroPhotos.join()} photos={heroPhotos} stage={stage} />}
       </div>
-      <div style={{height: `${STAGE_SCREENS * 100}svh`}} />
-      {/* 導線。舞台の上を下から上がってきて、ロゴの下で止まる */}
-      <div className="relative flex h-[100svh] justify-center pt-[82svh]">
-        <div className="h-12">
-          <Tabs items={LINKS} />
+      {/* ロゴと導線の段。ふつうのページの中身として舞台の上を下から上がってきて、ページの一番下で画面に収まる。
+          ロゴは光の層が描き、ここには置き場所（中心の点）だけを置く。舞台に重ねて始め、一番下までのスクロールを
+          SCENE_SCREENS にする */}
+      <div className="pointer-events-none relative h-[100svh]" style={{marginTop: `${(SCENE_SCREENS - 1) * 100}svh`}}>
+        <div ref={logo} className="absolute top-[64%] left-1/2" />
+        <div className="absolute inset-x-0 top-[82%] flex justify-center">
+          <div className="pointer-events-auto h-12">
+            <Tabs items={LINKS} />
+          </div>
         </div>
       </div>
     </div>

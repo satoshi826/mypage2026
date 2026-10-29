@@ -1,15 +1,22 @@
 import {useEffect, useRef, useState} from 'preact/hooks'
 import {DevPanel} from '../app/DevPanel'
-import {lightOf, travelOf, type Stage} from '../app/stage'
+import {brightnessOf, type Stage} from '../app/stage'
 import {useAnimationFrame, useCanvas, useCanvasResize} from '../hero/useCanvas'
 import {DEFAULT_LIGHT, LIGHT_PARAMS, type LightTuning} from './tuning'
 import Worker from './worker?worker'
 
+/** 光がついてから、ロゴの上の自分の位置へ下りきるまでの秒数 */
+const SETTLE_SECONDS = 0.9
+
 /**
- * トップの舞台で、光が mu のロゴを照らす層（試し）。hero の後ろに画面いっぱいに重ねる。描くのは worker（worker.ts）で、
- * ここは大きさと調整値と、舞台の進み具合から決まる光の状態を渡す。光がついているあいだだけ毎フレーム描かせる
+ * トップの舞台で、光が mu のロゴを照らす層（試し）。hero の後ろに画面いっぱいに重ねる。描くのは worker（worker.ts）。
+ *
+ * ロゴの位置はページの中の要素（logo）から取る。ロゴと光はその要素と一緒に、ページの中身としてスクロールで上がってくる。
+ * 光は粒子が集まった点（stage の source）でつき、時間をかけてロゴの上の自分の位置へ下りる。下りきったあとはロゴと一緒に動く
+ *
+ * @param logo ロゴを置く場所の要素。大きさは問わず、中心にロゴを描く
  */
-export function Light({stage}: {stage: {readonly current: Stage}}) {
+export function Light({stage, logo}: {stage: {readonly current: Stage}; logo: {readonly current: HTMLElement | null}}) {
   const {canvas, post, ref} = useCanvas(Worker)
   useCanvasResize(post, ref)
   const [tuning, setTuning] = useState(DEFAULT_LIGHT)
@@ -20,17 +27,25 @@ export function Light({stage}: {stage: {readonly current: Stage}}) {
     post({tuning: {...tuning, rays: coarse ? Math.max(256, tuning.rays / 2) : tuning.rays}})
   }, [post, tuning])
 
-  // 消えたフレームも 1 回は送り、画面から光を消させる
-  const lit = useRef(false)
-  const last = useRef(0)
+  // 光がついた時刻。消えているあいだは null。消えたフレームも 1 回は送り、画面から光を消させる
+  const litAt = useRef<number | null>(null)
   useAnimationFrame(() => {
+    const brightness = brightnessOf(stage.current)
+    const box = logo.current?.getBoundingClientRect()
+    if (brightness <= 0 || !box) {
+      if (litAt.current !== null) post({frame: {light: {x: 0, y: 0}, logo: {x: 0, y: 0}, brightness: 0}})
+      litAt.current = null
+      return
+    }
     const now = performance.now()
-    const dt = Math.min((now - (last.current || now)) / 1000, 0.1)
-    last.current = now
-    const intensity = lightOf(stage.current)
-    if (intensity <= 0 && !lit.current) return
-    lit.current = intensity > 0
-    post({frame: {source: stage.current.source, travel: travelOf(stage.current), intensity, dt}})
+    litAt.current ??= now
+    const center = {x: box.left + box.width / 2, y: box.top + box.height / 2}
+    const home = {x: center.x, y: center.y - tuning.lightHeight}
+    const {source} = stage.current
+    const t = Math.min(1, (now - litAt.current) / 1000 / SETTLE_SECONDS)
+    const settle = 1 - (1 - t) ** 3
+    const light = {x: source.x + (home.x - source.x) * settle, y: source.y + (home.y - source.y) * settle}
+    post({frame: {light, logo: center, brightness}})
   })
 
   return (

@@ -11,14 +11,12 @@ import {DEFAULT_LIGHT, type LightTuning} from './tuning'
 // - ロゴは長方形 7 つ（logo.ts）なので、光線との交わりを式で直接求める。少しずつ進めて当たりを探さない
 // - 光線の経路は線を描く頂点シェーダの中で求める。頂点 1 つが「何本目の光線の、何回目の跳ね返りの、始点か終点か」
 //   を受け持ち、その点までの経路を自分で計算する。経路を一度テクスチャに書き出す段を挟まない
-// - 光線の向きは全周を等分した区画の中で毎フレームずらし、前のフレームの結果と混ぜて、光線のすき間をならす
+// - 光線の向きは全周を等分した区画の中で毎フレームずらし、前のフレームの結果と混ぜて、光線のすき間をならす。
+//   ロゴと光はスクロールで動くので、前のフレームの結果はロゴが動いたぶんずらしてから混ぜる（跡を引かない）
 // - 光をためる層は画面より粗い解像度（resolution）で持ち、画面へはなめらかに拡大する
 
 /** 1 本の光線が描く線分の数の上限（光源からの 1 本 + 跳ね返り 8 回）。tuning.ts の跳ね返りの上限と合わせる */
 const MAX_SEGMENTS = 9
-
-/** 光が行き先へ追いつく速さ。残りの距離が 1/e になるまでの秒数 */
-const FOLLOW_SECONDS = 0.25
 
 const HALF_FLOAT = [['RGBA16F', 'RGBA', 'HALF_FLOAT', 'LINEAR', 'CLAMP_TO_EDGE']] as const
 
@@ -167,14 +165,14 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number) {
   const blend = new Program(core, {
     id: 'blend',
     attributeTypes: {a_position: 'vec2', a_textureCoord: 'vec2'},
-    uniformTypes: {u_keep: 'float'},
+    uniformTypes: {u_keep: 'float', u_shift: 'vec2'},
     texture: {t_prev: acc[0].renderTexture[0], t_frame: frameLayer.renderTexture[0]},
     vert: quadVert,
     frag: /* glsl */ `
       in vec2 v_uv;
       out vec4 o_color;
       void main() {
-        o_color = vec4(mix(texture(t_frame, v_uv).rgb, texture(t_prev, v_uv).rgb, u_keep), 1.0);
+        o_color = vec4(mix(texture(t_frame, v_uv).rgb, texture(t_prev, v_uv + u_shift).rgb, u_keep), 1.0);
       }`
   })
   // 画面へ。たまった光の量を明るさに直し、白い光として地の上に重ねる（プリマルチプライド）
@@ -198,19 +196,12 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number) {
   let lineCount = 0
   let seed = 0
   let fresh = true
-  /** 今の光の位置。消えているあいだは null */
-  let light: {x: number; y: number} | null = null
+  /** 前のフレームのロゴの左上。前の結果をずらす量を出す */
+  let lastLogo = {x: 0, y: 0}
 
   const layout = () => {
     const {width, height} = size
-    const unit = tuning.cell / 2
-    // 画素にそろえる
-    const left = Math.round(width / 2 - (LOGO_WIDTH * unit) / 2)
-    const top = Math.round((height * tuning.logoY) / 100 - (LOGO_HEIGHT * unit) / 2)
-    rays.setUniform({
-      u_size: [width, height],
-      u_rects: LOGO_RECTS.flatMap(([l, t, r, b]) => [left + l * unit, top + t * unit, left + r * unit, top + b * unit])
-    })
+    rays.setUniform({u_size: [width, height]})
     const scale = pixelRatio * (tuning.resolution / 100)
     for (const r of [frameLayer, ...acc]) r.resize({width, height, pixelRatio: scale})
     screen.resize({width, height, pixelRatio})
@@ -235,26 +226,28 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number) {
     layout()
   }
 
-  const draw = ({source, travel, intensity, dt}: LightFrame) => {
+  const draw = ({light, logo, brightness}: LightFrame) => {
     if (!lines) return
     // 消えているあいだは何も描かない。前の結果も捨て、次につくときはそのフレームだけで描き始める
-    if (intensity <= 0) {
+    if (brightness <= 0) {
       screen.clear()
       fresh = true
-      light = null
       return
     }
-    // 光は出てくる点でつき、スクロールで決まる行き先へ遅れて追いつく。行き先へ直接置くと、
-    // 粒子が集まりきる前にスクロールが進んでいたとき、出てくる点から跳んで現れる
+    // ロゴは画素にそろえる
+    const unit = tuning.cell / 2
+    const left = Math.round(logo.x - (LOGO_WIDTH * unit) / 2)
+    const top = Math.round(logo.y - (LOGO_HEIGHT * unit) / 2)
     const {width, height} = size
-    const target = {
-      x: source.x + (width / 2 - source.x) * travel,
-      y: source.y + ((height * tuning.lightY) / 100 - source.y) * travel
-    }
-    const rate = 1 - Math.exp(-dt / FOLLOW_SECONDS)
-    light = light ? {x: light.x + (target.x - light.x) * rate, y: light.y + (target.y - light.y) * rate} : {...source}
+    blend.setUniform({u_shift: [-(left - lastLogo.x) / width, (top - lastLogo.y) / height]})
+    lastLogo = {x: left, y: top}
     seed = (seed + 1) % 1_000_000
-    rays.setUniform({u_seed: seed, u_power: tuning.power * intensity, u_light: [light.x, light.y]})
+    rays.setUniform({
+      u_seed: seed,
+      u_power: tuning.power * brightness,
+      u_light: [light.x, light.y],
+      u_rects: LOGO_RECTS.flatMap(([l, t, r, b]) => [left + l * unit, top + t * unit, left + r * unit, top + b * unit])
+    })
 
     frameLayer.clear()
     core.blend('ADDITIVE')
@@ -295,16 +288,13 @@ export type LightCommand = {
   frame?: LightFrame
 }
 
-/** 1 フレームぶんの光の状態 */
+/** 1 フレームぶんの光の状態。位置はどれも canvas の左上からの px */
 export type LightFrame = {
-  /** 光が出てくる点（hero の粒子が集まる点）。canvas の左上からの px */
-  source: {x: number; y: number}
-  /** 出てくる点から、ロゴを照らす位置（tuning の lightY）へ移った割合。光はこの位置へ遅れて追いつく */
-  travel: number
-  /** 強さの割合。0 なら消す */
-  intensity: number
-  /** 前のフレームからの秒数 */
-  dt: number
+  light: {x: number; y: number}
+  /** ロゴの中心 */
+  logo: {x: number; y: number}
+  /** 光の明るさの割合。0 なら消す */
+  brightness: number
 }
 
 let scene: ReturnType<typeof createScene> | null = null
