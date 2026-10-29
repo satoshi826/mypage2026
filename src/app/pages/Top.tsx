@@ -64,7 +64,11 @@ export function Top() {
         className="pointer-events-none relative h-[100svh]"
         style={{marginTop: `${(SCENE_SCREENS - 1) * 100}svh`}}
       >
-        <div className="absolute inset-x-0 flex justify-center" style={{top: `${placement.links}%`}}>
+        {/* 導線の高さ（h-12）の半分だけ上げて、中心を links の位置に置く。左に寄せるときはナビと同じ左の余白にそろえる */}
+        <div
+          className={`absolute inset-x-0 flex px-8 max-sm:px-5 ${placement.align === 'left' ? 'justify-start' : 'justify-center'}`}
+          style={{top: `calc(${placement.links}% - 24px)`}}
+        >
           <div className="pointer-events-auto h-12">
             <Tabs items={LINKS} />
           </div>
@@ -87,14 +91,19 @@ export function Top() {
 
 /** ロゴと導線の段の中の配置。ロゴは段の中央に置く */
 type Placement = {
-  /** 導線の上端。段の上端からの %（段は一番下までスクロールすると画面にちょうど収まる） */
+  /** 導線の中心の高さ。段の上端からの %（段は一番下までスクロールすると画面にちょうど収まる） */
   links: number
+  /** 導線を左に寄せるか、中央に置くか */
+  align: (typeof ALIGNS)[number]
 }
 
-const PLACEMENT: Placement = {links: 68}
+const ALIGNS = ['left', 'center'] as const
+
+const PLACEMENT: Placement = {links: 50, align: 'left'}
 
 const PLACEMENT_PARAMS: Param<Placement>[] = [
-  {key: 'links', label: '導線の高さ', min: 50, max: 95, step: 1, hint: '%。段（最後の画面）の上端から'}
+  {key: 'links', label: '導線の高さ', min: 5, max: 95, step: 1, hint: '%。中心の位置。段（最後の画面）の上端から'},
+  {key: 'align', label: '導線の横の位置', options: ALIGNS, hint: 'left はナビと同じ左の余白に寄せる'}
 ]
 
 const LINKS = [
