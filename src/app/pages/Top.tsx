@@ -3,7 +3,7 @@ import {NAME} from '../routes'
 import {heroesOf, heroSrc, usePhotos} from '../../photos'
 import {onScrollFrame} from '../scrollFrame'
 import {SCENE_SCREENS, advanceGather, type Stage} from '../stage'
-import {Tabs} from '../Tabs'
+import {TabLink, Tabs} from '../Tabs'
 import {DevPanel, type Param} from '../DevPanel'
 
 type HeroComponent = typeof import('../../hero/Hero').Hero
@@ -39,8 +39,11 @@ export function Top() {
   const heroPhotos = photos ? heroesOf(photos).map(heroSrc) : []
   const stage = useStage()
   const room = useRef<HTMLDivElement>(null)
-  // 開発用パネルで触っているあいだだけ上書きする
-  const [placement, setPlacement] = useState(PLACEMENT)
+  // 導線の置き方は、幅の狭い画面（スマホ）と広い画面で別に決める。開発用パネルで触っているあいだだけ上書きする
+  const narrow = useNarrow()
+  const preset = narrow ? NARROW_PLACEMENT : WIDE_PLACEMENT
+  const [override, setOverride] = useState<Placement | null>(null)
+  const placement = override ?? preset
 
   return (
     <div className="relative">
@@ -64,25 +67,42 @@ export function Top() {
         className="pointer-events-none relative h-[100svh]"
         style={{marginTop: `${(SCENE_SCREENS - 1) * 100}svh`}}
       >
-        {/* 導線の高さ（h-12）の半分だけ上げて、中心を links の位置に置く。左に寄せるときはナビと同じ左の余白にそろえる */}
+        {/* 導線の高さの半分だけ上げて、中心を links の位置に置く（translate は使わない。半画素にかかって文字がにじむ）。
+            左右に寄せるときはナビと同じ余白にそろえる */}
         <div
-          className={`absolute inset-x-0 flex px-8 max-sm:px-5 ${placement.align === 'left' ? 'justify-start' : 'justify-center'}`}
-          style={{top: `calc(${placement.links}% - 24px)`}}
+          className={`absolute inset-x-0 flex px-8 max-sm:px-5 ${JUSTIFY[placement.align]}`}
+          style={{
+            top: `calc(${placement.links}% - ${(placement.direction === 'row' ? ROW_HEIGHT : LINKS.length * ROW_HEIGHT) / 2}px)`
+          }}
         >
-          <div className="pointer-events-auto h-12">
-            <Tabs items={LINKS} />
-          </div>
+          {placement.direction === 'row' ? (
+            <div className="pointer-events-auto" style={{height: `${ROW_HEIGHT}px`}}>
+              <Tabs items={LINKS} />
+            </div>
+          ) : (
+            // 縦に並べるときは、寄せた側に文字の端をそろえる。文字の大きさと字間は Tabs と同じ
+            <div
+              className={`pointer-events-auto flex flex-col text-sm tracking-[0.12em] max-sm:text-xs ${ITEMS[placement.align]}`}
+            >
+              {LINKS.map((link) => (
+                <div key={link.href} className="flex" style={{height: `${ROW_HEIGHT}px`}}>
+                  <TabLink {...link} />
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
       {import.meta.env.DEV && (
         <DevPanel<Placement>
-          title="ロゴの段の配置"
+          key={narrow ? 'narrow' : 'wide'}
+          title={narrow ? 'ロゴの段の配置（スマホ）' : 'ロゴの段の配置（PC）'}
           typeName="Placement"
-          constName="PLACEMENT"
+          constName={narrow ? 'NARROW_PLACEMENT' : 'WIDE_PLACEMENT'}
           params={PLACEMENT_PARAMS}
-          defaults={PLACEMENT}
-          storageKey="mypage2026.placement"
-          onChange={setPlacement}
+          defaults={preset}
+          storageKey={`mypage2026.placement.${narrow ? 'narrow' : 'wide'}`}
+          onChange={setOverride}
         />
       )}
     </div>
@@ -93,18 +113,41 @@ export function Top() {
 type Placement = {
   /** 導線の中心の高さ。段の上端からの %（段は一番下までスクロールすると画面にちょうど収まる） */
   links: number
-  /** 導線を左に寄せるか、中央に置くか */
+  /** 導線を左右どちらに寄せるか、中央に置くか */
   align: (typeof ALIGNS)[number]
+  /** 導線を横に並べるか、縦に並べるか */
+  direction: (typeof DIRECTIONS)[number]
 }
 
-const ALIGNS = ['left', 'center'] as const
+const ALIGNS = ['left', 'center', 'right'] as const
+const DIRECTIONS = ['row', 'column'] as const
+const JUSTIFY = {left: 'justify-start', center: 'justify-center', right: 'justify-end'}
+const ITEMS = {left: 'items-start', center: 'items-center', right: 'items-end'}
 
-const PLACEMENT: Placement = {links: 50, align: 'left'}
+/** 導線 1 行（横並びなら全体）の高さ px */
+const ROW_HEIGHT = 48
+
+const WIDE_PLACEMENT: Placement = {links: 50, align: 'left', direction: 'row'}
+const NARROW_PLACEMENT: Placement = {links: 78, align: 'right', direction: 'column'}
 
 const PLACEMENT_PARAMS: Param<Placement>[] = [
   {key: 'links', label: '導線の高さ', min: 5, max: 95, step: 1, hint: '%。中心の位置。段（最後の画面）の上端から'},
-  {key: 'align', label: '導線の横の位置', options: ALIGNS, hint: 'left はナビと同じ左の余白に寄せる'}
+  {key: 'align', label: '導線の横の位置', options: ALIGNS, hint: '左右はナビと同じ余白に寄せる'},
+  {key: 'direction', label: '導線の並べ方', options: DIRECTIONS, hint: 'row は横、column は縦'}
 ]
+
+/** 幅の狭い画面（Tailwind の sm 未満）か。プリレンダでは広い画面として描き、ブラウザで測り直す */
+function useNarrow() {
+  const [narrow, setNarrow] = useState(false)
+  useEffect(() => {
+    const media = matchMedia('(max-width: 639px)')
+    const update = () => setNarrow(media.matches)
+    update()
+    media.addEventListener('change', update)
+    return () => media.removeEventListener('change', update)
+  }, [])
+  return narrow
+}
 
 const LINKS = [
   {href: '/photos/street', label: 'Photos', current: false},

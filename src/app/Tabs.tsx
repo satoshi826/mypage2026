@@ -15,7 +15,7 @@ export type Tab = {href: string; label: string; current: boolean}
  * 光もホバーが一番明るく、選んでいる状態はその一段下。
  * 光は下線が滑るのと同じ長さでにじみ、引いていく
  */
-function TabLink({href, label, current}: Tab) {
+export function TabLink({href, label, current}: Tab) {
   return (
     <Link
       href={href}
