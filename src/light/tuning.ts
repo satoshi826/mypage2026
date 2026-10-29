@@ -57,7 +57,15 @@ export const LIGHT_PARAMS: Param<LightTuning>[] = [
   {group: '光線', key: 'wall', label: '壁が返す割合', min: 0, max: 100, step: 5, hint: '%。部屋の左右と床。0 で壁なし'},
   {group: '光線', key: 'wallSpecular', label: '壁の鏡の割合', min: 0, max: 100, step: 5, hint: '%'},
   {group: '見え方', key: 'power', label: '強さ', min: 0.5, max: 200, step: 0.5, hint: ''},
-  {group: '見え方', key: 'lightSize', label: '光源の大きさ', min: 0, max: 200, step: 5, hint: 'px。半径。大きいほど影がぼける'},
+  {
+    group: '見え方',
+    key: 'lightSize',
+    label: '光源の大きさ',
+    min: 0,
+    max: 200,
+    step: 5,
+    hint: 'px。半径。大きいほど影がぼける'
+  },
   {group: '棒の光', key: 'barShare', label: '光線の割合', min: 0, max: 90, step: 5, hint: '%。棒に回す光線'},
   {group: '棒の光', key: 'barPower', label: '強さ', min: 0, max: 200, step: 0.5, hint: ''},
   {group: '棒の光', key: 'barWidth', label: '長さ', min: 0, max: 1200, step: 10, hint: 'px'},

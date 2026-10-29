@@ -364,10 +364,11 @@ export function Hero({photos: PHOTOS, stage}: {photos: string[]; stage: {current
           </div>
         )}
       </div>
-      {/* カレンダーはスクロールで上へ流れ、粒子が集まり始めると薄れて消える。位置と --gather（粒子が集まった割合）は毎フレーム書く */}
+      {/* カレンダーはスクロールで上へ流れ、粒子が集まるあいだ（集まりきるまで）をかけてゆっくり薄れて消える。
+          位置と --gather（粒子が集まった割合）は毎フレーム書く */}
       <div
         ref={calendarRef}
-        className={`shrink-0 opacity-[clamp(0,calc(1-var(--gather,0)*2.5),1)] ${visible ? '' : 'pointer-events-none'}`}
+        className={`shrink-0 opacity-[calc(1-var(--gather,0))] ${visible ? '' : 'pointer-events-none'}`}
       >
         <ControlPanel
           count={PHOTOS.length}
