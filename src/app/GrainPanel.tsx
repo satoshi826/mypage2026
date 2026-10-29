@@ -6,7 +6,7 @@ import {GRAIN_KINDS, renderGrain, type GrainKind} from './grain'
 type Grain = {ground: number; kind: string; amount: number}
 
 /** 既定値。styles.css の --color-ground と grain.ts の KIND・AMOUNT と同じ値。決まったら両方を書き換える */
-const DEFAULT_GRAIN: Grain = {ground: 20, kind: 'gauss', amount: 25}
+const DEFAULT_GRAIN: Grain = {ground: 18, kind: 'gauss', amount: 40}
 
 const PARAMS: Param<Grain>[] = [
   {key: 'ground', label: '地の明るさ', min: 0, max: 48, step: 1, hint: '0〜255 の灰色'},

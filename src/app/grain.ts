@@ -35,7 +35,7 @@ export type GrainKind = (typeof GRAIN_KINDS)[number]
 
 /** 本番で使う種類と濃さ（0〜1。1 で、重ねたときの揺れが下の明るさの ±40%（1 標準偏差）） */
 const KIND: GrainKind = 'gauss'
-const AMOUNT = 0.25
+const AMOUNT = 0.4
 
 export function startGrain() {
   const idle = window.requestIdleCallback ?? ((run: () => void) => setTimeout(run, 200))
