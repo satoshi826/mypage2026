@@ -39,7 +39,7 @@ export const DEFAULT_LIGHT: LightTuning = {
   rays: 4096,
   bounces: 3,
   albedo: 70,
-  wall: 50,
+  wall: 0,
   wallSpecular: 0,
   power: 20,
   lightSize: 25,
