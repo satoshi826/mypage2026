@@ -2,16 +2,24 @@ import {useEffect, useRef, useState} from 'preact/hooks'
 import {DevPanel} from '../app/DevPanel'
 import {lightAt, lightOf, type Stage} from '../app/stage'
 import {useAnimationFrame, useCanvas, useCanvasResize} from '../hero/useCanvas'
+import {LOGO_HEIGHT} from './logo'
 import {DEFAULT_LIGHT, LIGHT_PARAMS, type LightTuning} from './tuning'
 import Worker from './worker?worker'
 
 /** 光が集まった点でついてから、光の位置へ着くまでの秒数（集まった点が光の位置と違うときだけ動く） */
 const SETTLE_SECONDS = 0.9
 
+/** ついた直後の光の明るさ。最大に対する割合。スクロールでロゴが近づくと最大になる */
+const DIM = 0.3
+
+/** 光が最大の明るさになるまでのスクロールの長さ。ロゴの上端が画面の下端に届く手前の、画面の高さ単位 */
+const BRIGHTEN_SCREENS = 0.8
+
 /**
  * トップの舞台で、光が mu のロゴを照らす層（試し）。hero の後ろに画面いっぱいに重ねる。描くのは worker（worker.ts）。
  *
- * 光は画面に固定した位置（lightAt）にあり、粒子が集まった点（stage の source）でつく。部屋の床の上には上向きの棒の光があり、
+ * 光は画面に固定した位置（lightAt）にあり、粒子が集まった点（stage の source）でつく。ついた直後は暗く、スクロールでロゴが
+ * 近づくにつれて明るくなり、ロゴが画面に入る前に最大になる。部屋の床の上には上向きの棒の光があり、
  * 部屋が画面の下端に近づくと光り始める。ロゴを置く部屋はページの中の要素
  * （room）で、その要素と一緒に、ページの中身としてスクロールで上がってきて光の下に入る
  *
@@ -31,9 +39,9 @@ export function Light({stage, room}: {stage: {readonly current: Stage}; room: {r
   // 光がついた時刻。消えているあいだは null。消えたフレームも 1 回は送り、画面から光を消させる
   const litAt = useRef<number | null>(null)
   useAnimationFrame(() => {
-    const brightness = lightOf(stage.current)
+    const arrived = lightOf(stage.current)
     const box = room.current?.getBoundingClientRect()
-    if (brightness <= 0 || !box) {
+    if (arrived <= 0 || !box) {
       if (litAt.current !== null)
         post({frame: {light: {x: 0, y: 0}, room: box ?? new DOMRect(), brightness: 0, bar: 0}})
       litAt.current = null
@@ -46,10 +54,12 @@ export function Light({stage, room}: {stage: {readonly current: Stage}; room: {r
     const t = Math.min(1, (now - litAt.current) / 1000 / SETTLE_SECONDS)
     const settle = 1 - (1 - t) ** 3
     const light = {x: source.x + (home.x - source.x) * settle, y: source.y + (home.y - source.y) * settle}
-    // 棒の光は、部屋の床が画面の下端の半画面下まで来たところから光り始め、下端に着くと最大になる
+    // 光は、ロゴの上端（部屋の中央からロゴの高さの半分上）が画面の下端に届くところで最大になる
     const height = ref.current?.clientHeight ?? 0
-    const near = Math.min(1, Math.max(0, 1 - (box.bottom - height) / (height / 2)))
-    const bar = near * near * (3 - 2 * near)
+    const logoTop = (box.top + box.bottom) / 2 - (LOGO_HEIGHT * tuning.cell) / 4
+    const brightness = arrived * (DIM + (1 - DIM) * ease(1 - (logoTop - height) / (height * BRIGHTEN_SCREENS)))
+    // 棒の光は、部屋の床が画面の下端の半画面下まで来たところから光り始め、下端に着くと最大になる
+    const bar = ease(1 - (box.bottom - height) / (height / 2))
     post({frame: {light, room: {left: box.left, top: box.top, right: box.right, bottom: box.bottom}, brightness, bar}})
   })
 
@@ -69,4 +79,10 @@ export function Light({stage, room}: {stage: {readonly current: Stage}; room: {r
       )}
     </div>
   )
+}
+
+/** 0〜1 に収めて、両端をなめらかにする */
+function ease(v: number) {
+  const t = Math.min(1, Math.max(0, v))
+  return t * t * (3 - 2 * t)
 }
