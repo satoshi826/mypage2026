@@ -2,8 +2,6 @@ import type {Param} from '../app/DevPanel'
 
 // 光とロゴの調整値。worker の既定値と開発用パネルの両方がここを使う
 
-export const BAR_SHAPES = ['bar', 'spot'] as const
-
 export type LightTuning = {
   /** 光源から出す光線の数（スマホは半分） */
   rays: number
@@ -27,22 +25,18 @@ export type LightTuning = {
    * 上に開いた切り込み（右寄り）に光が入る
    */
   logoShift: number
-  /** 床の上の棒の光（上向き）に回す光線の割合 %。下に開いたロゴの切り込みを照らす */
-  barShare: number
-  /** 棒の光の強さ */
-  barPower: number
-  /** 下の光の形。bar は横長の棒の全体から上向きに出す。spot は棒の中央の点から上向きの円錐に出す */
-  barShape: (typeof BAR_SHAPES)[number]
-  /** 棒の長さ px（bar のとき） */
-  barWidth: number
-  /** スポットの光源の半径 px（spot のとき） */
-  barSize: number
-  /** スポットの光の広がり。ロゴの中心を向く向きから左右にこの角度（度）まで出し、その向きが一番明るく、この角度で 0 になる（spot のとき） */
-  barCone: number
-  /** スポットの横のずれ。ロゴの中心から px。負で左。下に開いた 2 本の切り込み（左寄り）の真下に置く（spot のとき） */
-  barShift: number
-  /** 棒の高さ。床から上へ px */
-  barHeight: number
+  /** 部屋の床の上に置く下の光（ロゴの中心を向くスポット）に回す光線の割合 %。下に開いたロゴの切り込みを照らす */
+  underShare: number
+  /** 下の光の強さ */
+  underPower: number
+  /** 下の光の光源の半径 px */
+  underSize: number
+  /** 下の光の広がり。ロゴの中心を向く向きから左右にこの角度（度）まで出し、その向きが一番明るく、この角度で 0 になる */
+  underCone: number
+  /** 下の光の横の位置。ロゴの中心から px。負で左。下に開いた 2 本の切り込み（左寄り）の真下に置く */
+  underShift: number
+  /** 下の光の高さ。床から上へ px */
+  underHeight: number
   /** 前のフレームの結果を残す割合 %。光線のすき間をならす */
   keep: number
   /** 光をためる層の解像度。画面の画素に対する % */
@@ -60,14 +54,12 @@ export const DEFAULT_LIGHT: LightTuning = {
   cone: 61,
   keep: 70,
   resolution: 100,
-  barShare: 50,
-  barPower: 54.5,
-  barShape: 'spot',
-  barWidth: 600,
-  barSize: 2,
-  barShift: -90,
-  barCone: 29,
-  barHeight: 80,
+  underShare: 50,
+  underPower: 54.5,
+  underSize: 2,
+  underShift: -90,
+  underCone: 29,
+  underHeight: 80,
   logoShift: -90,
   lightDrop: 0,
   cell: 12
@@ -98,36 +90,28 @@ export const LIGHT_PARAMS: Param<LightTuning>[] = [
   },
   {group: '見え方', key: 'keep', label: '残す割合', min: 0, max: 95, step: 5, hint: '%。前のフレーム'},
   {group: '見え方', key: 'resolution', label: '解像度', min: 25, max: 100, step: 25, hint: '%。光をためる層'},
-  {group: '棒の光', key: 'barShare', label: '光線の割合', min: 0, max: 90, step: 5, hint: '%。棒に回す光線'},
-  {group: '棒の光', key: 'barPower', label: '強さ', min: 0, max: 200, step: 0.5, hint: ''},
+  {group: '下の光', key: 'underShare', label: '光線の割合', min: 0, max: 90, step: 5, hint: '%。下の光に回す光線'},
+  {group: '下の光', key: 'underPower', label: '強さ', min: 0, max: 200, step: 0.5, hint: ''},
+  {group: '下の光', key: 'underSize', label: '光源の大きさ', min: 0, max: 100, step: 1, hint: 'px。半径'},
   {
-    group: '棒の光',
-    key: 'barShape',
-    label: '形',
-    options: BAR_SHAPES,
-    hint: 'bar は横長の棒、spot は点から上向きの円錐'
-  },
-  {group: '棒の光', key: 'barWidth', label: '長さ', min: 0, max: 1200, step: 10, hint: 'px。bar のとき'},
-  {group: '棒の光', key: 'barSize', label: '光源の大きさ', min: 0, max: 100, step: 1, hint: 'px。半径。spot のとき'},
-  {
-    group: '棒の光',
-    key: 'barShift',
-    label: '横のずれ',
-    min: -400,
-    max: 400,
-    step: 10,
-    hint: 'px。ロゴの中心から。負で左。spot のとき'
-  },
-  {
-    group: '棒の光',
-    key: 'barCone',
+    group: '下の光',
+    key: 'underCone',
     label: '光の広がり',
     min: 5,
     max: 90,
     step: 1,
-    hint: '度。ロゴを向く向きから左右に。spot のとき'
+    hint: '度。ロゴを向く向きから左右に'
   },
-  {group: '棒の光', key: 'barHeight', label: '高さ', min: 0, max: 400, step: 10, hint: 'px。床から上へ'},
+  {
+    group: '下の光',
+    key: 'underShift',
+    label: '横のずれ',
+    min: -400,
+    max: 400,
+    step: 10,
+    hint: 'px。ロゴの中心から。負で左'
+  },
+  {group: '下の光', key: 'underHeight', label: '高さ', min: 0, max: 400, step: 10, hint: 'px。床から上へ'},
   {
     group: '配置',
     key: 'logoShift',

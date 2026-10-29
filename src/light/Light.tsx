@@ -23,7 +23,7 @@ const FOCUS_AFTER_SCREENS = 0.5
  *
  * 光は画面の上の位置（lightAt）にあり、粒子が集まった点（stage の source）でつく。そこからページの一番下までスクロールする
  * あいだに、少しずつ下がる（lightDrop）。少しスクロールしてからは、全周に広がる光から下向きの光に絞られていく（cone）。ついた直後は暗く、スクロールでロゴが
- * 近づくにつれて明るくなり、ロゴが画面に入る前に最大になる。部屋の床の上には上向きの棒の光があり、
+ * 近づくにつれて明るくなり、ロゴが画面に入る前に最大になる。部屋の床の上には上向きの下の光があり、
  * 部屋が画面の下端に近づくと光り始める。ロゴを置く部屋はページの中の要素
  * （room）で、その要素と一緒に、ページの中身としてスクロールで上がってきて光の下に入る
  *
@@ -47,7 +47,7 @@ export function Light({stage, room}: {stage: {readonly current: Stage}; room: {r
     const box = room.current?.getBoundingClientRect()
     if (arrived <= 0 || !box) {
       if (litAt.current !== null)
-        post({frame: {light: {x: 0, y: 0}, room: box ?? new DOMRect(), brightness: 0, bar: 0, focus: 0}})
+        post({frame: {light: {x: 0, y: 0}, room: box ?? new DOMRect(), brightness: 0, under: 0, focus: 0}})
       litAt.current = null
       return
     }
@@ -66,14 +66,14 @@ export function Light({stage, room}: {stage: {readonly current: Stage}; room: {r
     // 光は、ロゴの上端（部屋の中央からロゴの高さの半分上）が画面の下端に届くところで最大になる
     const logoTop = (box.top + box.bottom) / 2 - (LOGO_HEIGHT * tuning.cell) / 4
     const brightness = arrived * (DIM + (1 - DIM) * ease(1 - (logoTop - height) / (height * BRIGHTEN_SCREENS)))
-    // 棒の光は、部屋の床が画面の下端の半画面下まで来たところから光り始め、下端に着くと最大になる
-    const bar = ease(1 - (box.bottom - height) / (height / 2))
+    // 下の光は、部屋の床が画面の下端の半画面下まで来たところから光り始め、下端に着くと最大になる
+    const under = ease(1 - (box.bottom - height) / (height / 2))
     post({
       frame: {
         light,
         room: {left: box.left, top: box.top, right: box.right, bottom: box.bottom},
         brightness,
-        bar,
+        under,
         focus
       }
     })
