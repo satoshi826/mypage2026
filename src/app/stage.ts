@@ -30,7 +30,7 @@ export const RISE_RATIO = 0.4
 const GATHER_SECONDS = 1.6
 
 /** ページの一番下までのスクロールの長さ。画面の高さ単位。ロゴと導線の段は、ここで画面にちょうど収まる */
-export const SCENE_SCREENS = 1.2
+export const SCENE_SCREENS = 1.4
 
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v))
 const smooth = (from: number, to: number, v: number) => {
