@@ -62,6 +62,8 @@ export function Hero({photos: PHOTOS, stage}: {photos: string[]; stage: {current
   // 上がる前の写真の枠（画面の上の位置）。粒子が出入りする点を、写真の上がり具合によらず画面の上の同じ位置に保つのに使う
   const frameBox = useRef<{left: number; top: number; width: number; height: number} | null>(null)
   const lastGather = useRef(0)
+  // カレンダーの濃さ（0〜1）
+  const calendarShown = useRef(1)
   // フッターの再生操作を出し、写真を触れるようにするか。粒子が集まり始めて写真が崩れたら下げる
   const [visible, setVisible] = useState(true)
   const velocity = useRef({x: 0, y: 0})
@@ -166,10 +168,18 @@ export function Hero({photos: PHOTOS, stage}: {photos: string[]; stage: {current
         lastScrolled.current = scrolled
         calendarRef.current?.style.setProperty('translate', `0 ${-scrolled}px`)
       }
+      // カレンダーは、粒子が集まるあいだをかけてゆっくり薄れ、ほどけ始めたら（スクロールを戻したら）粒子を待たずに早く現れる
+      const calendar =
+        gather > lastGather.current || gather === 1
+          ? Math.min(calendarShown.current, 1 - gather)
+          : Math.min(1, calendarShown.current + delta / CALENDAR_APPEAR_SECONDS)
+      if (calendar !== calendarShown.current) {
+        calendarShown.current = calendar
+        calendarRef.current?.style.setProperty('opacity', String(calendar))
+      }
       if (gather !== lastGather.current) {
         lastGather.current = gather
         command.gather = gather
-        sectionRef.current?.style.setProperty('--gather', String(gather))
         setVisible(gather < CONTROLS_SHOWN)
       }
 
@@ -364,12 +374,9 @@ export function Hero({photos: PHOTOS, stage}: {photos: string[]; stage: {current
           </div>
         )}
       </div>
-      {/* カレンダーはスクロールで上へ流れ、粒子が集まるあいだ（集まりきるまで）をかけてゆっくり薄れて消える。
-          位置と --gather（粒子が集まった割合）は毎フレーム書く */}
-      <div
-        ref={calendarRef}
-        className={`shrink-0 opacity-[calc(1-var(--gather,0))] ${visible ? '' : 'pointer-events-none'}`}
-      >
+      {/* カレンダーはスクロールで上へ流れ、粒子が集まるあいだをかけてゆっくり薄れ、ほどけるときは早く現れる。
+          位置と濃さは毎フレーム書く */}
+      <div ref={calendarRef} className={`shrink-0 ${visible ? '' : 'pointer-events-none'}`}>
         <ControlPanel
           count={PHOTOS.length}
           available={available}
@@ -433,6 +440,9 @@ const TAP_MS = 300
 
 /** フッターの再生操作を出しておく、粒子が集まった割合の上限 */
 const CONTROLS_SHOWN = 0.4
+
+/** 粒子がほどけ始めてから、カレンダーが現れきるまでの秒数 */
+const CALENDAR_APPEAR_SECONDS = 0.5
 
 /** 使える領域から、パネルに取られるぶんを引いて、3:2 を保った最大の枠を出す。幅は MAX_PHOTO_WIDTH まで */
 function fitPhoto({width, height}: {width: number; height: number}, takenX: number) {
