@@ -17,6 +17,7 @@ import {
 import {ControlPanel} from './ControlPanel'
 import {progressLines, setPlayer} from './playback'
 import {DevPanel} from '../app/DevPanel'
+import {gatherOf, lightOf, type Stage} from '../app/stage'
 import {
   LAYOUT_PARAMS,
   LAYOUT_PRESETS,
@@ -43,8 +44,11 @@ import Worker from './worker?worker'
 
 const timingOf = ({cycleSeconds, dwellRatio}: Tuning): Timing => ({cycleSeconds, dwellRatio})
 
-/** @param photos hero 用の派生画像の URL。空では呼ばない */
-export function Hero({photos: PHOTOS}: {photos: string[]}) {
+/**
+ * @param photos hero 用の派生画像の URL。空では呼ばない
+ * @param stage トップの舞台。進み具合に合わせて粒子を写真の中央へ集め、集まる点（写真の中央）を書き込む
+ */
+export function Hero({photos: PHOTOS, stage}: {photos: string[]; stage: {current: Stage}}) {
   const sectionRef = useRef<HTMLElement | null>(null)
   const frameRef = useRef<HTMLDivElement>(null)
   const stateRef = useRef<SequenceState>(initialState())
@@ -52,8 +56,9 @@ export function Hero({photos: PHOTOS}: {photos: string[]}) {
   const interactionRef = useRef<Interaction>(DEFAULT_INTERACTION)
   const lastFrame = useRef<Frame>({from: -1, to: -1, phase: -1})
   const lastTime = useRef(0)
-  const visibleRef = useRef(true)
-  // フッターの再生操作を出すか。写真がある程度見えているあいだだけ出す
+  const lastGather = useRef(0)
+  const lastFade = useRef(0)
+  // フッターの再生操作を出し、写真を触れるようにするか。粒子が集まり始めて写真が崩れたら下げる
   const [visible, setVisible] = useState(true)
   const velocity = useRef({x: 0, y: 0})
   const settling = useRef(0)
@@ -105,29 +110,6 @@ export function Hero({photos: PHOTOS}: {photos: string[]}) {
     post({photos: PHOTOS})
   }, [post, PHOTOS])
 
-  // 固定のナビとフッターに隠れているだけの範囲は、どちらの判定でも画面外とみなす。トップの一番下まで
-  // スクロールすると hero の下端がちょうど画面の上端に接し、接しているだけでも交差と判定されるため
-  useEffect(() => {
-    const section = sectionRef.current
-    const frame = frameRef.current
-    if (!section || !frame) return
-    const bar = (selector: string) => document.querySelector(selector)?.getBoundingClientRect().height ?? 0
-    const rootMargin = `-${bar('nav')}px 0px -${bar('footer')}px 0px`
-    // 画面外では時計を止める。下のセクションを読んでいる間 GPU を回す意味がない
-    const clock = new IntersectionObserver(([entry]) => (visibleRef.current = entry.isIntersecting), {rootMargin})
-    // 再生操作は、写真の 6 割が隠れたところで下げる。読み進めている人の視界に操作を残さない
-    const controls = new IntersectionObserver(([entry]) => setVisible(entry.intersectionRatio >= CONTROLS_SHOWN), {
-      rootMargin,
-      threshold: CONTROLS_SHOWN
-    })
-    clock.observe(section)
-    controls.observe(frame)
-    return () => {
-      clock.disconnect()
-      controls.disconnect()
-    }
-  }, [])
-
   const applyTuning = useCallback(
     (tuning: Tuning) => {
       timingRef.current = timingOf(tuning)
@@ -150,17 +132,33 @@ export function Hero({photos: PHOTOS}: {photos: string[]}) {
       const delta = Math.min((now - (lastTime.current || now)) / 1000, 0.1) // タブ復帰時の巨大な差分は捨てる
       lastTime.current = now
 
+      const command: Command = {}
+
+      // 集まった点は、光がつくのと入れ替わりに消える。消えきったら写真は見えないので、時計も干渉も止める
+      const {progress: stageProgress} = stage.current
+      const gather = gatherOf(stageProgress)
+      const fade = lightOf(stageProgress)
+      const shown = fade < 1
+      if (gather !== lastGather.current) {
+        lastGather.current = gather
+        command.gather = gather
+        setVisible(gather < CONTROLS_SHOWN)
+      }
+      if (fade !== lastFade.current) {
+        lastFade.current = fade
+        frameRef.current?.style.setProperty('opacity', String(1 - fade))
+      }
+
       const timing = timingRef.current
-      if (visibleRef.current) {
-        if (autoplay) {
+      if (shown) {
+        // 集まり始めたら次の写真へは進めない。自動再生を切ったときと同じく、進行中の遷移は完走させる
+        if (autoplay && gather === 0) {
           stateRef.current = advance(stateRef.current, delta, order, timing)
         } else {
-          // 自動再生を切っても進行中の遷移は完走させる
           stateRef.current = settle(stateRef.current, delta, timing)
         }
       }
 
-      const command: Command = {}
       const {attack, release, returnSeconds, stopBelow} = interactionRef.current
 
       const {from, to, phase: linear} = frameOf(stateRef.current, timing)
@@ -198,20 +196,20 @@ export function Hero({photos: PHOTOS}: {photos: string[]}) {
 
       // 力が消えてもズレはバネで戻り続けるので、戻りきるまでは更新を回す。
       // ここで打ち切ると写真が歪んだまま固まる
-      // 画面外では更新しない。stopBelow が 0 のときは止まらない設定なので、
-      // ここで切らないと下のセクションを読んでいるあいだも GPU が回り続ける。
+      // 集まりきっているあいだは更新しない。stopBelow が 0 のときは止まらない設定なので、
+      // ここで切らないと光の段を見ているあいだも GPU が回り続ける。
       // 残り時間は減らさずに保つので、戻ってきたときに続きから戻りきる
       const speed = Math.abs(current.x) + Math.abs(current.y)
-      const forced = visibleRef.current && (stopBelow <= 0 || speed > stopBelow)
-      if (visibleRef.current) {
+      const forced = shown && (stopBelow <= 0 || speed > stopBelow)
+      if (shown) {
         settling.current = forced ? (release + returnSeconds) * 4 : Math.max(0, settling.current - delta)
       }
-      if (forced || (visibleRef.current && settling.current > 0)) {
+      if (forced || (shown && settling.current > 0)) {
         command.pointer = {x: p.x, y: p.y, vx: current.x, vy: current.y}
         command.step = delta
       }
 
-      if (command.render || command.pointer || command.catchUp) post(command)
+      if (command.render || command.pointer || command.catchUp || command.gather !== undefined) post(command)
       // 進み具合も帯の境目も、プログレスの一番外側に CSS 変数として書く。
       // 中の3枚（遷移帯・静止帯・通過ぶん）はそれを継承して描き分ける
       // 停止中は遷移が終わった地点で止める。バーは次の遷移までの待ち時間なので、
@@ -226,7 +224,7 @@ export function Hero({photos: PHOTOS}: {photos: string[]}) {
         bar.style.setProperty('--progress', String(progress))
         bar.style.setProperty('--morph', `${morph * 100}%`)
       }
-    }, [autoplay, order, post, reduced, takePointer])
+    }, [autoplay, order, post, reduced, stage, takePointer])
   )
 
   // 行き先が変わったフレームは worker 側で位置の飛びを打ち消す（番号のクリック）
@@ -286,6 +284,12 @@ export function Hero({photos: PHOTOS}: {photos: string[]}) {
   // 縦並びのパネルは写真と同じ幅に広げる。マスが上限に達したらそこで止める
   const panel = direction === 'side' ? panelWidth(layout) : Math.min(photo.width, panelWidth(layout))
 
+  // 粒子が集まる点（写真の中央）を舞台へ書く。舞台は画面に貼りついているので、画面の上の位置がそのまま舞台の上の位置
+  useLayoutEffect(() => {
+    const rect = frameRef.current?.getBoundingClientRect()
+    if (rect) stage.current.source = {x: rect.left + rect.width / 2, y: rect.top + rect.height / 2}
+  }, [stage, photo.width, photo.height, panel, direction, content])
+
   return (
     <section
       ref={sectionRef}
@@ -301,7 +305,7 @@ export function Hero({photos: PHOTOS}: {photos: string[]}) {
           pointercancel で干渉が切れてしまうため */}
       <div
         ref={frameRef}
-        className="relative flex shrink-0 touch-none"
+        className={`relative flex shrink-0 touch-none ${visible ? '' : 'pointer-events-none'}`}
         style={{width: `${photo.width}px`, height: `${photo.height}px`}}
         onPointerDown={onPointerDown}
         onPointerUp={onPointerUp}
@@ -322,16 +326,21 @@ export function Hero({photos: PHOTOS}: {photos: string[]}) {
           </div>
         )}
       </div>
-      <ControlPanel
-        count={PHOTOS.length}
-        available={available}
-        seen={seen}
-        index={index}
-        layout={layout}
-        tone={tone}
-        width={panel}
-        onSelect={(target) => go(jumpTo(stateRef.current, target, order, timingRef.current))}
-      />
+      {/* カレンダーは粒子が集まり始めると薄れて消える。舞台の --stage（進み具合）で決める */}
+      <div
+        className={`shrink-0 opacity-[clamp(0,calc(1-var(--stage,0)*2.5),1)] ${visible ? '' : 'pointer-events-none'}`}
+      >
+        <ControlPanel
+          count={PHOTOS.length}
+          available={available}
+          seen={seen}
+          index={index}
+          layout={layout}
+          tone={tone}
+          width={panel}
+          onSelect={(target) => go(jumpTo(stateRef.current, target, order, timingRef.current))}
+        />
+      </div>
       {import.meta.env.DEV && (
         <>
           <DevPanel
@@ -382,7 +391,7 @@ export function Hero({photos: PHOTOS}: {photos: string[]}) {
 const TAP_MOVE = 5
 const TAP_MS = 300
 
-/** フッターの再生操作を出しておく、写真の見えている割合の下限 */
+/** フッターの再生操作を出しておく、粒子が集まった割合の上限 */
 const CONTROLS_SHOWN = 0.4
 
 /** 使える領域から、パネルに取られるぶんを引いて、3:2 を保った最大の枠を出す。幅は MAX_PHOTO_WIDTH まで */

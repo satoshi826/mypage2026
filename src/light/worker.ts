@@ -4,7 +4,8 @@ import {DEFAULT_LIGHT, type LightTuning} from './tuning'
 
 // 光源から出た光線が mu のロゴに当たって跳ね返る様子を、光線の通った線を重ねて描く（2D の光の経路追跡）。
 // 光そのものは描かず、光線の線の重なりの明るさで光を見せる。ロゴに遮られたところは影になる。
-// 画面の端は光を返す壁にでき（wall）、壁で跳ね返った光がロゴを横や下からも照らす。
+// 画面の左右と下の端は光を返す壁にでき（wall）、壁で跳ね返った光がロゴを横や下からも照らす。上の端は光を返さない。
+// 上は hero の写真があった空間で、上の端で返すと、光の空間に天井が見えてしまう。
 //
 // 速さのための作り:
 // - ロゴは長方形 7 つ（logo.ts）なので、光線との交わりを式で直接求める。少しずつ進めて当たりを探さない
@@ -120,8 +121,8 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number) {
             b = next;
             break;
           }
-          // 壁に当たった光線は、壁が光を返さないならそこで終わる
-          float albedo = solid ? u_albedo : u_wall;
+          // 壁に当たった光線は、壁が光を返さないならそこで終わる。上の端（面の向きが下）は返さない
+          float albedo = solid ? u_albedo : normal.y > 0.5 ? 0.0 : u_wall;
           if (albedo <= 0.0) {
             energy = 0.0;
             break;
@@ -203,7 +204,6 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number) {
     const top = Math.round((height * tuning.logoY) / 100 - (LOGO_HEIGHT * unit) / 2)
     rays.setUniform({
       u_size: [width, height],
-      u_light: [width / 2, (height * tuning.lightY) / 100],
       u_rects: LOGO_RECTS.flatMap(([l, t, r, b]) => [left + l * unit, top + t * unit, left + r * unit, top + b * unit])
     })
     const scale = pixelRatio * (tuning.resolution / 100)
@@ -219,8 +219,7 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number) {
       u_bounces: tuning.bounces,
       u_albedo: tuning.albedo / 100,
       u_wall: tuning.wall / 100,
-      u_specular: tuning.specular / 100,
-      u_power: tuning.power
+      u_specular: tuning.specular / 100
     })
     // 頂点の数は光線の数と跳ね返りの回数で決まるので、変わったら作り直す
     const count = tuning.rays * (tuning.bounces + 1) * 2
@@ -231,10 +230,22 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number) {
     layout()
   }
 
-  const draw = () => {
+  const draw = ({source, travel, intensity}: LightFrame) => {
     if (!lines) return
+    // 消えているあいだは何も描かない。前の結果も捨て、次につくときはそのフレームだけで描き始める
+    if (intensity <= 0) {
+      screen.clear()
+      fresh = true
+      return
+    }
+    const {width, height} = size
+    const t = 1 - (1 - travel) ** 3
     seed = (seed + 1) % 1_000_000
-    rays.setUniform({u_seed: seed})
+    rays.setUniform({
+      u_seed: seed,
+      u_power: tuning.power * intensity,
+      u_light: [source.x + (width / 2 - source.x) * t, source.y + ((height * tuning.lightY) / 100 - source.y) * t]
+    })
 
     frameLayer.clear()
     core.blend('ADDITIVE')
@@ -272,7 +283,17 @@ export type LightCommand = {
   resize?: {width: number; height: number}
   tuning?: LightTuning
   /** 1 フレーム描く */
-  frame?: boolean
+  frame?: LightFrame
+}
+
+/** 1 フレームぶんの光の状態 */
+export type LightFrame = {
+  /** 光が出てくる点（hero の粒子が集まる点）。canvas の左上からの px */
+  source: {x: number; y: number}
+  /** 出てくる点から、ロゴを照らす位置（tuning の lightY）へ移った割合 */
+  travel: number
+  /** 強さの割合。0 なら消す */
+  intensity: number
 }
 
 let scene: ReturnType<typeof createScene> | null = null
@@ -289,5 +310,5 @@ onmessage = ({data}: {data: LightCommand}) => {
   }
   if (data.tuning) scene.tune(data.tuning)
   if (data.resize) scene.resize(data.resize)
-  if (data.frame) scene.draw()
+  if (data.frame) scene.draw(data.frame)
 }
