@@ -123,7 +123,7 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number) {
         vec2 dir;
         float energy;
         if (float(ray) < u_barRays && u_barSpot > 0.5) {
-          // スポット: 棒の中央から u_barShift ずらした、半径 u_barSize の円の中から、ロゴの中心を向く円錐（中心の向きから
+          // スポット: 棒の中央（ロゴの真下）から u_barShift ずらした、半径 u_barSize の円の中から、ロゴの中心を向く円錐（中心の向きから
           // 左右に u_barCone）に出す。中心の向きが一番明るく、端に向かってなめらかに 0 になる（上の光を絞りきったときと同じ）
           vec2 center = vec2((u_bar.x + u_bar.z) * 0.5 + u_barShift, u_bar.y);
           vec2 aim = logoCenter() - center;
@@ -278,9 +278,10 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number) {
       fresh = true
       return
     }
-    // ロゴは部屋の中央に、画素にそろえて置く
+    // ロゴは部屋の中央から logoShift ずらして、画素にそろえて置く
     const unit = tuning.cell / 2
-    const left = Math.round((room.left + room.right) / 2 - (LOGO_WIDTH * unit) / 2)
+    const logoX = (room.left + room.right) / 2 + tuning.logoShift
+    const left = Math.round(logoX - (LOGO_WIDTH * unit) / 2)
     const top = Math.round((room.top + room.bottom) / 2 - (LOGO_HEIGHT * unit) / 2)
     const {width, height} = size
     blend.setUniform({u_shift: [-(light.x - lastLight.x) / width, (light.y - lastLight.y) / height]})
@@ -291,13 +292,8 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number) {
       u_power: tuning.power * brightness,
       u_light: [light.x, light.y],
       u_focus: focus,
-      // 棒は部屋の下の中央に置く。消えているあいだは光線を回さない
-      u_bar: [
-        (room.left + room.right - tuning.barWidth) / 2,
-        room.bottom - tuning.barHeight,
-        (room.left + room.right + tuning.barWidth) / 2,
-        0
-      ],
+      // 棒は部屋の下の、ロゴの真下に置く。消えているあいだは光線を回さない
+      u_bar: [logoX - tuning.barWidth / 2, room.bottom - tuning.barHeight, logoX + tuning.barWidth / 2, 0],
       u_barRays: bar > 0 ? Math.round((tuning.rays * tuning.barShare) / 100) : 0,
       u_barPower: tuning.barPower * bar,
       u_rects: LOGO_RECTS.flatMap(([l, t, r, b]) => [left + l * unit, top + t * unit, left + r * unit, top + b * unit])

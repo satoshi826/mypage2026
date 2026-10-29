@@ -60,7 +60,8 @@ export function Top() {
         {Hero && heroPhotos.length > 0 && <Hero key={heroPhotos.join()} photos={heroPhotos} stage={stage} />}
       </div>
       {/* ロゴと導線の段。ふつうのページの中身として舞台の上を下から上がってきて、ページの一番下で画面に収まる。
-          段は光の層にとっての部屋で、段の中央にロゴを、床の上に棒の光を描く。舞台に重ねて始め、
+          段は光の層にとっての部屋で、光の層が段の中央から左へずらしてロゴを描き（光とロゴのパネルの logoShift）、
+          その真下の床の上に下の光を置く。導線は右に置く。舞台に重ねて始め、
           一番下までのスクロールを SCENE_SCREENS にする */}
       <div
         ref={room}
@@ -109,7 +110,7 @@ export function Top() {
   )
 }
 
-/** ロゴと導線の段の中の配置。ロゴは段の中央に置く */
+/** 導線の段の中の配置。ロゴの位置は光の層が決める（光とロゴのパネル） */
 type Placement = {
   /** 導線の中心の高さ。段の上端からの %（段は一番下までスクロールすると画面にちょうど収まる） */
   links: number
@@ -127,7 +128,7 @@ const ITEMS = {left: 'items-start', center: 'items-center', right: 'items-end'}
 /** 導線 1 行（横並びなら全体）の高さ px */
 const ROW_HEIGHT = 48
 
-const WIDE_PLACEMENT: Placement = {links: 50, align: 'left', direction: 'row'}
+const WIDE_PLACEMENT: Placement = {links: 50, align: 'right', direction: 'row'}
 const NARROW_PLACEMENT: Placement = {links: 78, align: 'right', direction: 'column'}
 
 const PLACEMENT_PARAMS: Param<Placement>[] = [

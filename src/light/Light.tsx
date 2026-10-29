@@ -22,12 +22,12 @@ const FOCUS_AFTER_SCREENS = 0.5
  * トップの舞台で、光が mu のロゴを照らす層（試し）。hero の後ろに画面いっぱいに重ねる。描くのは worker（worker.ts）。
  *
  * 光は画面の上の位置（lightAt）にあり、粒子が集まった点（stage の source）でつく。そこからページの一番下までスクロールする
- * あいだに、少しずつ下がり、横へずれる（lightDrop、lightShift）。少しスクロールしてからは、全周に広がる光から下向きの光に絞られていく（cone）。ついた直後は暗く、スクロールでロゴが
+ * あいだに、少しずつ下がる（lightDrop）。少しスクロールしてからは、全周に広がる光から下向きの光に絞られていく（cone）。ついた直後は暗く、スクロールでロゴが
  * 近づくにつれて明るくなり、ロゴが画面に入る前に最大になる。部屋の床の上には上向きの棒の光があり、
  * 部屋が画面の下端に近づくと光り始める。ロゴを置く部屋はページの中の要素
  * （room）で、その要素と一緒に、ページの中身としてスクロールで上がってきて光の下に入る
  *
- * @param room ロゴを置く部屋の要素。中央にロゴを描き、床の上に棒の光を置く
+ * @param room ロゴを置く部屋の要素。中央（から logoShift ずらした位置）にロゴを描き、その真下の床の上に下の光を置く
  */
 export function Light({stage, room}: {stage: {readonly current: Stage}; room: {readonly current: HTMLElement | null}}) {
   const {canvas, post, ref} = useCanvas(Worker)
@@ -56,10 +56,10 @@ export function Light({stage, room}: {stage: {readonly current: Stage}; room: {r
     const height = ref.current?.clientHeight ?? 0
     const {source, progress, rise} = stage.current
     const top = lightAt({width: ref.current?.clientWidth ?? 0, height})
-    // 光がついてからページの一番下までスクロールした割合。光はこれに合わせて下がり、横へずれる。下向きに絞るのは少しあとから
+    // 光がついてからページの一番下までスクロールした割合。光はこれに合わせて下がる。下向きに絞るのは少しあとから
     const scrolled = ease((progress - rise) / (SCENE_SCREENS - rise))
     const focus = ease((progress - rise - FOCUS_AFTER_SCREENS) / (SCENE_SCREENS - rise - FOCUS_AFTER_SCREENS))
-    const home = {x: top.x + tuning.lightShift * scrolled, y: top.y + ((height * tuning.lightDrop) / 100) * scrolled}
+    const home = {x: top.x, y: top.y + ((height * tuning.lightDrop) / 100) * scrolled}
     const t = Math.min(1, (now - litAt.current) / 1000 / SETTLE_SECONDS)
     const settle = 1 - (1 - t) ** 3
     const light = {x: source.x + (home.x - source.x) * settle, y: source.y + (home.y - source.y) * settle}

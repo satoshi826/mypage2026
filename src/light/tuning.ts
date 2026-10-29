@@ -22,8 +22,11 @@ export type LightTuning = {
   cone: number
   /** 光がついた位置から、ページの一番下までスクロールするあいだに光が下がる量。画面の高さに対する % */
   lightDrop: number
-  /** 同じあいだに光が横へずれる量 px。負で左。ずらすと、ロゴのその側の側面が照らされる */
-  lightShift: number
+  /**
+   * ロゴの横のずれ px。負で左。光は画面の中央にあるので、ロゴを左へずらすと光がロゴの右寄りの上に来て、
+   * 上に開いた切り込み（右寄り）に光が入る
+   */
+  logoShift: number
   /** 床の上の棒の光（上向き）に回す光線の割合 %。下に開いたロゴの切り込みを照らす */
   barShare: number
   /** 棒の光の強さ */
@@ -36,7 +39,7 @@ export type LightTuning = {
   barSize: number
   /** スポットの光の広がり。ロゴの中心を向く向きから左右にこの角度（度）まで出し、その向きが一番明るく、この角度で 0 になる（spot のとき） */
   barCone: number
-  /** スポットの横のずれ px。負で左（spot のとき） */
+  /** スポットの横のずれ。ロゴの中心から px。負で左。下に開いた 2 本の切り込み（左寄り）の真下に置く（spot のとき） */
   barShift: number
   /** 棒の高さ。床から上へ px */
   barHeight: number
@@ -65,7 +68,7 @@ export const DEFAULT_LIGHT: LightTuning = {
   barShift: -90,
   barCone: 29,
   barHeight: 80,
-  lightShift: 90,
+  logoShift: -90,
   lightDrop: 0,
   cell: 12
 }
@@ -106,7 +109,15 @@ export const LIGHT_PARAMS: Param<LightTuning>[] = [
   },
   {group: '棒の光', key: 'barWidth', label: '長さ', min: 0, max: 1200, step: 10, hint: 'px。bar のとき'},
   {group: '棒の光', key: 'barSize', label: '光源の大きさ', min: 0, max: 100, step: 1, hint: 'px。半径。spot のとき'},
-  {group: '棒の光', key: 'barShift', label: '横のずれ', min: -400, max: 400, step: 10, hint: 'px。負で左。spot のとき'},
+  {
+    group: '棒の光',
+    key: 'barShift',
+    label: '横のずれ',
+    min: -400,
+    max: 400,
+    step: 10,
+    hint: 'px。ロゴの中心から。負で左。spot のとき'
+  },
   {
     group: '棒の光',
     key: 'barCone',
@@ -119,12 +130,12 @@ export const LIGHT_PARAMS: Param<LightTuning>[] = [
   {group: '棒の光', key: 'barHeight', label: '高さ', min: 0, max: 400, step: 10, hint: 'px。床から上へ'},
   {
     group: '配置',
-    key: 'lightShift',
-    label: '光の横のずれ',
+    key: 'logoShift',
+    label: 'ロゴの横のずれ',
     min: -400,
     max: 400,
     step: 10,
-    hint: 'px。負で左。スクロールでずれる'
+    hint: 'px。負で左'
   },
   {
     group: '配置',
