@@ -19,8 +19,6 @@ export type LightTuning = {
   keep: number
   /** 光をためる層の解像度。画面の画素に対する % */
   resolution: number
-  /** 光源の高さ。ロゴの中心から上へ px */
-  lightHeight: number
   /** ロゴの格子 1 マスの大きさ px（ロゴは 12 マス × 11 マス） */
   cell: number
 }
@@ -34,7 +32,6 @@ export const DEFAULT_LIGHT: LightTuning = {
   power: 30,
   keep: 70,
   resolution: 50,
-  lightHeight: 240,
   cell: 16
 }
 
@@ -47,6 +44,5 @@ export const LIGHT_PARAMS: Param<LightTuning>[] = [
   {group: '見え方', key: 'power', label: '強さ', min: 0.5, max: 200, step: 0.5, hint: ''},
   {group: '見え方', key: 'keep', label: '残す割合', min: 0, max: 95, step: 5, hint: '%。前のフレーム'},
   {group: '見え方', key: 'resolution', label: '解像度', min: 25, max: 100, step: 25, hint: '%。光をためる層'},
-  {group: '配置', key: 'lightHeight', label: '光源の高さ', min: 0, max: 600, step: 10, hint: 'px。ロゴの中心から上へ'},
   {group: '配置', key: 'cell', label: 'ロゴの 1 マス', min: 4, max: 40, step: 1, hint: 'px'}
 ]

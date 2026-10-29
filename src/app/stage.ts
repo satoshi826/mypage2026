@@ -2,10 +2,9 @@
 // 進み具合はスクロール量を画面の高さで割った値（progress）で、Top が書き、hero と光の層が毎フレーム読む。
 //
 //   0 → rise        写真がスクロールと一緒に上がる（ふつうにスクロールしたように見せる）
-//   rise を越えた    粒子が写真の中央へ集まって白い点になり、入れ替わりに同じ点から光がつく。スクロール量によらず時間で進む。
-//                   rise より戻ると、時間でほどけて写真に戻る。光はついたあと、画面の下の方へ下りて待つ
-//   → SCENE_SCREENS  ロゴと導線が、ページの中身と同じくスクロールで上がってくる。光は上がってきたロゴの上の位置に合流し、
-//                   以降はロゴと一緒に上がる。光はスクロールに合わせて明るくなる
+//   rise を越えた    粒子が光の位置（lightAt。画面に固定）へ集まって白い点になり、入れ替わりに同じ点から光がつく。
+//                   スクロール量によらず時間で進む。rise より戻ると、時間でほどけて写真に戻る
+//   → SCENE_SCREENS  ロゴと導線が、ページの中身と同じくスクロールで上がってきて、光の下に入る
 
 export type Stage = {
   /** スクロール量を画面の高さで割った値 */
@@ -14,9 +13,15 @@ export type Stage = {
   rise: number
   /** 粒子が集まった割合。advanceGather が時間で進める */
   gather: number
-  /** 粒子が集まる点（上がりきった写真の中央）。画面の左上からの px。hero が写真の枠から決める */
+  /**
+   * 粒子が集まる点。画面の左上からの px。ふつうは光の位置と同じ。粒子は写真の外へは描けないので、光の位置が
+   * 上がりきった写真の外にあるときは、写真の中で一番近い点になる（光はそこでついて、光の位置へ移る）。hero が決める
+   */
   source: {x: number; y: number}
 }
+
+/** 光の位置。画面に固定する。舞台の大きさ（px）から決める。ロゴは最後に画面の中央に来る */
+export const lightAt = ({width, height}: {width: number; height: number}) => ({x: width / 2, y: height * 0.2})
 
 /** 写真が上がる距離。写真の高さに対する割合 */
 export const RISE_RATIO = 0.4
@@ -26,9 +31,6 @@ const GATHER_SECONDS = 1.6
 
 /** ページの一番下までのスクロールの長さ。画面の高さ単位。ロゴと導線の段は、ここで画面にちょうど収まる */
 export const SCENE_SCREENS = 1.2
-
-/** 光がついた直後の明るさ。スクロールで 1 まで上がる */
-const DIM = 0.15
 
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v))
 const smooth = (from: number, to: number, v: number) => {
@@ -47,7 +49,3 @@ export const riseOf = ({progress, rise}: Stage) => Math.min(progress, rise)
 
 /** 光がついている割合。粒子が集まりきる手前からつく。集まった点はこれと入れ替わりに消える */
 export const lightOf = ({gather}: Stage) => smooth(0.8, 1, gather)
-
-/** 光の明るさ。ついた直後は暗く、ページの一番下までスクロールすると 1 */
-export const brightnessOf = (stage: Stage) =>
-  lightOf(stage) * (DIM + (1 - DIM) * smooth(Math.min(stage.rise, SCENE_SCREENS / 2), SCENE_SCREENS, stage.progress))

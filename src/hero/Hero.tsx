@@ -17,7 +17,7 @@ import {
 import {ControlPanel} from './ControlPanel'
 import {progressLines, setPlayer} from './playback'
 import {DevPanel} from '../app/DevPanel'
-import {RISE_RATIO, lightOf, riseOf, type Stage} from '../app/stage'
+import {RISE_RATIO, lightAt, lightOf, riseOf, type Stage} from '../app/stage'
 import {
   LAYOUT_PARAMS,
   LAYOUT_PRESETS,
@@ -291,15 +291,22 @@ export function Hero({photos: PHOTOS, stage}: {photos: string[]; stage: {current
   // 縦並びのパネルは写真と同じ幅に広げる。マスが上限に達したらそこで止める
   const panel = direction === 'side' ? panelWidth(layout) : Math.min(photo.width, panelWidth(layout))
 
-  // 写真が上がる距離と、粒子が集まる点（上がりきった写真の中央）を舞台へ書く。舞台は画面に貼りついているので、画面の上の
-  // 位置がそのまま舞台の上の位置。測った位置には今上がっているぶんが入っているので、戻してから数える
+  // 写真が上がる距離と、粒子が集まる点を舞台へ書き、集まる点を worker へ渡す。集まる点は光の位置で、それが上がりきった
+  // 写真の外なら写真の中で一番近い点。舞台は画面に貼りついているので、画面の上の位置がそのまま舞台の上の位置。
+  // 測った位置には今上がっているぶんが入っているので、戻してから数える
   useLayoutEffect(() => {
+    const section = sectionRef.current
     const rect = frameRef.current?.getBoundingClientRect()
-    if (!rect) return
+    if (!section || !rect || rect.width <= 0) return
     const rise = photo.height * RISE_RATIO
+    const top = rect.top + lastRise.current - rise
+    const light = lightAt({width: section.clientWidth, height: section.clientHeight})
+    const x = Math.min(Math.max(light.x, rect.left), rect.right)
+    const y = Math.min(Math.max(light.y, top), top + rect.height)
     stage.current.rise = rise / innerHeight
-    stage.current.source = {x: rect.left + rect.width / 2, y: rect.top + lastRise.current + rect.height / 2 - rise}
-  }, [stage, photo.width, photo.height, panel, direction, content])
+    stage.current.source = {x, y}
+    post({gatherAt: [((x - rect.left) / rect.width) * 2 - 1, 1 - ((y - top) / rect.height) * 2]})
+  }, [stage, post, photo.width, photo.height, panel, direction, content])
 
   return (
     <section

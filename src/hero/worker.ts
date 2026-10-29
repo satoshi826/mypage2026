@@ -181,7 +181,8 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number, photos: string
       ...morphUniforms,
       u_fit: 'vec2',
       u_pointSize: 'float',
-      u_gather: 'float'
+      u_gather: 'float',
+      u_gatherAt: 'vec2'
     },
     texture: {t_table: table, t_state: state[0].renderTexture[0]},
     primitive: 'POINTS',
@@ -198,14 +199,14 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number, photos: string
         // 干渉によるズレ。更新パスが書いた値をそのまま足す
         vec2 offset = texelFetch(t_state, ivec2(k % ${grid.width}, k / ${grid.width}), 0).xy;
 
-        // 舞台を進めると、写真の中央へ集まりながら白くなり、1 つの白い点になる（光の段へ渡す）。
+        // 舞台を進めると、光の位置（u_gatherAt。canvas の NDC）へ集まりながら白くなり、1 つの白い点になる（光の層へ渡す）。
         // 写真を切り替えるときと同じく、明るい粒子ほど先に出発する
         float delay = (1.0 - lum) * ${GATHER_STAGGER.toFixed(2)};
         float gather = easeInOut(clamp((u_gather - delay) / ${(1 - GATHER_STAGGER).toFixed(2)}, 0.0, 1.0), 3.0);
 
         v_color = vec3(mix(lum, 1.0, gather));
 
-        gl_Position = vec4((pos + offset) * u_fit * (1.0 - gather), 0.0, 1.0);
+        gl_Position = vec4(mix((pos + offset) * u_fit, u_gatherAt, gather), 0.0, 1.0);
         gl_PointSize = u_pointSize;
       }`,
     frag: /* glsl */ `
@@ -427,7 +428,7 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number, photos: string
   applyTuning(DEFAULT_TUNING)
   applyInteraction(DEFAULT_INTERACTION)
   update.setUniform({u_prevFrom: 0, u_prevTo: 0, u_prevPhase: 0, u_catchUp: 0})
-  program.setUniform({u_gather: 0})
+  program.setUniform({u_gather: 0, u_gatherAt: [0, 0]})
   resize({width: core.canvasWidth, height: core.canvasHeight})
 
   return {
@@ -437,6 +438,7 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number, photos: string
     tune: applyTuning,
     interact: applyInteraction,
     gather: (amount: number) => program.setUniform({u_gather: amount}),
+    gatherAt: (point: [number, number]) => program.setUniform({u_gatherAt: point}),
     setPointer({x, y, vx, vy}: PointerCommand) {
       update.setUniform({u_pointer: [x / fit[0], y / fit[1]], u_pointerVelocity: [vx / fit[0], vy / fit[1]]})
     },
@@ -469,8 +471,10 @@ export type Command = {
   catchUp?: boolean
   /** 干渉を進める秒数。入っているフレームだけ状態を更新する */
   step?: number
-  /** 粒子が写真の中央へ集まった割合（舞台の進み具合。src/app/stage.ts） */
+  /** 粒子が集まった割合（src/app/stage.ts） */
   gather?: number
+  /** 粒子が集まる点。canvas の NDC */
+  gatherAt?: [number, number]
   tuning?: Tuning
   interaction?: Interaction
   pointer?: PointerCommand
@@ -490,6 +494,7 @@ const apply = (command: Command) => {
   if (command.pointer) scene.setPointer(command.pointer)
   if (command.render) scene.setFrame(command.render, command.catchUp)
   if (command.gather !== undefined) scene.gather(command.gather)
+  if (command.gatherAt) scene.gatherAt(command.gatherAt)
   // 打ち消しは更新パスの中で効くので、干渉が止まっていても1回は回す
   if (command.step !== undefined || command.catchUp) scene.step(command.step ?? 0)
   scene.draw()
