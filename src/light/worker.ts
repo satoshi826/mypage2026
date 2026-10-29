@@ -4,11 +4,9 @@ import {DEFAULT_LIGHT, type LightTuning} from './tuning'
 
 // 光源から出た光線が mu のロゴに当たって跳ね返る様子を、光線の通った線を重ねて描く（2D の光の経路追跡）。
 // 光そのものは描かず、光線の線の重なりの明るさで光を見せる。ロゴに遮られたところは影になる。
-// ロゴは部屋（ページの中の要素）の中央に置き、部屋の左・右・下の辺は光を返す壁にできる（wall）。壁で跳ね返った光が
-// ロゴを横や下からも照らす。ロゴはばらばらの向きに散らして返し、壁は鏡にできる（wallSpecular）。
-// 光源は 2 つ。上の光（u_light）と、床の上に置く横長の棒の光（u_bar。上向きに出す）。ロゴの切り込みのうち 2 本は
-// 下に開いていて、上の光は（壁や床で返っても）奥まで入らないので、棒の光で下から照らす。光線の数は 2 つで分け合う。部屋の上は開いていて、部屋の外へ出た光線はそこで終わる。部屋はスクロールで上がってくるので、
-// 部屋がまだ画面の下にあるうちは、壁で返る光はほとんど届かない。
+// ロゴは部屋（ページの中の要素）の中央に置く。ロゴは光をばらばらの向きに散らして返し、ロゴに当たらなかった光線はそこで終わる。
+// 光源は 2 つ。上の光（u_light）と、部屋の床の上に置く横長の棒の光（u_bar。上向きに出す）。ロゴの切り込みのうち 2 本は
+// 下に開いていて、上の光は奥まで入らないので、棒の光で下から照らす。光線の数は 2 つで分け合う。
 //
 // 速さのための作り:
 // - ロゴは長方形 7 つ（logo.ts）なので、光線との交わりを式で直接求める。少しずつ進めて当たりを探さない
@@ -51,11 +49,8 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number) {
       u_rays: 'float',
       u_bounces: 'float',
       u_albedo: 'float',
-      u_wall: 'float',
-      u_wallSpecular: 'float',
       u_power: 'float',
       u_seed: 'float',
-      u_room: 'vec4',
       u_bar: 'vec4',
       u_barRays: 'float',
       u_barPower: 'float',
@@ -91,33 +86,15 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number) {
         }
       }
 
-      // 光線 ro + rd t が最初に当たるところまでの距離と、当たった面の向き（normal）と、当たったもの（hit）。
-      // hit は 0 が何にも当たらない（部屋の外へ出る。遠くまで伸ばす）、1 がロゴ、2 が壁
-      float trace(vec2 ro, vec2 rd, out vec2 normal, out int hit) {
+      // 光線 ro + rd t が最初にロゴに当たるところまでの距離と、当たった面の向き（normal）。当たれば solid。
+      // 当たらなければ遠くまで伸ばす（画面の外は描かれない）
+      float trace(vec2 ro, vec2 rd, out vec2 normal, out bool solid) {
         vec2 safe = mix(rd, vec2(1e-6), lessThan(abs(rd), vec2(1e-6)));
         vec2 inv = 1.0 / safe;
         float best = 1e5;
         normal = vec2(0.0);
-        hit = 0;
-        // 床（部屋の下の辺）
-        float t = (u_room.w - ro.y) * inv.y;
-        float x = ro.x + rd.x * t;
-        if (t > 1e-3 && t < best && x >= u_room.x && x <= u_room.z) {
-          best = t;
-          normal = vec2(0.0, -1.0);
-          hit = 2;
-        }
-        // 左右の壁（部屋の左右の辺）。向かっている側だけ見る
-        t = ((rd.x < 0.0 ? u_room.x : u_room.z) - ro.x) * inv.x;
-        float y = ro.y + rd.y * t;
-        if (t > 1e-3 && t < best && y >= u_room.y && y <= u_room.w) {
-          best = t;
-          normal = vec2(-sign(rd.x), 0.0);
-          hit = 2;
-        }
-        bool solid = false;
+        solid = false;
         for (int i = 0; i < ${LOGO_RECTS.length}; i++) hitRect(ro, rd, inv, u_rects[i], best, normal, solid);
-        if (solid) hit = 1;
         return best;
       }
 
@@ -137,7 +114,7 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number) {
         if (float(ray) < u_barRays) {
           // 棒を等分した位置から、上向きに出す。面の向きに近いほど多く出す
           pos = vec2(mix(u_bar.x, u_bar.z, (float(ray) + rand(ray, 0)) / u_barRays), u_bar.y);
-          float sn = 2.0 * rand(ray, ${2 * MAX_SEGMENTS + 1}) - 1.0;
+          float sn = 2.0 * rand(ray, ${MAX_SEGMENTS + 1}) - 1.0;
           dir = vec2(sn, -sqrt(1.0 - sn * sn));
           energy = u_barPower / u_barRays;
         } else {
@@ -145,8 +122,8 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number) {
           // 光は半径 u_lightSize の円の中のどこかから出す。点から出すと影の縁がくっきりして、光の筋のように見える
           float pointRays = u_rays - u_barRays;
           float angle = (float(ray) - u_barRays + rand(ray, 0)) / pointRays * TAU;
-          float spread = TAU * rand(ray, ${2 * MAX_SEGMENTS + 2});
-          pos = u_light + u_lightSize * sqrt(rand(ray, ${2 * MAX_SEGMENTS + 3})) * vec2(cos(spread), sin(spread));
+          float spread = TAU * rand(ray, ${MAX_SEGMENTS + 2});
+          pos = u_light + u_lightSize * sqrt(rand(ray, ${MAX_SEGMENTS + 3})) * vec2(cos(spread), sin(spread));
           dir = vec2(cos(angle), sin(angle));
           energy = u_power / pointRays;
         }
@@ -154,28 +131,23 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number) {
         vec2 b = pos;
         for (int s = 0; s < ${MAX_SEGMENTS}; s++) {
           vec2 normal;
-          int hit;
-          float t = trace(pos, dir, normal, hit);
+          bool solid;
+          float t = trace(pos, dir, normal, solid);
           vec2 next = pos + dir * t;
           if (s == seg) {
             a = pos;
             b = next;
             break;
           }
-          // 部屋の外へ出た光線と、光を返さない面に当たった光線はそこで終わる
-          float albedo = hit == 1 ? u_albedo : hit == 2 ? u_wall : 0.0;
-          if (albedo <= 0.0) {
+          // ロゴに当たらなかった光線はそこで終わる
+          if (!solid) {
             energy = 0.0;
             break;
           }
-          if (hit == 2 && rand(ray, s * 2 + 1) < u_wallSpecular) {
-            dir = reflect(dir, normal);
-          } else {
-            // ばらばらの向きに散る。面の向きに近いほど多く返す（2D の完全拡散）
-            float sn = 2.0 * rand(ray, s * 2 + 2) - 1.0;
-            dir = normal * sqrt(1.0 - sn * sn) + vec2(-normal.y, normal.x) * sn;
-          }
-          energy *= albedo;
+          // ばらばらの向きに散る。面の向きに近いほど多く返す（2D の完全拡散）
+          float sn = 2.0 * rand(ray, s + 1) - 1.0;
+          dir = normal * sqrt(1.0 - sn * sn) + vec2(-normal.y, normal.x) * sn;
+          energy *= u_albedo;
           pos = next + normal * 0.01;
         }
 
@@ -254,8 +226,6 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number) {
       u_rays: tuning.rays,
       u_bounces: tuning.bounces,
       u_albedo: tuning.albedo / 100,
-      u_wall: tuning.wall / 100,
-      u_wallSpecular: tuning.wallSpecular / 100,
       u_lightSize: tuning.lightSize
     })
     // 頂点の数は光線の数と跳ね返りの回数で決まるので、変わったら作り直す
@@ -287,7 +257,6 @@ function createScene(canvas: OffscreenCanvas, pixelRatio: number) {
       u_seed: seed,
       u_power: tuning.power * brightness,
       u_light: [light.x, light.y],
-      u_room: [room.left, room.top, room.right, room.bottom],
       // 棒は部屋の下の中央に置く。消えているあいだは光線を回さない
       u_bar: [
         (room.left + room.right - tuning.barWidth) / 2,
@@ -342,7 +311,7 @@ export type LightCommand = {
 /** 1 フレームぶんの光の状態。位置はどれも canvas の左上からの px */
 export type LightFrame = {
   light: {x: number; y: number}
-  /** ロゴを置く部屋。左・右・下の辺が壁で、中央にロゴを置く */
+  /** ロゴを置く部屋。中央にロゴを、床の上に棒の光を置く */
   room: {left: number; top: number; right: number; bottom: number}
   /** 上の光の明るさの割合。0 なら消す（棒の光も） */
   brightness: number

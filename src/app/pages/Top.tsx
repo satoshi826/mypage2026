@@ -57,7 +57,7 @@ export function Top() {
         {Hero && heroPhotos.length > 0 && <Hero key={heroPhotos.join()} photos={heroPhotos} stage={stage} />}
       </div>
       {/* ロゴと導線の段。ふつうのページの中身として舞台の上を下から上がってきて、ページの一番下で画面に収まる。
-          ロゴは光の層が段の中央に描き、段の左・右・下の辺を光を返す壁にする（部屋）。舞台に重ねて始め、
+          段は光の層にとっての部屋で、段の中央にロゴを、床の上に棒の光を描く。舞台に重ねて始め、
           一番下までのスクロールを SCENE_SCREENS にする */}
       <div
         ref={room}

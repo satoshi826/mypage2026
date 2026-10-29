@@ -24,7 +24,7 @@ const BRIGHTEN_SCREENS = 0.8
  * 部屋が画面の下端に近づくと光り始める。ロゴを置く部屋はページの中の要素
  * （room）で、その要素と一緒に、ページの中身としてスクロールで上がってきて光の下に入る
  *
- * @param room ロゴを置く部屋の要素。左・右・下の辺が光を返す壁になり、中央にロゴを描く
+ * @param room ロゴを置く部屋の要素。中央にロゴを描き、床の上に棒の光を置く
  */
 export function Light({stage, room}: {stage: {readonly current: Stage}; room: {readonly current: HTMLElement | null}}) {
   const {canvas, post, ref} = useCanvas(Worker)
