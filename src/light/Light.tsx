@@ -10,7 +10,7 @@ import Worker from './worker?worker'
 const SETTLE_SECONDS = 0.9
 
 /** ついた直後の光の明るさ。最大に対する割合。スクロールでロゴが近づくと最大になる */
-const DIM = 0.3
+const DIM = 0.5
 
 /** 光が最大の明るさになるまでのスクロールの長さ。ロゴの上端が画面の下端に届く手前の、画面の高さ単位 */
 const BRIGHTEN_SCREENS = 0.8
