@@ -1,6 +1,6 @@
 import {useCallback, useEffect, useRef, useState} from 'preact/hooks'
 import {DevPanel} from '../app/DevPanel'
-import {SCENE_SCREENS, lightAt, lightOf, type Stage} from '../app/stage'
+import {GATHER_AT, SCENE_SCREENS, lightAt, lightOf, type Stage} from '../app/stage'
 import {useAnimationFrame} from '../hero/useCanvas'
 import type {SceneCommand} from '../scene/worker'
 import type {LightCommand} from './scene'
@@ -23,8 +23,8 @@ const FOCUS_AFTER_SCREENS = 0.5
 /**
  * トップの舞台で、光が mu のロゴを照らす層（試し）。hero の後ろに画面いっぱいに重ねる。描くのは worker（worker.ts）。
  *
- * 光は画面の上の位置（lightAt）にあり、粒子がそこへ集まって光になる。そこからページの一番下までスクロールする
- * あいだに、少しずつ下がる（lightDrop）。少しスクロールしてからは、全周に広がる光から下向きの光に絞られていく（cone）。ついた直後は暗く、スクロールでロゴが
+ * 粒子は画面の中央に集まって光になり、光はスクロールに合わせてゆっくり上がって、画面の上で止まる（lightAt）。
+ * そこからページの一番下までスクロールするあいだに、少しずつ下がる（lightDrop）。少しスクロールしてからは、全周に広がる光から下向きの光に絞られていく（cone）。ついた直後は暗く、スクロールでロゴが
  * 近づくにつれて明るくなり、ロゴが画面に入る前に最大になる。部屋の床の上には上向きの下の光があり、
  * 部屋が画面の下端に近づくと光り始める。ロゴを置く部屋はページの中の要素
  * （room）で、その要素と一緒に、ページの中身としてスクロールで上がってきて光の下に入る
@@ -121,11 +121,11 @@ export function Light({
     lit.current = true
     const now = performance.now()
     const height = screen.current?.clientHeight ?? 0
-    const {progress, rise} = stage.current
-    const top = lightAt({width: screen.current?.clientWidth ?? 0, height})
+    const {progress} = stage.current
+    const top = lightAt(stage.current, {width: screen.current?.clientWidth ?? 0, height})
     // 光がついてからページの一番下までスクロールした割合。光はこれに合わせて下がる。下向きに絞るのは少しあとから
-    const scrolled = ease((progress - rise) / (SCENE_SCREENS - rise))
-    const focus = ease((progress - rise - FOCUS_AFTER_SCREENS) / (SCENE_SCREENS - rise - FOCUS_AFTER_SCREENS))
+    const scrolled = ease((progress - GATHER_AT) / (SCENE_SCREENS - GATHER_AT))
+    const focus = ease((progress - GATHER_AT - FOCUS_AFTER_SCREENS) / (SCENE_SCREENS - GATHER_AT - FOCUS_AFTER_SCREENS))
     const light = {x: top.x, y: top.y + ((height * tuning.lightDrop) / 100) * scrolled}
     // もとの位置へ戻している途中なら、減速しながら量を 0 へ寄せる
     const back = returning.current

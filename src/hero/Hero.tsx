@@ -17,7 +17,7 @@ import {
 import {ControlPanel} from './ControlPanel'
 import {progressLines, setPlayer} from './playback'
 import {DevPanel} from '../app/DevPanel'
-import {RISE_RATIO, lightAt, riseOf, type Stage} from '../app/stage'
+import {lightAt, type Stage} from '../app/stage'
 import {
   LAYOUT_PARAMS,
   LAYOUT_PRESETS,
@@ -47,7 +47,7 @@ const timingOf = ({cycleSeconds, dwellRatio}: Tuning): Timing => ({cycleSeconds,
 /**
  * @param photos hero 用の派生画像の URL。空では呼ばない
  * @param available 読み込みが済んだ写真の番号。抽選はこの中から
- * @param stage トップの舞台。スクロールに合わせて写真を上げ、上がりきったら粒子を写真の中央へ集める。上がる距離と集まる点を書き込む
+ * @param stage トップの舞台。スクロールすると、粒子を光の位置（画面の中央からスクロールで上がる）へ集める
  * @param post 舞台の canvas（src/scene/worker.ts）へ指示を送る。粒子は舞台の canvas に、写真の枠（frame）の位置へ描かれる
  * @param screen 舞台の canvas の入れ物。粒子が集まる光の位置は、この大きさから決める（光の層と同じ位置にするため）
  */
@@ -71,11 +71,11 @@ export function Hero({
   const interactionRef = useRef<Interaction>(DEFAULT_INTERACTION)
   const lastFrame = useRef<Frame>({from: -1, to: -1, phase: -1})
   const lastTime = useRef(0)
-  const lastRise = useRef(0)
   const lastScrolled = useRef(0)
   const calendarRef = useRef<HTMLDivElement>(null)
-  // 上がる前の写真の枠（画面の上の位置）。粒子が出入りする点を、写真の上がり具合によらず画面の上の同じ位置に保つのに使う
+  // 写真の枠（画面の上の位置）。粒子が出入りする点（光の位置）を、枠の中の位置に直すのに使う
   const frameBox = useRef<{left: number; top: number; width: number; height: number} | null>(null)
+  const lastGatherAt = useRef<[number, number]>([0, 0])
   const lastGather = useRef(0)
   // カレンダーの濃さ（0〜1）
   const calendarShown = useRef(1)
@@ -136,24 +136,14 @@ export function Hero({
     [send]
   )
 
-  // 写真の枠が rise px 上がったときの、舞台の canvas の上の位置
-  const rectFor = useCallback((rise: number) => {
+  // 粒子が出入りする点（光の位置。画面の上の位置）を、写真の枠の NDC に直す。光はスクロールで上がるので、毎フレーム求める
+  const gatherAtNow = useCallback((): [number, number] => {
     const box = frameBox.current
-    return box ? {x: box.left, y: box.top - rise, width: box.width, height: box.height} : undefined
-  }, [])
-
-  // 粒子が出入りする点（光の位置。画面の上の位置）を、写真の枠が rise px 上がったときの枠の NDC に直す。
-  // 写真が上がり具合を変えても（集まっている途中でスクロールを戻したときなど）、粒子は画面の上の同じ点、つまり光から出入りする
-  const gatherAtFor = useCallback(
-    (rise: number): [number, number] => {
-      const box = frameBox.current
-      const size = screen.current
-      if (!box || !size) return [0, 0]
-      const {x, y} = lightAt({width: size.clientWidth, height: size.clientHeight})
-      return [((x - box.left) / box.width) * 2 - 1, 1 - ((y - (box.top - rise)) / box.height) * 2]
-    },
-    [screen]
-  )
+    const size = screen.current
+    if (!box || !size) return [0, 0]
+    const {x, y} = lightAt(stage.current, {width: size.clientWidth, height: size.clientHeight})
+    return [((x - box.left) / box.width) * 2 - 1, 1 - ((y - box.top) / box.height) * 2]
+  }, [screen, stage])
 
   useAnimationFrame(
     useCallback(() => {
@@ -163,18 +153,16 @@ export function Hero({
 
       const command: HeroCommand = {}
 
-      // 写真はまずスクロールと一緒に上がり、上がりきったところで止まる。そこから粒子が光へ飛び込み（時間で進む）。
-      // カレンダーは止まらず、ふつうのページの中身としてスクロールで上へ流れていきながら薄れる。
+      // 写真は動かず、スクロールすると粒子が光へ飛び込む（時間で進む）。カレンダーはふつうのページの中身として
+      // スクロールで上へ流れていきながら薄れ、スクロールしていることを示す。
       // 粒子がすべて光に吸い込まれたら写真は見えないので、時計も干渉も止める
-      const rise = riseOf(stage.current) * innerHeight
       const scrolled = stage.current.progress * innerHeight
       const {gather} = stage.current
       const shown = gather < 1
-      if (rise !== lastRise.current) {
-        lastRise.current = rise
-        frameRef.current?.style.setProperty('translate', `0 ${-rise}px`)
-        command.rect = rectFor(rise)
-        command.gatherAt = gatherAtFor(rise)
+      const gatherAt = gatherAtNow()
+      if (gatherAt[0] !== lastGatherAt.current[0] || gatherAt[1] !== lastGatherAt.current[1]) {
+        lastGatherAt.current = gatherAt
+        command.gatherAt = gatherAt
       }
       if (scrolled !== lastScrolled.current) {
         lastScrolled.current = scrolled
@@ -255,8 +243,7 @@ export function Hero({
         command.step = delta
       }
 
-      if (command.render || command.pointer || command.catchUp || command.gather !== undefined || command.rect)
-        send(command)
+      if (Object.keys(command).length > 0) send(command)
       // 進み具合も帯の境目も、プログレスの一番外側に CSS 変数として書く。
       // 中の3枚（遷移帯・静止帯・通過ぶん）はそれを継承して描き分ける
       // 停止中は遷移が終わった地点で止める。バーは次の遷移までの待ち時間なので、
@@ -271,7 +258,7 @@ export function Hero({
         bar.style.setProperty('--progress', String(progress))
         bar.style.setProperty('--morph', `${morph * 100}%`)
       }
-    }, [autoplay, gatherAtFor, order, rectFor, reduced, send, stage, takePointer])
+    }, [autoplay, gatherAtNow, order, reduced, send, stage, takePointer])
   )
 
   // 行き先が変わったフレームは worker 側で位置の飛びを打ち消す（番号のクリック）
@@ -331,15 +318,14 @@ export function Hero({
   // 縦並びのパネルは写真と同じ幅に広げる。マスが上限に達したらそこで止める
   const panel = direction === 'side' ? panelWidth(layout) : Math.min(photo.width, panelWidth(layout))
 
-  // 写真が上がる距離を舞台へ書き、写真の枠と粒子が集まる点（光の位置）を worker へ渡す。舞台は画面に貼りついているので、
-  // 画面の上の位置がそのまま舞台の上の位置。測った位置には今上がっているぶんが入っているので、戻してから数える
+  // 写真の枠と粒子が集まる点（光の位置）を worker へ渡す。舞台は画面に貼りついているので、画面の上の位置がそのまま舞台の上の位置
   useLayoutEffect(() => {
     const rect = frameRef.current?.getBoundingClientRect()
     if (!rect || rect.width <= 0) return
-    frameBox.current = {left: rect.left, top: rect.top + lastRise.current, width: rect.width, height: rect.height}
-    stage.current.rise = (photo.height * RISE_RATIO) / innerHeight
-    send({rect: rectFor(lastRise.current), gatherAt: gatherAtFor(lastRise.current)})
-  }, [stage, send, gatherAtFor, rectFor, photo.width, photo.height, panel, direction, content])
+    frameBox.current = {left: rect.left, top: rect.top, width: rect.width, height: rect.height}
+    lastGatherAt.current = gatherAtNow()
+    send({rect: {x: rect.left, y: rect.top, width: rect.width, height: rect.height}, gatherAt: lastGatherAt.current})
+  }, [send, gatherAtNow, photo.width, photo.height, panel, direction, content])
 
   // 段は画面全体を覆うので、触れられるのは写真とカレンダーだけにする（後ろの光の層のロゴをつかめるように）
   return (
