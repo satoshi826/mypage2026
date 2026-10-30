@@ -51,6 +51,7 @@ export function createLightScene(core: Core, pixelRatio: number) {
     attributeTypes: {a_index: 'float'},
     uniformTypes: {
       u_size: 'vec2',
+      u_scale: 'float',
       u_light: 'vec2',
       u_lightSize: 'float',
       u_cone: 'float',
@@ -173,10 +174,12 @@ export function createLightScene(core: Core, pixelRatio: number) {
           pos = next + normal * 0.01;
         }
 
-        // 線は長い向きの画素数だけ塗られるので、斜めの線が暗くならないよう長さとの比を掛ける
+        // 線は長い向きの画素数だけ塗られるので、斜めの線が暗くならないよう長さとの比を掛ける。
+        // 線の幅は層の 1 画素なので、層の画素が細かいほど（画面の密度や解像度が高いほど）1 画素あたりの明るさが薄まる。
+        // 1 CSS px あたりの層の画素数（u_scale）を掛け、画面によらず同じ明るさにする
         vec2 d = b - a;
         float extent = max(abs(d.x), abs(d.y));
-        v_energy = energy * (extent > 0.0 ? length(d) / extent : 1.0);
+        v_energy = energy * u_scale * (extent > 0.0 ? length(d) / extent : 1.0);
         vec2 p = end == 0 ? a : b;
         gl_Position = vec4(p.x / u_size.x * 2.0 - 1.0, 1.0 - p.y / u_size.y * 2.0, 0.0, 1.0);
       }`,
@@ -226,8 +229,8 @@ export function createLightScene(core: Core, pixelRatio: number) {
 
   const layout = () => {
     const {width, height} = size
-    rays.setUniform({u_size: [width, height]})
     const scale = pixelRatio * (tuning.resolution / 100)
+    rays.setUniform({u_size: [width, height], u_scale: scale})
     for (const r of [frameLayer, ...acc]) r.resize({width, height, pixelRatio: scale})
     fresh = true
   }
