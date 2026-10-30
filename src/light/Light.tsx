@@ -58,8 +58,9 @@ const FOCUS_AFTER_SCREENS = 0.5
  * - ロゴはドラッグで動かせ（マウスでも指でも。ロゴの上に見えないつかみ場所を重ねて受ける）、ピンチで大きさを変えられる
  *   （指は 2 本で、トラックパッドはそのままピンチ。ブラウザには ctrl を押したホイールとして届く）。離した位置と大きさに
  *   とどまり、部屋の外へは出ない。大きさと素材（白い面・和紙・つや）は、フッターのロゴの設定でも変えられる
- * - 光はフッターのライトの設定で、向きと明るさを変えられる。光源の位置は変わらない。向きはふだんロゴの今の位置を向き
- *   （Auto）、ロゴを動かすとついてくる。向きは設定が変わっても跳ばさず、滑らかに追う
+ * - 光は光源をドラッグで動かせる（光源の上に見えないつかみ場所を重ねて受ける）。上の光は画面の中、下の光は部屋の中に
+ *   とどまる。向きと強さはフッターのライトの設定で変えられる。向きはふだんロゴの今の位置を向き（Auto）、ロゴや光源を
+ *   動かすとついてくる。向きは設定が変わっても跳ばさず、滑らかに追う
  * 変えたあとは、フッターの操作（LogoControls.tsx）で既定へ戻せる。
  *
  * @param room ロゴを置く部屋の要素。中央（から logoShift ずらした位置）がロゴのもとの位置で、その下の床の上に下の光を置く
@@ -144,8 +145,9 @@ export function Light({
   }, [reset, material, setMaterial, setScale, setLamp])
   useEffect(() => () => setLogoControls(null), [])
 
-  // ロゴのつかみ場所。位置は毎フレーム書く
+  // ロゴのつかみ場所と、光源のつかみ場所。位置は毎フレーム書く
   const grip = useRef<HTMLDivElement>(null)
+  const lampGrips = {upper: useRef<HTMLDivElement>(null), under: useRef<HTMLDivElement>(null)}
   // 今照らしている向き（画面の上の角度）と、それを書いた時刻。光が消えているあいだは null
   const facing = useRef<Record<LampKey, number> | null>(null)
   const lastFrame = useRef(0)
@@ -190,6 +192,32 @@ export function Light({
     if (!touching.current.delete(event.pointerId)) return
     regrip()
   }
+  // 光源をつかんでいる指と、どちらの光か、つかんだときの指の位置と光源の動かした量。指の動いたぶんだけ光源を動かす
+  const dragging = useRef<{
+    id: number
+    key: LampKey
+    from: {x: number; y: number}
+    offset: {x: number; y: number}
+  } | null>(null)
+  const onLampDown = (key: LampKey) => (event: PointerEvent) => {
+    returning.current = null
+    dragging.current = {
+      id: event.pointerId,
+      key,
+      from: {x: event.clientX, y: event.clientY},
+      offset: arrangement.current.lamps[key].offset
+    }
+    ;(event.currentTarget as HTMLElement).setPointerCapture(event.pointerId)
+    event.preventDefault()
+  }
+  const onLampMove = (event: PointerEvent) => {
+    const d = dragging.current
+    if (!d || d.id !== event.pointerId) return
+    setLamp(d.key, {offset: {x: d.offset.x + event.clientX - d.from.x, y: d.offset.y + event.clientY - d.from.y}})
+  }
+  const onLampUp = (event: PointerEvent) => {
+    if (dragging.current?.id === event.pointerId) dragging.current = null
+  }
   // トラックパッドのピンチ（ctrl を押したホイールとして届く）で大きさを変える。ふつうのホイールはページのスクロールに渡す
   const onLogoWheel = (event: WheelEvent) => {
     if (!event.ctrlKey) return
@@ -212,7 +240,8 @@ export function Light({
       lit.current = false
       waiting.current = 0
       facing.current = null
-      grip.current?.style.setProperty('display', 'none')
+      for (const el of [grip.current, lampGrips.upper.current, lampGrips.under.current])
+        el?.style.setProperty('display', 'none')
       if (shown.current.lit) publish({...shown.current, lit: false})
       return
     }
@@ -265,10 +294,40 @@ export function Light({
     // 下の光は、部屋の床が画面の下端の半画面下まで来たところから光り始め、下端に着くと最大になる
     const underBrightness = ease(1 - (box.bottom - height) / (height / 2))
     const power = {upper: lamps.upper.power ?? powers.upper, under: lamps.under.power ?? powers.under}
-    // 光源の位置。上の光は画面の上、下の光はロゴのもとの位置の真下から underShift ずらした床の上
-    const at = {
-      upper: lightAt(stage.current, {width: screen.current?.clientWidth ?? 0, height}),
+    // 光源のもとの位置。上の光は画面の上、下の光はロゴのもとの位置の真下から underShift ずらした床の上。
+    // 訪問者が動かした量を足し、上の光は画面の中、下の光は部屋の中に収める
+    const width = screen.current?.clientWidth ?? 0
+    const base = {
+      upper: lightAt(stage.current, {width, height}),
       under: {x: home.x + tuning.underShift, y: box.bottom - tuning.underHeight}
+    }
+    const bounds = {
+      upper: {left: 0, top: 0, right: width, bottom: height},
+      under: {left: box.left, top: box.top, right: box.right, bottom: box.bottom}
+    }
+    const moved = (key: LampKey) => {
+      const {offset} = lamps[key]
+      const b = bounds[key]
+      return {
+        x: clamp(offset.x, b.left - base[key].x, b.right - base[key].x),
+        y: clamp(offset.y, b.top - base[key].y, b.bottom - base[key].y)
+      }
+    }
+    const offsets = {upper: moved('upper'), under: moved('under')}
+    arrangement.current = {
+      ...arrangement.current,
+      lamps: {upper: {...lamps.upper, offset: offsets.upper}, under: {...lamps.under, offset: offsets.under}}
+    }
+    const at = {
+      upper: {x: base.upper.x + offsets.upper.x, y: base.upper.y + offsets.upper.y},
+      under: {x: base.under.x + offsets.under.x, y: base.under.y + offsets.under.y}
+    }
+    // 光源のつかみ場所は、光がつききってから、その光が点いているあいだだけ出す
+    const lampOn = {upper: nowLit && power.upper > 0, under: nowLit && underBrightness > 0 && power.under > 0}
+    for (const key of ['upper', 'under'] as const) {
+      const {x, y} = at[key]
+      if (lampOn[key]) place(lampGrips[key].current, x - LAMP_GRIP / 2, y - LAMP_GRIP / 2, LAMP_GRIP, LAMP_GRIP)
+      else lampGrips[key].current?.style.setProperty('display', 'none')
     }
     // 向きは、Auto ならロゴの今の位置へ、傾けてあればその向きへ。今の向きからそこへ滑らかに寄せる
     const follow = 1 - Math.exp(-Math.min(0.1, (now - lastFrame.current) / 1000) / TURN_SECONDS)
@@ -329,6 +388,19 @@ export function Light({
         onPointerCancel={onLogoUp}
         onWheel={onLogoWheel}
       />
+      {/* 光源のつかみ場所。ロゴより後に置き、重なったときは光源をつかめるようにする */}
+      {(['upper', 'under'] as const).map((key) => (
+        <div
+          key={key}
+          ref={lampGrips[key]}
+          data-grab
+          className="pointer-events-auto absolute top-0 left-0 hidden cursor-grab touch-none rounded-full active:cursor-grabbing"
+          onPointerDown={onLampDown(key)}
+          onPointerMove={onLampMove}
+          onPointerUp={onLampUp}
+          onPointerCancel={onLampUp}
+        />
+      ))}
       {import.meta.env.DEV && <DevReadout title="光線" value={stats} />}
       {import.meta.env.DEV && (
         <DevPanel<LightTuning>
@@ -344,6 +416,9 @@ export function Light({
     </div>
   )
 }
+
+/** 光源のつかみ場所の大きさ px。指で押せる大きさにする */
+const LAMP_GRIP = 44
 
 /** フッターに出している状態 */
 type Shown = {lit: boolean; changed: boolean; scale: number; lamps: Record<LampKey, LampControl>}

@@ -1,9 +1,11 @@
 // 訪問者が変えたロゴと光の置き方。ロゴはドラッグで動かし、ピンチ（指とトラックパッド）かフッターのロゴの設定で大きさを変える。
-// 光はフッターのライトの設定で、向きと明るさを変える。
+// 光は光源をドラッグで動かし、フッターのライトの設定で向きと強さを変える。
 // どれも既定からのずれで持ち、フッターの戻す操作で既定へ戻す（Light.tsx）
 
 /** 1 つの光の設定 */
 export type LampSetting = {
+  /** 光源をもとの位置から動かした量 px */
+  offset: {x: number; y: number}
   /** 照らす向き。上の光は真下、下の光は真上から右へ傾けた角度で、ラジアン。null ならロゴの今の位置を向く */
   tilt: number | null
   /** 強さ。tuning の power（下の光は underPower）と同じ単位。null なら tuning の値 */
@@ -24,7 +26,10 @@ export type LampKey = keyof Arrangement['lamps']
 export const DEFAULT_ARRANGEMENT: Arrangement = {
   offset: {x: 0, y: 0},
   scale: 1,
-  lamps: {upper: {tilt: null, power: null}, under: {tilt: null, power: null}}
+  lamps: {
+    upper: {offset: {x: 0, y: 0}, tilt: null, power: null},
+    under: {offset: {x: 0, y: 0}, tilt: null, power: null}
+  }
 }
 
 /** ロゴの大きさの倍率の範囲 */
@@ -37,7 +42,8 @@ export const MAX_TILT = Math.PI / 2
 /** 光の強さの上限。tuning の power と同じ単位 */
 export const MAX_POWER = 100
 
-const isDefaultLamp = ({tilt, power}: LampSetting) => tilt === null && power === null
+const isDefaultLamp = ({offset, tilt, power}: LampSetting) =>
+  offset.x === 0 && offset.y === 0 && tilt === null && power === null
 
 export const isDefault = ({offset, scale, lamps}: Arrangement) =>
   offset.x === 0 && offset.y === 0 && scale === 1 && isDefaultLamp(lamps.upper) && isDefaultLamp(lamps.under)
@@ -52,8 +58,12 @@ export const shrink = (
   powers: Record<LampKey, number>
 ): Arrangement => {
   const lamp = (key: LampKey): LampSetting => {
-    const {power} = lamps[key]
-    return {tilt: null, power: power === null ? null : powers[key] + (power - powers[key]) * left}
+    const {offset, power} = lamps[key]
+    return {
+      offset: {x: offset.x * left, y: offset.y * left},
+      tilt: null,
+      power: power === null ? null : powers[key] + (power - powers[key]) * left
+    }
   }
   return {
     offset: {x: offset.x * left, y: offset.y * left},
