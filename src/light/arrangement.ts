@@ -6,8 +6,8 @@
 export type LampSetting = {
   /** 照らす向き。上の光は真下、下の光は真上から右へ傾けた角度で、ラジアン。null ならロゴの今の位置を向く */
   tilt: number | null
-  /** 明るさの倍率。1 が既定 */
-  power: number
+  /** 強さ。tuning の power（下の光は underPower）と同じ単位。null なら tuning の値 */
+  power: number | null
 }
 
 export type Arrangement = {
@@ -24,7 +24,7 @@ export type LampKey = keyof Arrangement['lamps']
 export const DEFAULT_ARRANGEMENT: Arrangement = {
   offset: {x: 0, y: 0},
   scale: 1,
-  lamps: {upper: {tilt: null, power: 1}, under: {tilt: null, power: 1}}
+  lamps: {upper: {tilt: null, power: null}, under: {tilt: null, power: null}}
 }
 
 /** ロゴの大きさの倍率の範囲 */
@@ -34,24 +34,31 @@ export const MAX_SCALE = 2
 /** 光の向きを傾けられる範囲。真下（下の光は真上）から左右にこれだけ。ラジアン */
 export const MAX_TILT = Math.PI / 2
 
-/** 光の明るさの倍率の上限 */
-export const MAX_POWER = 2
+/** 光の強さの上限。tuning の power と同じ単位 */
+export const MAX_POWER = 100
 
-const isDefaultLamp = ({tilt, power}: LampSetting) => tilt === null && power === 1
+const isDefaultLamp = ({tilt, power}: LampSetting) => tilt === null && power === null
 
 export const isDefault = ({offset, scale, lamps}: Arrangement) =>
   offset.x === 0 && offset.y === 0 && scale === 1 && isDefaultLamp(lamps.upper) && isDefaultLamp(lamps.under)
 
 /**
- * 既定からのずれを left 倍にする。0 で既定。向きは途中の値を持たずに、すぐロゴを向く向きへ戻す
- * （光の向きは Light が滑らかに追うので、跳ばない）
+ * 既定からのずれを left 倍にする。0 で既定。強さは既定の強さ powers へ寄せる。向きは途中の値を持たずに、すぐロゴを向く
+ * 向きへ戻す（光の向きは Light が滑らかに追うので、跳ばない）
  */
-export const shrink = ({offset, scale, lamps}: Arrangement, left: number): Arrangement => {
-  const lamp = ({power}: LampSetting): LampSetting => ({tilt: null, power: 1 + (power - 1) * left})
+export const shrink = (
+  {offset, scale, lamps}: Arrangement,
+  left: number,
+  powers: Record<LampKey, number>
+): Arrangement => {
+  const lamp = (key: LampKey): LampSetting => {
+    const {power} = lamps[key]
+    return {tilt: null, power: power === null ? null : powers[key] + (power - powers[key]) * left}
+  }
   return {
     offset: {x: offset.x * left, y: offset.y * left},
     scale: 1 + (scale - 1) * left,
-    lamps: {upper: lamp(lamps.upper), under: lamp(lamps.under)}
+    lamps: {upper: lamp('upper'), under: lamp('under')}
   }
 }
 

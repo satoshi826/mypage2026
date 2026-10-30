@@ -369,7 +369,7 @@ export function createLightScene(core: Core, pixelRatio: number) {
     seed = (seed + 1) % 1_000_000
     rays.setUniform({
       u_seed: seed,
-      u_power: tuning.power * upper.brightness,
+      u_power: upper.power,
       u_light: [upper.x, upper.y],
       u_lightAngle: upper.angle,
       u_focus: upper.focus,
@@ -378,8 +378,8 @@ export function createLightScene(core: Core, pixelRatio: number) {
       // 消えているあいだは下の光に光線を回さない
       u_under: [under.x, under.y],
       u_underAngle: under.angle,
-      u_underRays: under.brightness > 0 ? Math.round((tuning.rays * tuning.underShare) / 100) : 0,
-      u_underPower: tuning.underPower * under.brightness,
+      u_underRays: under.power > 0 ? Math.round((tuning.rays * tuning.underShare) / 100) : 0,
+      u_underPower: under.power,
       u_rects: LOGO_RECTS.flatMap(([l, t, r, b]) => [left + l * unit, top + t * unit, left + r * unit, top + b * unit])
     })
 
@@ -427,8 +427,8 @@ export type Lamp = {
   y: number
   /** 照らす向き。ラジアンで、右が 0、下へ回る向きが正 */
   angle: number
-  /** 明るさの割合 */
-  brightness: number
+  /** 強さ。tuning の power と同じ単位で、スクロールでついていく明るさの割合も掛けたもの */
+  power: number
 }
 
 /** 1 フレームぶんの光の状態。位置はどれも canvas の左上からの px */

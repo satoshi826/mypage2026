@@ -76,7 +76,7 @@ export const DEFAULT_LIGHT: LightTuning = {
   underCone: 45,
   underShift: -80,
   underHeight: 120,
-  logoShift: -90,
+  logoShift: 0,
   cell: 12
 }
 

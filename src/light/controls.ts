@@ -9,9 +9,15 @@ export const MATERIALS = ['matte', 'paper', 'gloss'] as const
 export type Material = (typeof MATERIALS)[number]
 
 /** フッターに出す 1 つの光の設定と、今照らしている向き */
-export type LampControl = LampSetting & {
-  /** 今照らしている向き。傾き（LampSetting の tilt と同じ測り方）で、1 度に丸めたもの。ロゴを向いているときもこの値 */
+export type LampControl = {
+  /** 傾けた向き。null ならロゴの今の位置を向く（Auto） */
+  tilt: number | null
+  /** 今照らしている向き。傾き（tilt と同じ測り方）で、1 度に丸めたもの。ロゴを向いているときもこの値 */
   facing: number
+  /** 強さ。既定のままのときは tuning の値 */
+  power: number
+  /** 既定の強さ（tuning の値） */
+  standard: number
 }
 
 export type LogoControls = {
@@ -30,7 +36,8 @@ export type LogoControls = {
   setScale: (scale: number) => void
   /** 上の光と下の光 */
   lamps: Record<LampKey, LampControl>
-  setLamp: (key: LampKey, setting: LampSetting) => void
+  /** 光の設定のうち、渡した項目だけ変える */
+  setLamp: (key: LampKey, change: Partial<LampSetting>) => void
 }
 
 let current: LogoControls | null = null

@@ -95,9 +95,10 @@ export function Light({
     returning.current = null
     arrangement.current = {...arrangement.current, scale}
   }, [])
-  const setLamp = useCallback((key: LampKey, {tilt, power}: LampSetting) => {
+  const setLamp = useCallback((key: LampKey, change: Partial<LampSetting>) => {
     returning.current = null
-    arrangement.current = {...arrangement.current, lamps: {...arrangement.current.lamps, [key]: {tilt, power}}}
+    const {lamps} = arrangement.current
+    arrangement.current = {...arrangement.current, lamps: {...lamps, [key]: {...lamps[key], ...change}}}
   }, [])
   // ロゴの素材。切り替えたら、切り替えた時刻から素材の割合を滑らかに移す
   const [material, setMaterialState] = useState<Material>('matte')
@@ -193,11 +194,13 @@ export function Light({
     const {progress} = stage.current
     // 下向きに絞るのは、光がついてから少しスクロールしたあと
     const focus = ease((progress - GATHER_AT - FOCUS_AFTER_SCREENS) / (SCENE_SCREENS - GATHER_AT - FOCUS_AFTER_SCREENS))
+    // 光の強さの既定は tuning の値
+    const powers = {upper: tuning.power, under: tuning.underPower}
     // 既定へ戻している途中なら、減速しながらずれを 0 へ寄せる
     const back = returning.current
     if (back) {
       const r = Math.min(1, (now - back.at) / 1000 / RESET_SECONDS)
-      arrangement.current = r < 1 ? shrink(back.from, (1 - r) ** 3) : DEFAULT_ARRANGEMENT
+      arrangement.current = r < 1 ? shrink(back.from, (1 - r) ** 3, powers) : DEFAULT_ARRANGEMENT
       if (r >= 1) returning.current = null
     }
     // ロゴのもとの位置は部屋の中央から logoShift ずらしたところ。大きさと動かした量は、ロゴが部屋からはみ出さない範囲に収める
@@ -230,10 +233,10 @@ export function Light({
     place(grip.current, logo.x - logoWidth / 2, logo.y - logoHeight / 2, logoWidth, logoHeight)
     // 光は、ロゴの上端（部屋の中央からロゴの高さの半分上）が画面の下端に届くところで最大になる
     const logoTop = (box.top + box.bottom) / 2 - (LOGO_HEIGHT * tuning.cell) / 4
-    const brightness =
-      arrived * (DIM + (1 - DIM) * ease(1 - (logoTop - height) / (height * BRIGHTEN_SCREENS))) * lamps.upper.power
+    const brightness = arrived * (DIM + (1 - DIM) * ease(1 - (logoTop - height) / (height * BRIGHTEN_SCREENS)))
     // 下の光は、部屋の床が画面の下端の半画面下まで来たところから光り始め、下端に着くと最大になる
-    const underBrightness = ease(1 - (box.bottom - height) / (height / 2)) * lamps.under.power
+    const underBrightness = ease(1 - (box.bottom - height) / (height / 2))
+    const power = {upper: lamps.upper.power ?? powers.upper, under: lamps.under.power ?? powers.under}
     // 光源の位置。上の光は画面の上、下の光はロゴのもとの位置の真下から underShift ずらした床の上
     const at = {
       upper: lightAt(stage.current, {width: screen.current?.clientWidth ?? 0, height}),
@@ -253,8 +256,8 @@ export function Light({
     facing.current = {upper: turned('upper'), under: turned('under')}
     send({
       frame: {
-        upper: {...at.upper, angle: facing.current.upper, brightness, focus},
-        under: {...at.under, angle: facing.current.under, brightness: underBrightness},
+        upper: {...at.upper, angle: facing.current.upper, power: power.upper * brightness, focus},
+        under: {...at.under, angle: facing.current.under, power: power.under * underBrightness},
         logo,
         material: mix.current
       }
@@ -264,7 +267,12 @@ export function Light({
     const degree = Math.PI / 180
     const control = (key: LampKey): LampControl => {
       const tilt = Math.min(MAX_TILT, Math.max(-MAX_TILT, tiltOf(key, facing.current![key])))
-      return {...lamps[key], facing: Math.round(tilt / degree) * degree}
+      return {
+        tilt: lamps[key].tilt,
+        facing: Math.round(tilt / degree) * degree,
+        power: power[key],
+        standard: powers[key]
+      }
     }
     const next: Shown = {
       lit: nowLit,
@@ -308,7 +316,7 @@ export function Light({
 type Shown = {lit: boolean; changed: boolean; scale: number; lamps: Record<LampKey, LampControl>}
 
 /** 光の設定の既定（フッターに出す前の値） */
-const STILL: LampControl = {...DEFAULT_ARRANGEMENT.lamps.upper, facing: 0}
+const STILL: LampControl = {tilt: null, facing: 0, power: 0, standard: 0}
 
 /** つかみ場所を、舞台の左上からの位置と大きさに置いて出す */
 function place(el: HTMLElement | null, x: number, y: number, width: number, height: number) {

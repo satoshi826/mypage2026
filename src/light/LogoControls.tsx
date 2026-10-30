@@ -106,6 +106,7 @@ function LogoSettings({controls, focusable}: {controls: Controls; focusable: boo
         max={MAX_SCALE}
         step={0.01}
         mark={1}
+        format={(value) => value.toFixed(2)}
         focusable={focusable}
         onInput={setScale}
         className="col-span-3"
@@ -121,7 +122,7 @@ function LightSettings({controls, focusable}: {controls: Controls; focusable: bo
     <>
       {(['upper', 'under'] as const).map((key) => {
         const lamp: LampControl = lamps[key]
-        const {tilt, power, facing} = lamp
+        const {tilt, power, standard, facing} = lamp
         const auto = tilt === null
         const degrees = Math.round((facing * 180) / Math.PI)
         return (
@@ -131,7 +132,7 @@ function LightSettings({controls, focusable}: {controls: Controls; focusable: bo
             {/* 外すと今照らしている向きのまま止める。向きが跳ばないように */}
             <button
               type="button"
-              onClick={() => setLamp(key, {tilt: auto ? facing : null, power})}
+              onClick={() => setLamp(key, {tilt: auto ? facing : null})}
               aria-pressed={auto}
               tabIndex={focusable ? 0 : -1}
               className={OPTION}
@@ -147,8 +148,9 @@ function LightSettings({controls, focusable}: {controls: Controls; focusable: bo
               step={1}
               mark={0}
               faint={auto}
+              format={(value) => `${value}°`}
               focusable={focusable}
-              onInput={(value) => setLamp(key, {tilt: (value * Math.PI) / 180, power})}
+              onInput={(value) => setLamp(key, {tilt: (value * Math.PI) / 180})}
             />
             <span className={LABEL}>Power</span>
             <Slider
@@ -156,10 +158,11 @@ function LightSettings({controls, focusable}: {controls: Controls; focusable: bo
               value={power}
               min={0}
               max={MAX_POWER}
-              step={0.05}
-              mark={1}
+              step={0.5}
+              mark={standard}
+              format={(value) => value.toFixed(1)}
               focusable={focusable}
-              onInput={(value) => setLamp(key, {tilt, power: value})}
+              onInput={(value) => setLamp(key, {power: value})}
               className="col-start-4"
             />
           </div>
@@ -190,12 +193,13 @@ function Menu({
   const button = useRef<HTMLButtonElement>(null)
   const menu = useRef<HTMLDivElement>(null)
   const body = useExternal(subscribe, () => document.body, null)
-  // 開く位置。ボタンの上に、左端をそろえて右へ開く（フッターの左に置くので）
+  // 開く位置。ボタンの上に、左端をそろえて右へ開く（フッターの左に置くので）。狭い画面で右へはみ出すぶんは左へ寄せる
   const [at, setAt] = useState({left: 0, bottom: 0})
   useLayoutEffect(() => {
     const place = () => {
       const r = button.current?.getBoundingClientRect()
-      if (r) setAt({left: r.left, bottom: innerHeight - r.top + 8})
+      const width = menu.current?.offsetWidth ?? 0
+      if (r) setAt({left: Math.max(0, Math.min(r.left, innerWidth - width - 8)), bottom: innerHeight - r.top + 8})
     }
     place()
     addEventListener('resize', place)
@@ -252,9 +256,9 @@ function Menu({
 }
 
 /**
- * 設定のスライダー。0.5px の溝に、既定の値の位置へ点を置き、今の値に丸いつまみを置く。マウスを載せるとつまみが大きくなる。
- * 見た目は Photos の列数のスライダー（GalleryTools.tsx）にそろえる。見た目は自前で描き、操作は透明な input[type=range] が
- * 受ける（ドラッグ、タップ、矢印キー、読み上げ）
+ * 設定のスライダー。0.5px の溝に、既定の値の位置へ点を置き、今の値に丸いつまみを置き、右に値を添える。マウスを載せると
+ * つまみが大きくなる。見た目は Photos の列数のスライダー（GalleryTools.tsx）にそろえる。見た目は自前で描き、操作は透明な
+ * input[type=range] が受ける（ドラッグ、タップ、矢印キー、読み上げ）
  */
 function Slider({
   label,
@@ -264,6 +268,7 @@ function Slider({
   step,
   mark,
   faint = false,
+  format,
   focusable,
   onInput,
   className = ''
@@ -277,39 +282,44 @@ function Slider({
   mark: number
   /** 値を自動で決めているあいだは、つまみを薄くする */
   faint?: boolean
+  /** 右に添える値の書き方 */
+  format: (value: number) => string
   focusable: boolean
   onInput: (value: number) => void
   className?: string
 }) {
   const position = (v: number) => `calc(var(--thumb) / 2 + (100% - var(--thumb)) * ${(v - min) / (max - min)})`
   return (
-    <div
-      className={`group relative h-full w-32 justify-self-start max-sm:w-24 ${className}`}
-      style={{'--thumb': `${THUMB}px`}}
-    >
-      <div aria-hidden className="absolute inset-x-[calc(var(--thumb)/2)] top-1/2 h-[0.5px] bg-ink/35" />
-      <div
-        aria-hidden
-        className="absolute top-1/2 size-0.5 -translate-1/2 rounded-full bg-ink/70 transition-colors duration-300 group-hover:bg-ink/90"
-        style={{left: position(mark)}}
-      />
-      <div
-        aria-hidden
-        className={`glow-line absolute top-1/2 size-2 -translate-1/2 rounded-full bg-ink transition-[scale,box-shadow,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-140 group-hover:opacity-100 group-hover:[--glow:var(--glow-hover)] group-has-[input:focus-visible]:scale-150 group-has-[input:focus-visible]:[--glow:var(--glow-hover)] ${faint ? 'opacity-55' : ''}`}
-        style={{left: position(value)}}
-      />
-      <input
-        type="range"
-        data-slider
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        tabIndex={focusable ? 0 : -1}
-        aria-label={label}
-        onInput={(event) => onInput(Number(event.currentTarget.value))}
-        className="absolute inset-0 m-0 h-full w-full cursor-pointer appearance-none bg-transparent opacity-0"
-      />
+    <div className={`group flex h-full items-center gap-2 justify-self-start ${className}`}>
+      <div className="relative h-full w-32 max-sm:w-24" style={{'--thumb': `${THUMB}px`}}>
+        <div aria-hidden className="absolute inset-x-[calc(var(--thumb)/2)] top-1/2 h-[0.5px] bg-ink/35" />
+        <div
+          aria-hidden
+          className="absolute top-1/2 size-0.5 -translate-1/2 rounded-full bg-ink/70 transition-colors duration-300 group-hover:bg-ink/90"
+          style={{left: position(mark)}}
+        />
+        <div
+          aria-hidden
+          className={`glow-line absolute top-1/2 size-2 -translate-1/2 rounded-full bg-ink transition-[scale,box-shadow,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-140 group-hover:opacity-100 group-hover:[--glow:var(--glow-hover)] group-has-[input:focus-visible]:scale-150 group-has-[input:focus-visible]:[--glow:var(--glow-hover)] ${faint ? 'opacity-55' : ''}`}
+          style={{left: position(value)}}
+        />
+        <input
+          type="range"
+          data-slider
+          min={min}
+          max={max}
+          step={step}
+          value={value}
+          tabIndex={focusable ? 0 : -1}
+          aria-label={label}
+          onInput={(event) => onInput(Number(event.currentTarget.value))}
+          className="absolute inset-0 m-0 h-full w-full cursor-pointer appearance-none bg-transparent opacity-0"
+        />
+      </div>
+      {/* 値で幅が変わらないよう、最も長い値（-90°、100.0）の幅を取って右にそろえる */}
+      <span aria-hidden className={`${LABEL} w-[5ch] text-right tabular-nums`}>
+        {format(value)}
+      </span>
     </div>
   )
 }
