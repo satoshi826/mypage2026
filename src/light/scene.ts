@@ -9,8 +9,9 @@ import {DEFAULT_LIGHT, type LightTuning} from './tuning'
 // 光線ごとに今の素材と次の素材を割合で選ぶ。
 // - 和紙: 当たった光線の一部が中へ入り、中であちこちに散ってから、どこかの面からばらばらの向きに出る。文字が内側から明るくなる
 // - つや: 当たった光線の一部が、鏡の向きの近くにぼけて返る。光に向いた縁に柔らかいハイライトが出る
-// 光源は 2 つ。上の光（u_light）と、部屋の床の上に置く下の光（u_under）。どちらもロゴの中心を向くスポット。ロゴの切り込みの
-// うち 2 本は下に開いていて、上の光は奥まで入らないので、下の光で下から照らす。光線の数は 2 つで分け合う。
+// 光源は 2 つ。上の光（u_light）と、部屋の床の上に置く下の光（u_under）。どちらも向き（u_lightAngle、u_underAngle）を持つ
+// スポットで、ふだんはロゴのもとの位置を向く（訪問者がつまんで回せる。Light.tsx）。ロゴの切り込みのうち 2 本は下に開いていて、
+// 上の光は奥まで入らないので、下の光で下から照らす。光線の数は 2 つで分け合う。
 //
 // 速さのための作り:
 // - ロゴは長方形 7 つ（logo.ts）なので、光線との交わりを式で直接求める。少しずつ進めて当たりを探さない
@@ -69,8 +70,9 @@ export function createLightScene(core: Core, pixelRatio: number) {
       u_rough: 'float',
       u_power: 'float',
       u_seed: 'float',
+      u_lightAngle: 'float',
       u_under: 'vec2',
-      u_aim: 'vec2',
+      u_underAngle: 'float',
       u_underRays: 'float',
       u_underPower: 'float',
       u_underSize: 'float',
@@ -162,25 +164,23 @@ export function createLightScene(core: Core, pixelRatio: number) {
         vec2 dir;
         float energy;
         if (float(ray) < u_underRays) {
-          // 半径 u_underSize の円の中から、ロゴの中心を向く円錐（中心の向きから左右に u_underCone）に出す。
+          // 半径 u_underSize の円の中から、向き u_underAngle の円錐（中心の向きから左右に u_underCone）に出す。
           // 中心の向きが一番明るく、端に向かってなめらかに 0 になる（上の光を絞りきったときと同じ）
-          vec2 aim = u_aim - u_under;
           float across = 2.0 * (float(ray) + rand(ray, 0)) / u_underRays - 1.0;
-          float angle = atan(aim.y, aim.x) + across * u_underCone;
+          float angle = u_underAngle + across * u_underCone;
           float spread = TAU * rand(ray, ${MAX_SEGMENTS + 1});
           pos = u_under + u_underSize * sqrt(rand(ray, ${MAX_SEGMENTS + 2})) * vec2(cos(spread), sin(spread));
           dir = vec2(cos(angle), sin(angle));
           float falloff = cos(across * TAU * 0.25);
           energy = u_underPower * falloff * falloff / (u_underRays * 0.5);
         } else {
-          // 絞れ具合（u_focus）が 0 なら全周に均一に出す。1 ならロゴの中心を向く円錐（中心の向きから左右に u_cone）だけに出し、
+          // 絞れ具合（u_focus）が 0 なら全周に均一に出す。1 なら向き u_lightAngle の円錐（中心の向きから左右に u_cone）だけに出し、
           // 真下が一番明るく、端に向かってなめらかに 0 になるよう重みを付ける。あいだは広がりも重みもなめらかに移す。
           // 出す範囲を光線の数で等分する。重みの平均（均一なら 1、cos² なら 1/2）で割り、全体の強さは u_power のまま
           // 光は半径 u_lightSize の円の中のどこかから出す。点から出すと影の縁がくっきりして、光の筋のように見える
           float pointRays = u_rays - u_underRays;
           float across = 2.0 * (float(ray) - u_underRays + rand(ray, 0)) / pointRays - 1.0;
-          vec2 aim = u_aim - u_light;
-          float angle = atan(aim.y, aim.x) + across * mix(TAU * 0.5, u_cone, u_focus);
+          float angle = u_lightAngle + across * mix(TAU * 0.5, u_cone, u_focus);
           float spread = TAU * rand(ray, ${MAX_SEGMENTS + 1});
           pos = u_light + u_lightSize * sqrt(rand(ray, ${MAX_SEGMENTS + 2})) * vec2(cos(spread), sin(spread));
           dir = vec2(cos(angle), sin(angle));
@@ -300,12 +300,12 @@ export function createLightScene(core: Core, pixelRatio: number) {
   let lit = false
   /** 前のフレームの光の位置。前の結果をずらす量を出す */
   let lastLight = {x: 0, y: 0}
-  /** 前のフレームのロゴの左上 */
-  let lastLogo = {x: 0, y: 0}
+  /** 前のフレームのロゴの位置と大きさ（左上と 1 マス） */
+  let lastLogo = {x: 0, y: 0, unit: 0}
   /** 動いている度合い（0〜1）。動くと上がり、止まるとなめらかに 0 へ戻る */
   let moving = 0
-  /** 前のフレームの素材。切り替えているあいだも動いているものとする */
-  let lastMaterial = {paper: 0, gloss: 0}
+  /** 前のフレームの光の向きと素材。回しているあいだと切り替えているあいだも動いているものとする */
+  let lastTurn = ''
 
   const layout = () => {
     const {width, height} = size
@@ -350,34 +350,36 @@ export function createLightScene(core: Core, pixelRatio: number) {
     }
     if (!lines) return
     lit = true
-    const {light, logo, home, floor, brightness, under, focus, material} = frame
+    const {upper, under, logo, material} = frame
     // ロゴは画素にそろえて置く
-    const unit = tuning.cell / 2
+    const unit = (tuning.cell * logo.scale) / 2
     const left = Math.round(logo.x - (LOGO_WIDTH * unit) / 2)
     const top = Math.round(logo.y - (LOGO_HEIGHT * unit) / 2)
     const {width, height} = size
-    blend.setUniform({u_shift: [-(light.x - lastLight.x) / width, (light.y - lastLight.y) / height]})
+    blend.setUniform({u_shift: [-(upper.x - lastLight.x) / width, (upper.y - lastLight.y) / height]})
     const moved =
-      Math.hypot(light.x - lastLight.x, light.y - lastLight.y) + Math.hypot(left - lastLogo.x, top - lastLogo.y)
-    const turning = material.paper !== lastMaterial.paper || material.gloss !== lastMaterial.gloss
-    moving = Math.max(Math.min(1, moved / MOVING_PX), turning ? 1 : 0, moving * SETTLE_RATE)
-    lastLight = light
-    lastMaterial = material
-    lastLogo = {x: left, y: top}
+      Math.hypot(upper.x - lastLight.x, upper.y - lastLight.y) +
+      Math.hypot(left - lastLogo.x, top - lastLogo.y) +
+      Math.abs(unit - lastLogo.unit) * LOGO_WIDTH
+    const turn = [upper.angle, under.angle, material.paper, material.gloss].join()
+    moving = Math.max(Math.min(1, moved / MOVING_PX), turn === lastTurn ? 0 : 1, moving * SETTLE_RATE)
+    lastLight = {x: upper.x, y: upper.y}
+    lastLogo = {x: left, y: top, unit}
+    lastTurn = turn
     seed = (seed + 1) % 1_000_000
     rays.setUniform({
       u_seed: seed,
-      u_power: tuning.power * brightness,
-      u_light: [light.x, light.y],
-      u_focus: focus,
+      u_power: tuning.power * upper.brightness,
+      u_light: [upper.x, upper.y],
+      u_lightAngle: upper.angle,
+      u_focus: upper.focus,
       u_paper: material.paper * (tuning.translucency / 100),
       u_gloss: material.gloss * (tuning.shine / 100),
-      // 照明はロゴのもとの位置に合わせて固定する。どちらの光もそこを向き、下の光はその真下から underShift ずらした床の上に
-      // 置く。ロゴを動かしても照明は動かないので、光の外へ動かすと暗くなる。消えているあいだは下の光に光線を回さない
-      u_aim: [home.x, home.y],
-      u_under: [home.x + tuning.underShift, floor - tuning.underHeight],
-      u_underRays: under > 0 ? Math.round((tuning.rays * tuning.underShare) / 100) : 0,
-      u_underPower: tuning.underPower * under,
+      // 消えているあいだは下の光に光線を回さない
+      u_under: [under.x, under.y],
+      u_underAngle: under.angle,
+      u_underRays: under.brightness > 0 ? Math.round((tuning.rays * tuning.underShare) / 100) : 0,
+      u_underPower: tuning.underPower * under.brightness,
       u_rects: LOGO_RECTS.flatMap(([l, t, r, b]) => [left + l * unit, top + t * unit, left + r * unit, top + b * unit])
     })
 
@@ -419,21 +421,24 @@ export type LightCommand = {
   frame?: LightFrame | null
 }
 
+/** 光源 1 つ。位置は canvas の左上からの px */
+export type Lamp = {
+  x: number
+  y: number
+  /** 照らす向き。ラジアンで、右が 0、下へ回る向きが正 */
+  angle: number
+  /** 明るさの割合 */
+  brightness: number
+}
+
 /** 1 フレームぶんの光の状態。位置はどれも canvas の左上からの px */
 export type LightFrame = {
-  light: {x: number; y: number}
-  /** ロゴの中心 */
-  logo: {x: number; y: number}
-  /** ロゴのもとの位置の中心。照明はここに合わせて固定する（どちらの光もここを向き、下の光はこの真下に置く） */
-  home: {x: number; y: number}
-  /** 部屋の床の高さ。下の光はこの上に置く */
-  floor: number
-  /** 上の光の明るさの割合 */
-  brightness: number
-  /** 下の光の明るさの割合 */
-  under: number
-  /** 上の光の絞れ具合。0 で全周に均一、1 で下向きに絞りきる（tuning の cone） */
-  focus: number
+  /** 上の光。focus は絞れ具合で、0 で全周に均一、1 で向きの円錐に絞りきる（tuning の cone） */
+  upper: Lamp & {focus: number}
+  /** 部屋の床の上に置く下の光 */
+  under: Lamp
+  /** ロゴの中心と、大きさの倍率（tuning の cell に掛ける） */
+  logo: {x: number; y: number; scale: number}
   /**
    * ロゴの素材の割合。どちらも 0 で白い面、paper が 1 で和紙、gloss が 1 でつや。切り替えるあいだはあいだを通る
    * （和紙は tuning の translucency の割合だけ中へ入り、つやは shine の割合だけ鏡の向きに返る。残りは白い面と同じ）

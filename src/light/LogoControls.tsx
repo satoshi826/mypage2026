@@ -13,14 +13,14 @@ const subscribe = () => () => {}
 
 /**
  * フッターの左に置くロゴの操作。hero の再生操作と同じ場所に重ね、光がついて hero の再生操作が隠れているあいだだけ出す。
- * ロゴの素材の切り替え（アイコンを押すと上に開く。おまけの操作なので普段は畳んでおく）と、動かしたロゴをもとの位置へ
- * 戻す操作（ロゴを動かしたあとだけ）。状態と操作は Light が controls.ts に出したものを使う
+ * ロゴの素材の切り替え（アイコンを押すと上に開く。おまけの操作なので普段は畳んでおく）と、変えたロゴと光の置き方を既定へ
+ * 戻す操作（ロゴを動かしたり光を回したりしたあとだけ）。状態と操作は Light が controls.ts に出したものを使う
  */
 export function LogoControls() {
   const controls = useLogoControls()
   if (!controls) return null
-  const {lit, moved, reset, material, setMaterial} = controls
-  const showReset = lit && moved
+  const {lit, changed, reset, material, setMaterial} = controls
+  const showReset = lit && changed
   return (
     <div
       aria-hidden={!lit}
