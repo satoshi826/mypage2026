@@ -364,8 +364,8 @@ export function Hero({
         )}
       </div>
       {/* カレンダーはスクロールで上へ流れ、粒子が集まるあいだをかけてゆっくり薄れ、ほどけるときは早く現れる。
-          位置と濃さは毎フレーム書く */}
-      <div ref={calendarRef} className={`shrink-0 ${visible ? 'pointer-events-auto' : ''}`}>
+          位置と濃さは毎フレーム書く。舞台の canvas より下に重ね、写真の上へ流れてきても粒子の下を通す（縦並びのとき） */}
+      <div ref={calendarRef} className={`relative -z-10 shrink-0 ${visible ? 'pointer-events-auto' : ''}`}>
         <ControlPanel
           count={PHOTOS.length}
           available={available}
