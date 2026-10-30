@@ -25,7 +25,7 @@ export type LightTuning = {
   underX: number
   underY: number
 
-  // ロゴ。素材は白い面・ガラス・つやの 3 つ（訪問者がフッターで切り替える）
+  // ロゴ。素材は白い面・ガラス・金属の 3 つ（訪問者がフッターで切り替える）
   /** ロゴの横のずれ px。負で左。2 つの光もロゴからのずれで置くので、一緒にずれる */
   logoShift: number
   /** ロゴの格子 1 マスの大きさ px（ロゴは 12 マス × 11 マス） */
@@ -36,9 +36,9 @@ export type LightTuning = {
   ior: number
   /** ガラスのぼけ。屈折した向きから左右にずれる最大の角度（度）。大きいほどすりガラスに近く、光の筋が柔らかくなる */
   frost: number
-  /** つやにしたとき、ロゴに当たった光線のうち鏡の向きに返る割合 %。残りは白い面と同じく散る */
-  shine: number
-  /** つやのぼけ。鏡の向きから左右にずれる最大の角度（度）。小さいほど鏡に近い */
+  /** 金属が光を返す割合 %。鏡の向きの近くに返し、残りは吸収する */
+  reflectance: number
+  /** 金属のぼけ。鏡の向きから左右にずれる最大の角度（度）。小さいほど磨いた金属、大きいほどつや消しに近い */
   roughness: number
 
   // 描画
@@ -76,7 +76,7 @@ export const DEFAULT_LIGHT: LightTuning = {
   albedo: 100,
   ior: 1.5,
   frost: 4,
-  shine: 100,
+  reflectance: 90,
   roughness: 6,
   minRays: 8192,
   maxRays: 32000,
@@ -130,8 +130,8 @@ export const LIGHT_PARAMS: Param<LightTuning>[] = [
   {group: 'ロゴ', key: 'albedo', label: '白い面: 返す割合', min: 0, max: 100, step: 5, hint: '%'},
   {group: 'ロゴ', key: 'ior', label: 'ガラス: 屈折率', min: 1, max: 2.4, step: 0.01, hint: '1.33 で水、1.5 でガラス'},
   {group: 'ロゴ', key: 'frost', label: 'ガラス: ぼけ', min: 0, max: 45, step: 1, hint: '度。屈折した向きから左右に'},
-  {group: 'ロゴ', key: 'shine', label: 'つや: 鏡の向きに返す割合', min: 0, max: 100, step: 5, hint: '%。残りは散る'},
-  {group: 'ロゴ', key: 'roughness', label: 'つや: ぼけ', min: 0, max: 90, step: 1, hint: '度。鏡の向きから左右に'},
+  {group: 'ロゴ', key: 'reflectance', label: '金属: 返す割合', min: 0, max: 100, step: 5, hint: '%。残りは吸収する'},
+  {group: 'ロゴ', key: 'roughness', label: '金属: ぼけ', min: 0, max: 90, step: 1, hint: '度。鏡の向きから左右に'},
   {group: '描画', key: 'minRays', label: '光線の数の下限', min: 256, max: 16384, step: 256, hint: '本。ここから始める'},
   {
     group: '描画',

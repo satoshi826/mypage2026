@@ -5,7 +5,7 @@ import {useExternal} from '../app/useExternal'
 import {MAX_POWER, MAX_SCALE, MAX_TILT, MIN_SCALE, type LampKey} from './arrangement'
 import {MATERIALS, useLogoControls, type LampControl, type LogoControls as Controls, type Material} from './controls'
 
-const MATERIAL_LABELS: Record<Material, string> = {matte: 'Matte', glass: 'Glass', gloss: 'Gloss'}
+const MATERIAL_LABELS: Record<Material, string> = {matte: 'Matte', glass: 'Glass', metal: 'Metal'}
 const LAMP_LABELS: Record<LampKey, string> = {upper: 'Top', under: 'Bottom'}
 
 // before は指の当たり判定。配置を変えずに 44px を確保する

@@ -5,11 +5,11 @@ import {DEFAULT_LIGHT, type LightTuning} from './tuning'
 // 光源から出た光線が mu のロゴに当たって跳ね返る様子を、光線の通った線を重ねて描く（2D の光の経路追跡）。
 // 光そのものは描かず、光線の線の重なりの明るさで光を見せる。ロゴに遮られたところは影になる。
 // ロゴは部屋（ページの中の要素）の中央に置く。ロゴは光をばらばらの向きに散らして返し、ロゴに当たらなかった光線はそこで終わる。
-// ロゴの素材は 3 つ。白い面（ばらばらの向きに散らして返す）と、ガラス（u_glass）と、つや（u_gloss）。素材を切り替えるあいだは、
+// ロゴの素材は 3 つ。白い面（ばらばらの向きに散らして返す）と、ガラス（u_glass）と、金属（u_metal）。素材を切り替えるあいだは、
 // 光線ごとに今の素材と次の素材を割合で選ぶ。
 // - ガラス: 面で一部が鏡の向きに返り（フレネル）、残りは屈折して中へ入る。中をまっすぐ進み、出る面でも屈折して出るか、
 //   中へ返る（臨界角を超えると全部返る）。屈折の向きは u_frost までぼかす。屈折率 u_ior が 1.33 なら水、1.5 ならガラスに近い
-// - つや: 当たった光線の一部が、鏡の向きの近くにぼけて返る。光に向いた縁に柔らかいハイライトが出る
+// - 金属: 当たった光線は鏡の向きの近くにぼけて返り、u_reflectance の割合だけ残る（残りは吸収される）。散らして返さない
 // 光源は 2 つ。上の光（u_upper）と、ロゴの下に置く下の光（u_under）。どちらも向き（u_upperAngle、u_underAngle）を持つ
 // スポットで、ふだんはロゴの今の位置を向く（訪問者がフッターの設定で変えられる。Light.tsx）。ロゴの切り込みのうち 2 本は下に開いていて、
 // 上の光は奥まで入らないので、下の光で下から照らす。光線の数は 2 つで分け合う。
@@ -73,7 +73,8 @@ export function createLightScene(core: Core, pixelRatio: number) {
       u_glass: 'float',
       u_ior: 'float',
       u_frost: 'float',
-      u_gloss: 'float',
+      u_metal: 'float',
+      u_reflectance: 'float',
       u_rough: 'float',
       u_upperPower: 'float',
       u_seed: 'float',
@@ -164,9 +165,9 @@ export function createLightScene(core: Core, pixelRatio: number) {
         return r0 + (1.0 - r0) * pow(1.0 - clamp(c, 0.0, 1.0), 5.0);
       }
 
-      // 屈折した向き d を、左右に最大 u_frost までぼかす（真ん中ほど多い）。面の向き n の側から外れたら折り返す
-      vec2 frost(vec2 d, vec2 n, int ray, int s) {
-        float off = u_frost * (rand(ray, ${2 * MAX_SEGMENTS + 3} + s) + rand(ray, s + 1) - 1.0);
+      // 向き d を、左右に最大 width までぼかす（真ん中ほど多い）。面の向き n の側から外れたら折り返す
+      vec2 blur(vec2 d, vec2 n, float width, int ray, int s) {
+        float off = width * (rand(ray, ${2 * MAX_SEGMENTS + 3} + s) + rand(ray, s + 1) - 1.0);
         vec2 m = vec2(d.x * cos(off) - d.y * sin(off), d.x * sin(off) + d.y * cos(off));
         return dot(m, n) < 0.0 ? reflect(m, n) : m;
       }
@@ -235,7 +236,7 @@ export function createLightScene(core: Core, pixelRatio: number) {
               dir = reflect(dir, -normal);
               pos = next - normal * 0.01;
             } else {
-              dir = frost(leave, normal, ray, s);
+              dir = blur(leave, normal, u_frost, ray, s);
               pos = next + normal * 0.01;
               inside = false;
             }
@@ -253,18 +254,16 @@ export function createLightScene(core: Core, pixelRatio: number) {
               dir = reflect(dir, normal);
               pos = next + normal * 0.01;
             } else {
-              dir = frost(refract(dir, normal, 1.0 / u_ior), -normal, ray, s);
+              dir = blur(refract(dir, normal, 1.0 / u_ior), -normal, u_frost, ray, s);
               pos = next - normal * 0.01;
               inside = true;
             }
             continue;
           }
-          // つやとして当たった光線は、鏡の向きから左右に最大 u_rough ずれた向きに返る（真ん中ほど多い）。面の中へ向いたら折り返す
-          if (pick < u_glass + u_gloss) {
-            vec2 m = reflect(dir, normal);
-            float off = u_rough * (rand(ray, ${2 * MAX_SEGMENTS + 3} + s) + rand(ray, s + 1) - 1.0);
-            m = vec2(m.x * cos(off) - m.y * sin(off), m.x * sin(off) + m.y * cos(off));
-            dir = dot(m, normal) < 0.0 ? reflect(m, normal) : m;
+          // 金属として当たった光線は、鏡の向きから左右に最大 u_rough ずれた向きに返り、u_reflectance の割合だけ残る
+          if (pick < u_glass + u_metal) {
+            dir = blur(reflect(dir, normal), normal, u_rough, ray, s);
+            energy *= u_reflectance;
             pos = next + normal * 0.01;
             continue;
           }
@@ -354,6 +353,7 @@ export function createLightScene(core: Core, pixelRatio: number) {
       u_albedo: tuning.albedo / 100,
       u_ior: tuning.ior,
       u_frost: (tuning.frost * Math.PI) / 180,
+      u_reflectance: tuning.reflectance / 100,
       u_rough: (tuning.roughness * Math.PI) / 180,
       u_upperSize: tuning.upperSize,
       u_underSize: tuning.underSize,
@@ -394,7 +394,7 @@ export function createLightScene(core: Core, pixelRatio: number) {
       Math.hypot(under.x - lastLamps.under.x, under.y - lastLamps.under.y) +
       Math.hypot(left - lastLogo.x, top - lastLogo.y) +
       Math.abs(unit - lastLogo.unit) * LOGO_WIDTH
-    const turn = [upper.angle, under.angle, material.glass, material.gloss].join()
+    const turn = [upper.angle, under.angle, material.glass, material.metal].join()
     moving = Math.max(Math.min(1, moved / MOVING_PX), turn === lastTurn ? 0 : 1, moving * SETTLE_RATE)
     lastBase = upper.base
     lastLamps = {upper: {x: upper.x, y: upper.y}, under: {x: under.x, y: under.y}}
@@ -408,7 +408,7 @@ export function createLightScene(core: Core, pixelRatio: number) {
       u_upperAngle: upper.angle,
       u_focus: upper.focus,
       u_glass: material.glass,
-      u_gloss: material.gloss * (tuning.shine / 100),
+      u_metal: material.metal,
       u_under: [under.x, under.y],
       u_underAngle: under.angle,
       // 光線は強さの比で 2 つの光に分ける。どちらの光線も 1 本あたりのエネルギーが同じになり、ざらつきが一番少なくなる。
@@ -484,8 +484,7 @@ export type LightFrame = {
   /** ロゴの中心と、大きさの倍率（tuning の cell に掛ける） */
   logo: {x: number; y: number; scale: number}
   /**
-   * ロゴの素材の割合。どちらも 0 で白い面、glass が 1 でガラス、gloss が 1 でつや。切り替えるあいだはあいだを通る
-   * （つやは tuning の shine の割合だけ鏡の向きに返る。残りは白い面と同じ）
+   * ロゴの素材の割合。どちらも 0 で白い面、glass が 1 でガラス、metal が 1 で金属。切り替えるあいだはあいだを通る
    */
-  material: {glass: number; gloss: number}
+  material: {glass: number; metal: number}
 }
