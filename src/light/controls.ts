@@ -1,14 +1,21 @@
 import {useExternal} from '../app/useExternal'
+import type {LampKey, LampSetting} from './arrangement'
 
-// フッターに出すロゴの操作（素材の切り替えと、変えたロゴと光の置き方を戻す操作）の受け渡し。状態と操作は Light が持ち、
+// フッターに出すロゴとライトの操作（ロゴの素材と大きさ、光の向きと明るさ、変えた置き方を戻す操作）の受け渡し。状態と操作は Light が持ち、
 // マウント中だけここへ出す。フッターはここを読んで描く。光の層のチャンク（worker・シェーダ）は読み込まない。
 
 /** ロゴの素材。白い面（ばらばらの向きに散らして返す）、和紙（中へ入って散り、内側から光る）、つや（鏡の向きの近くに返す） */
 export const MATERIALS = ['matte', 'paper', 'gloss'] as const
 export type Material = (typeof MATERIALS)[number]
 
+/** フッターに出す 1 つの光の設定と、今照らしている向き */
+export type LampControl = LampSetting & {
+  /** 今照らしている向き。傾き（LampSetting の tilt と同じ測り方）で、1 度に丸めたもの。ロゴを向いているときもこの値 */
+  facing: number
+}
+
 export type LogoControls = {
-  /** 光がつききっている（hero が隠れている）か。そのあいだだけフッターにロゴの操作を出す */
+  /** 光がつききっている（hero が隠れている）か。そのあいだだけフッターにロゴとライトの操作を出す */
   lit: boolean
   /** ロゴか光の置き方を既定から変えたか。光がついていて、変えてあるあいだだけ戻す操作を出す */
   changed: boolean
@@ -18,6 +25,12 @@ export type LogoControls = {
   material: Material
   /** ロゴの素材を切り替える */
   setMaterial: (material: Material) => void
+  /** ロゴの大きさの倍率。0.01 に丸めたもの */
+  scale: number
+  setScale: (scale: number) => void
+  /** 上の光と下の光 */
+  lamps: Record<LampKey, LampControl>
+  setLamp: (key: LampKey, setting: LampSetting) => void
 }
 
 let current: LogoControls | null = null

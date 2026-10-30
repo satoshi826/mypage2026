@@ -1,39 +1,56 @@
 import {useEffect, useLayoutEffect, useRef, useState} from 'preact/hooks'
-import {createPortal} from 'preact'
+import {createPortal, type ComponentChildren} from 'preact'
 import {GLOW_HOVER} from '../app/glow'
 import {useExternal} from '../app/useExternal'
-import {MATERIALS, useLogoControls, type Material} from './controls'
+import {MAX_POWER, MAX_SCALE, MAX_TILT, MIN_SCALE, type LampKey} from './arrangement'
+import {MATERIALS, useLogoControls, type LampControl, type LogoControls as Controls, type Material} from './controls'
 
 const MATERIAL_LABELS: Record<Material, string> = {matte: 'Matte', paper: 'Paper', gloss: 'Gloss'}
+const LAMP_LABELS: Record<LampKey, string> = {upper: 'Top', under: 'Bottom'}
 
 // before は指の当たり判定。配置を変えずに 44px を確保する
-const ICON_BUTTON = `glow-mark relative flex cursor-pointer transition-[opacity,filter] duration-700 before:absolute before:top-1/2 before:left-1/2 before:size-11 before:-translate-x-1/2 before:-translate-y-1/2 before:content-[''] ${GLOW_HOVER}`
+const ICON_BUTTON = `glow-mark relative flex cursor-pointer opacity-55 transition-[opacity,filter] duration-700 before:absolute before:top-1/2 before:left-1/2 before:size-11 before:-translate-x-1/2 before:-translate-y-1/2 before:content-[''] hover:opacity-100 aria-expanded:opacity-100 ${GLOW_HOVER}`
+
+/** 開いた入れ物の中で選ぶ文字。見た目はフッターのタブ（Tabs.tsx）と同じで、選んでいるものの文字を光らせる */
+const OPTION = `flex cursor-pointer items-center opacity-75 transition-opacity duration-300 hover:opacity-100! focus-visible:opacity-100! ${GLOW_HOVER} aria-pressed:opacity-90 aria-pressed:[--glow:var(--glow-selected)]`
+
+/** 欄の名前。添える文字なので 55% */
+const LABEL = 'opacity-55'
+
+/** input[type=range] のつまみの幅（styles.css の [data-slider]）。溝の両端はこの半分ずつ内側になる */
+const THUMB = 16
 
 const subscribe = () => () => {}
 
 /**
- * フッターの左に置くロゴの操作。hero の再生操作と同じ場所に重ね、光がついて hero の再生操作が隠れているあいだだけ出す。
- * ロゴの素材の切り替え（アイコンを押すと上に開く。おまけの操作なので普段は畳んでおく）と、変えたロゴと光の置き方を既定へ
- * 戻す操作（ロゴを動かしたり光を回したりしたあとだけ）。状態と操作は Light が controls.ts に出したものを使う
+ * フッターの左に置くロゴとライトの操作。hero の再生操作と同じ場所に重ね、光がついて hero の再生操作が隠れているあいだだけ
+ * 出す。ロゴの設定（素材と大きさ）とライトの設定（上の光と下の光の向きと明るさ）は、それぞれアイコンを押すと上に開く
+ * （おまけの操作なので普段は畳んでおく）。変えたロゴと光の置き方を既定へ戻す操作は、変えたあとだけ出す。
+ * 状態と操作は Light が controls.ts に出したものを使う
  */
 export function LogoControls() {
   const controls = useLogoControls()
   if (!controls) return null
-  const {lit, changed, reset, material, setMaterial} = controls
+  const {lit, changed, reset} = controls
   const showReset = lit && changed
   return (
     <div
       aria-hidden={!lit}
       className={`flex items-center gap-6 transition-opacity duration-700 max-sm:gap-4 ${lit ? '' : 'pointer-events-none opacity-0'}`}
     >
-      <MaterialMenu lit={lit} material={material} setMaterial={setMaterial} />
+      <Menu lit={lit} label="Logo" icon={LOGO_ICON}>
+        {(focusable) => <LogoSettings controls={controls} focusable={focusable} />}
+      </Menu>
+      <Menu lit={lit} label="Light" icon={LIGHT_ICON}>
+        {(focusable) => <LightSettings controls={controls} focusable={focusable} />}
+      </Menu>
       <button
         type="button"
         onClick={reset}
         aria-label="Reset"
         aria-hidden={!showReset}
         tabIndex={showReset ? 0 : -1}
-        className={`${ICON_BUTTON} ${showReset ? '' : 'pointer-events-none opacity-0'}`}
+        className={`${ICON_BUTTON} ${showReset ? '' : 'pointer-events-none opacity-0!'}`}
       >
         {/* 反時計回りの矢印。線の太さはフッターの SNS のアイコンと同じ */}
         <svg viewBox="0 0 24 24" aria-hidden className="size-5" fill="none" stroke="currentColor" stroke-width={1.5}>
@@ -45,18 +62,129 @@ export function LogoControls() {
   )
 }
 
+/** ロゴの設定のアイコン。光の当たった面として、円の半分を塗る */
+const LOGO_ICON = (
+  <svg viewBox="0 0 24 24" aria-hidden className="size-5" fill="none" stroke="currentColor" stroke-width={1.5}>
+    <circle cx="12" cy="12" r="7.5" />
+    <path d="M12 4.5a7.5 7.5 0 0 1 0 15z" fill="currentColor" stroke="none" />
+  </svg>
+)
+
+/** ライトの設定のアイコン。上から下へ広がる光 */
+const LIGHT_ICON = (
+  <svg viewBox="0 0 24 24" aria-hidden className="size-5" fill="none" stroke="currentColor" stroke-width={1.5}>
+    <circle cx="12" cy="5.5" r="1.5" fill="currentColor" stroke="none" />
+    <path d="M10.5 8.5 6 19.5M13.5 8.5 18 19.5" />
+  </svg>
+)
+
+/** ロゴの設定。素材と大きさ */
+function LogoSettings({controls, focusable}: {controls: Controls; focusable: boolean}) {
+  const {material, setMaterial, scale, setScale} = controls
+  return (
+    <>
+      <span className={LABEL}>Material</span>
+      <div className="col-span-3 flex gap-6 max-sm:gap-4">
+        {MATERIALS.map((m) => (
+          <button
+            key={m}
+            type="button"
+            onClick={() => setMaterial(m)}
+            aria-pressed={material === m}
+            tabIndex={focusable ? 0 : -1}
+            className={OPTION}
+          >
+            <span className="glow-text transition-[text-shadow] duration-800">{MATERIAL_LABELS[m]}</span>
+          </button>
+        ))}
+      </div>
+      <span className={LABEL}>Size</span>
+      <Slider
+        label="Size"
+        value={scale}
+        min={MIN_SCALE}
+        max={MAX_SCALE}
+        step={0.01}
+        mark={1}
+        focusable={focusable}
+        onInput={setScale}
+        className="col-span-3"
+      />
+    </>
+  )
+}
+
+/** ライトの設定。上の光と下の光それぞれの向き（Auto でロゴを向く）と明るさ */
+function LightSettings({controls, focusable}: {controls: Controls; focusable: boolean}) {
+  const {lamps, setLamp} = controls
+  return (
+    <>
+      {(['upper', 'under'] as const).map((key) => {
+        const lamp: LampControl = lamps[key]
+        const {tilt, power, facing} = lamp
+        const auto = tilt === null
+        const degrees = Math.round((facing * 180) / Math.PI)
+        return (
+          <div key={key} className="contents">
+            <span className={`${LABEL} row-span-2`}>{LAMP_LABELS[key]}</span>
+            <span className={LABEL}>Angle</span>
+            {/* 外すと今照らしている向きのまま止める。向きが跳ばないように */}
+            <button
+              type="button"
+              onClick={() => setLamp(key, {tilt: auto ? facing : null, power})}
+              aria-pressed={auto}
+              tabIndex={focusable ? 0 : -1}
+              className={OPTION}
+            >
+              <span className="glow-text transition-[text-shadow] duration-800">Auto</span>
+            </button>
+            {/* Auto のあいだは、ロゴを向いている向きを薄く示す。動かすと Auto が外れる */}
+            <Slider
+              label={`${LAMP_LABELS[key]} angle`}
+              value={degrees}
+              min={-(MAX_TILT * 180) / Math.PI}
+              max={(MAX_TILT * 180) / Math.PI}
+              step={1}
+              mark={0}
+              faint={auto}
+              focusable={focusable}
+              onInput={(value) => setLamp(key, {tilt: (value * Math.PI) / 180, power})}
+            />
+            <span className={LABEL}>Power</span>
+            <Slider
+              label={`${LAMP_LABELS[key]} power`}
+              value={power}
+              min={0}
+              max={MAX_POWER}
+              step={0.05}
+              mark={1}
+              focusable={focusable}
+              onInput={(value) => setLamp(key, {tilt, power: value})}
+              className="col-start-4"
+            />
+          </div>
+        )
+      })}
+    </>
+  )
+}
+
 /**
- * ロゴの素材を選ぶ操作。アイコンを押すと、上に素材の名前の列が開く。選んでも閉じない（見比べられるように）。
- * 外を押すか Esc、光が消えると閉じる。開く入れ物は Photos の列数（GalleryTools.tsx）と同じく、フッターの外（body の直下）に描く
+ * 設定の入れ物を開くアイコン。押すと、アイコンの上に欄を並べた入れ物が開く。中で選んでも閉じない（見比べられるように）。
+ * 外を押すか Esc、光が消えると閉じる。開く入れ物は Photos の列数（GalleryTools.tsx）と同じく、フッターの外（body の直下）に
+ * 描く。中身は 4 列の格子（欄の名前、項目の名前、切り替え、スライダー）に並べる
  */
-function MaterialMenu({
+function Menu({
   lit,
-  material,
-  setMaterial
+  label,
+  icon,
+  children
 }: {
   lit: boolean
-  material: Material
-  setMaterial: (material: Material) => void
+  label: string
+  icon: ComponentChildren
+  /** 中身。閉じているあいだはキーボードで辿れないようにする */
+  children: (focusable: boolean) => ComponentChildren
 }) {
   const [open, setOpen] = useState(false)
   const button = useRef<HTMLButtonElement>(null)
@@ -97,44 +225,91 @@ function MaterialMenu({
       <button
         ref={button}
         type="button"
-        aria-label="Material"
+        aria-label={label}
         aria-expanded={open}
         tabIndex={lit ? 0 : -1}
         onClick={() => setOpen(!open)}
-        className={`${ICON_BUTTON} opacity-55 hover:opacity-100 aria-expanded:opacity-100`}
+        className={ICON_BUTTON}
       >
-        {/* 光の当たった面。円の半分を塗る */}
-        <svg viewBox="0 0 24 24" aria-hidden className="size-5" fill="none" stroke="currentColor" stroke-width={1.5}>
-          <circle cx="12" cy="12" r="7.5" />
-          <path d="M12 4.5a7.5 7.5 0 0 1 0 15z" fill="currentColor" stroke="none" />
-        </svg>
+        {icon}
       </button>
       {body &&
         createPortal(
           <div
             ref={menu}
             role="group"
-            aria-label="Material"
+            aria-label={label}
             aria-hidden={!open}
             style={{left: `${at.left}px`, bottom: `${at.bottom}px`}}
-            className={`fixed z-20 flex h-12 gap-6 border border-white/10 bg-black/70 px-4 text-sm tracking-[0.12em] backdrop-blur-[20px] transition-[opacity,translate] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] max-sm:gap-4 max-sm:text-xs ${open ? '' : 'pointer-events-none translate-y-1 opacity-0'}`}
+            className={`fixed z-20 grid auto-rows-[2.5rem] grid-cols-[repeat(4,auto)] items-center gap-x-6 border border-white/10 bg-black/70 px-4 py-1 text-sm tracking-[0.12em] backdrop-blur-[20px] transition-[opacity,translate] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] max-sm:gap-x-4 max-sm:text-xs ${open ? '' : 'pointer-events-none translate-y-1 opacity-0'}`}
           >
-            {/* 見た目はフッターのタブ（Tabs.tsx）と同じで、選んでいる素材の文字を光らせる */}
-            {MATERIALS.map((m) => (
-              <button
-                key={m}
-                type="button"
-                onClick={() => setMaterial(m)}
-                aria-pressed={material === m}
-                tabIndex={open ? 0 : -1}
-                className={`flex cursor-pointer items-center opacity-75 transition-opacity duration-300 hover:opacity-100! focus-visible:opacity-100! ${GLOW_HOVER} aria-pressed:opacity-90 aria-pressed:[--glow:var(--glow-selected)]`}
-              >
-                <span className="glow-text transition-[text-shadow] duration-800">{MATERIAL_LABELS[m]}</span>
-              </button>
-            ))}
+            {children(open)}
           </div>,
           body
         )}
     </>
+  )
+}
+
+/**
+ * 設定のスライダー。0.5px の溝に、既定の値の位置へ点を置き、今の値に丸いつまみを置く。マウスを載せるとつまみが大きくなる。
+ * 見た目は Photos の列数のスライダー（GalleryTools.tsx）にそろえる。見た目は自前で描き、操作は透明な input[type=range] が
+ * 受ける（ドラッグ、タップ、矢印キー、読み上げ）
+ */
+function Slider({
+  label,
+  value,
+  min,
+  max,
+  step,
+  mark,
+  faint = false,
+  focusable,
+  onInput,
+  className = ''
+}: {
+  label: string
+  value: number
+  min: number
+  max: number
+  step: number
+  /** 既定の値。溝の上に点で示す */
+  mark: number
+  /** 値を自動で決めているあいだは、つまみを薄くする */
+  faint?: boolean
+  focusable: boolean
+  onInput: (value: number) => void
+  className?: string
+}) {
+  const position = (v: number) => `calc(var(--thumb) / 2 + (100% - var(--thumb)) * ${(v - min) / (max - min)})`
+  return (
+    <div
+      className={`group relative h-full w-32 justify-self-start max-sm:w-24 ${className}`}
+      style={{'--thumb': `${THUMB}px`}}
+    >
+      <div aria-hidden className="absolute inset-x-[calc(var(--thumb)/2)] top-1/2 h-[0.5px] bg-ink/35" />
+      <div
+        aria-hidden
+        className="absolute top-1/2 size-0.5 -translate-1/2 rounded-full bg-ink/70 transition-colors duration-300 group-hover:bg-ink/90"
+        style={{left: position(mark)}}
+      />
+      <div
+        aria-hidden
+        className={`glow-line absolute top-1/2 size-2 -translate-1/2 rounded-full bg-ink transition-[scale,box-shadow,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-140 group-hover:opacity-100 group-hover:[--glow:var(--glow-hover)] group-has-[input:focus-visible]:scale-150 group-has-[input:focus-visible]:[--glow:var(--glow-hover)] ${faint ? 'opacity-55' : ''}`}
+        style={{left: position(value)}}
+      />
+      <input
+        type="range"
+        data-slider
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        tabIndex={focusable ? 0 : -1}
+        aria-label={label}
+        onInput={(event) => onInput(Number(event.currentTarget.value))}
+        className="absolute inset-0 m-0 h-full w-full cursor-pointer appearance-none bg-transparent opacity-0"
+      />
+    </div>
   )
 }

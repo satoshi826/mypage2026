@@ -4,8 +4,21 @@ import {GATHER_AT, SCENE_SCREENS, ease, lightAt, lightOf, type Stage} from '../a
 import {useAnimationFrame} from '../scene/useCanvas'
 import type {SceneCommand} from '../scene/worker'
 import type {LightCommand} from './scene'
-import {DEFAULT_ARRANGEMENT, MAX_SCALE, MIN_SCALE, isDefault, shrink, wrapAngle, type Arrangement} from './arrangement'
-import {setLogoControls, type Material} from './controls'
+import {
+  DEFAULT_ARRANGEMENT,
+  MAX_SCALE,
+  MAX_TILT,
+  MIN_SCALE,
+  angleOf,
+  isDefault,
+  shrink,
+  tiltOf,
+  wrapAngle,
+  type Arrangement,
+  type LampKey,
+  type LampSetting
+} from './arrangement'
+import {setLogoControls, type LampControl, type Material} from './controls'
 import {LOGO_HEIGHT, LOGO_WIDTH} from './logo'
 import {DEFAULT_LIGHT, LIGHT_PARAMS, type LightTuning} from './tuning'
 
@@ -14,6 +27,9 @@ const RESET_SECONDS = 0.8
 
 /** ロゴの素材を切り替えるのにかける秒数 */
 const MATERIAL_SECONDS = 0.8
+
+/** 光の向きが、設定やロゴの位置の変化に追いつくまでの目安の秒数（指数的に寄せる時定数） */
+const TURN_SECONDS = 0.2
 
 /** ついた直後の光の明るさ。最大に対する割合。スクロールでロゴが近づくと最大になる */
 const DIM = 0.5
@@ -34,13 +50,13 @@ const FOCUS_AFTER_SCREENS = 0.5
  * 部屋が画面の下端に近づくと光り始める。ロゴを置く部屋はページの中の要素
  * （room）で、その要素と一緒に、ページの中身としてスクロールで上がってきて光の下に入る
  *
- * 訪問者はロゴと光を触れる（arrangement.ts）。ロゴと光源の上に見えないつかみ場所を重ねて受ける。
- * - ロゴはドラッグで動かせ（マウスでも指でも）、ピンチで大きさを変えられる（指は 2 本で、トラックパッドはそのままピンチ。
- *   ブラウザには ctrl を押したホイールとして届く）。離した位置と大きさにとどまり、部屋の外へは出ない
- * - 光は光源をつまんで回せる。光源の位置はそのままで、照らす向きがつまんだ指の方へ向く。ふだんはロゴの今の位置を向き、
- *   ロゴを動かすと光の向きもついてくる。回したぶんは、ロゴを向く向きからのずれとして保つ
- * 変えたあとは、フッターの操作（LogoControls.tsx）で既定へ戻せる。ロゴの素材も、フッターの操作で白い面・和紙・つやに
- * 切り替えられる。
+ * 訪問者はロゴと光を変えられる（arrangement.ts）。
+ * - ロゴはドラッグで動かせ（マウスでも指でも。ロゴの上に見えないつかみ場所を重ねて受ける）、ピンチで大きさを変えられる
+ *   （指は 2 本で、トラックパッドはそのままピンチ。ブラウザには ctrl を押したホイールとして届く）。離した位置と大きさに
+ *   とどまり、部屋の外へは出ない。大きさと素材（白い面・和紙・つや）は、フッターのロゴの設定でも変えられる
+ * - 光はフッターのライトの設定で、向きと明るさを変えられる。光源の位置は変わらない。向きはふだんロゴの今の位置を向き
+ *   （Auto）、ロゴを動かすとついてくる。向きは設定が変わっても跳ばさず、滑らかに追う
+ * 変えたあとは、フッターの操作（LogoControls.tsx）で既定へ戻せる。
  *
  * @param room ロゴを置く部屋の要素。中央（から logoShift ずらした位置）がロゴのもとの位置で、その下の床の上に下の光を置く
  * @param screen 舞台の canvas の入れ物。光の位置と明るさは、この大きさから決める
@@ -70,10 +86,18 @@ export function Light({
   const arrangement = useRef(DEFAULT_ARRANGEMENT)
   // 既定へ戻している途中なら、戻し始めた時刻と、そのときの置き方
   const returning = useRef<{at: number; from: Arrangement} | null>(null)
-  // フッターに出している「光がつききっている」と「置き方を変えた」かどうか。変わったときだけ出し直す
-  const shown = useRef({lit: false, changed: false})
+  // フッターに出している状態。変わったときだけ出し直す
+  const shown = useRef<Shown>({lit: false, changed: false, scale: 1, lamps: {upper: STILL, under: STILL}})
   const reset = useCallback(() => {
     returning.current = {at: performance.now(), from: arrangement.current}
+  }, [])
+  const setScale = useCallback((scale: number) => {
+    returning.current = null
+    arrangement.current = {...arrangement.current, scale}
+  }, [])
+  const setLamp = useCallback((key: LampKey, {tilt, power}: LampSetting) => {
+    returning.current = null
+    arrangement.current = {...arrangement.current, lamps: {...arrangement.current.lamps, [key]: {tilt, power}}}
   }, [])
   // ロゴの素材。切り替えたら、切り替えた時刻から素材の割合を滑らかに移す
   const [material, setMaterialState] = useState<Material>('matte')
@@ -83,16 +107,20 @@ export function Light({
     switched.current = {at: performance.now(), from: {...mix.current}}
     setMaterialState(next)
   }, [])
+  const publish = (next: Shown) => {
+    shown.current = next
+    setLogoControls({...next, reset, material, setMaterial, setScale, setLamp})
+  }
   useEffect(() => {
-    setLogoControls({...shown.current, reset, material, setMaterial})
-  }, [reset, material, setMaterial])
+    setLogoControls({...shown.current, reset, material, setMaterial, setScale, setLamp})
+  }, [reset, material, setMaterial, setScale, setLamp])
   useEffect(() => () => setLogoControls(null), [])
 
-  // ロゴのつかみ場所と、光源のつかみ場所。位置は毎フレーム書く
+  // ロゴのつかみ場所。位置は毎フレーム書く
   const grip = useRef<HTMLDivElement>(null)
-  const lampGrips = {upper: useRef<HTMLDivElement>(null), under: useRef<HTMLDivElement>(null)}
-  // 前のフレームの光源の位置と、ふだんの向き（ロゴの今の位置を向く向き）。つまんで回すときの基準
-  const lamps = useRef({upper: {x: 0, y: 0, aim: 0}, under: {x: 0, y: 0, aim: 0}})
+  // 今照らしている向き（画面の上の角度）と、それを書いた時刻。光が消えているあいだは null
+  const facing = useRef<Record<LampKey, number> | null>(null)
+  const lastFrame = useRef(0)
 
   // ロゴをつかんでいる指（マウスは 1 つ）。指が増えたり減ったりしたら、そのときの置き方と指の位置から測り直す。
   // 1 本ならその動きだけロゴを動かし、2 本なら指のあいだの距離の比で大きさを変え、2 本の中点の動きだけ動かす
@@ -142,46 +170,21 @@ export function Light({
     arrangement.current = {...arrangement.current, scale: arrangement.current.scale * Math.exp(-event.deltaY * 0.01)}
   }
 
-  // 光源をつまんでいる指と、どちらの光か。照らす向きを、光源から指の方へ向ける
-  const turning = useRef<{id: number; key: 'upper' | 'under'} | null>(null)
-  const onLampDown = (key: 'upper' | 'under') => (event: PointerEvent) => {
-    returning.current = null
-    turning.current = {id: event.pointerId, key}
-    ;(event.currentTarget as HTMLElement).setPointerCapture(event.pointerId)
-    event.preventDefault()
-  }
-  const onLampMove = (event: PointerEvent) => {
-    const t = turning.current
-    if (!t || t.id !== event.pointerId) return
-    const lamp = lamps.current[t.key]
-    const angle = Math.atan2(event.clientY - lamp.y, event.clientX - lamp.x)
-    arrangement.current = {
-      ...arrangement.current,
-      turn: {...arrangement.current.turn, [t.key]: wrapAngle(angle - lamp.aim)}
-    }
-  }
-  const onLampUp = (event: PointerEvent) => {
-    if (turning.current?.id === event.pointerId) turning.current = null
-  }
-
   // 光の層を描いているか。消えたフレームも 1 回は送り、画面から光を消させる
   const lit = useRef(false)
   useAnimationFrame(() => {
     const arrived = lightOf(stage.current)
     const box = room.current?.getBoundingClientRect()
-    // フッターのロゴの操作は、光がつききっている（hero の再生操作が隠れている）あいだだけ出す。戻す操作は置き方を変えたときだけ
+    // フッターのロゴとライトの操作は、光がつききっている（hero の再生操作が隠れている）あいだだけ出す。戻す操作は置き方を
+    // 変えたときだけ
     const nowLit = arrived >= 1
-    const nowChanged = !isDefault(arrangement.current)
-    if (nowLit !== shown.current.lit || nowChanged !== shown.current.changed) {
-      shown.current = {lit: nowLit, changed: nowChanged}
-      setLogoControls({...shown.current, reset, material, setMaterial})
-    }
     // 粒子が光へ向けて飛び始めたら、光の層を描き始める（飛ぶ粒子も光の層に描くため）。光が明るくなるのは粒子が着いてから
     if (stage.current.gather <= 0 || !box) {
       if (lit.current) send({frame: null})
       lit.current = false
-      for (const el of [grip.current, lampGrips.upper.current, lampGrips.under.current])
-        el?.style.setProperty('display', 'none')
+      facing.current = null
+      grip.current?.style.setProperty('display', 'none')
+      if (shown.current.lit) publish({...shown.current, lit: false})
       return
     }
     lit.current = true
@@ -202,7 +205,7 @@ export function Light({
     const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v))
     const homeWidth = (LOGO_WIDTH * tuning.cell) / 2
     const homeHeight = (LOGO_HEIGHT * tuning.cell) / 2
-    const {offset, turn} = arrangement.current
+    const {offset, lamps} = arrangement.current
     const scale = clamp(
       arrangement.current.scale,
       MIN_SCALE,
@@ -216,40 +219,60 @@ export function Light({
         y: clamp(offset.y, box.top + logoHeight / 2 - home.y, box.bottom - logoHeight / 2 - home.y)
       },
       scale,
-      turn
+      lamps
     }
     const logo = {x: home.x + arrangement.current.offset.x, y: home.y + arrangement.current.offset.y, scale}
-    const {at, from} = switched.current
-    const r = ease((now - at) / 1000 / MATERIAL_SECONDS)
+    const change = switched.current
+    const r = ease((now - change.at) / 1000 / MATERIAL_SECONDS)
     const to = {paper: material === 'paper' ? 1 : 0, gloss: material === 'gloss' ? 1 : 0}
+    const from = change.from
     mix.current = {paper: from.paper + (to.paper - from.paper) * r, gloss: from.gloss + (to.gloss - from.gloss) * r}
     place(grip.current, logo.x - logoWidth / 2, logo.y - logoHeight / 2, logoWidth, logoHeight)
     // 光は、ロゴの上端（部屋の中央からロゴの高さの半分上）が画面の下端に届くところで最大になる
     const logoTop = (box.top + box.bottom) / 2 - (LOGO_HEIGHT * tuning.cell) / 4
-    const brightness = arrived * (DIM + (1 - DIM) * ease(1 - (logoTop - height) / (height * BRIGHTEN_SCREENS)))
+    const brightness =
+      arrived * (DIM + (1 - DIM) * ease(1 - (logoTop - height) / (height * BRIGHTEN_SCREENS))) * lamps.upper.power
     // 下の光は、部屋の床が画面の下端の半画面下まで来たところから光り始め、下端に着くと最大になる
-    const underBrightness = ease(1 - (box.bottom - height) / (height / 2))
-    // 光源の位置。上の光は画面の上、下の光はロゴのもとの位置の真下から underShift ずらした床の上。どちらもふだんは
-    // ロゴの今の位置を向き、訪問者が回したぶんだけ向きを変える
-    const upperAt = lightAt(stage.current, {width: screen.current?.clientWidth ?? 0, height})
-    const underAt = {x: home.x + tuning.underShift, y: box.bottom - tuning.underHeight}
-    const aim = (at: {x: number; y: number}) => Math.atan2(logo.y - at.y, logo.x - at.x)
-    lamps.current = {upper: {...upperAt, aim: aim(upperAt)}, under: {...underAt, aim: aim(underAt)}}
-    // 光源のつかみ場所は、光がつききってから、その光が点いているあいだだけ出す
-    const lampOn = {upper: nowLit, under: nowLit && underBrightness > 0}
-    for (const key of ['upper', 'under'] as const) {
-      const {x, y} = lamps.current[key]
-      if (lampOn[key]) place(lampGrips[key].current, x - LAMP_GRIP / 2, y - LAMP_GRIP / 2, LAMP_GRIP, LAMP_GRIP)
-      else lampGrips[key].current?.style.setProperty('display', 'none')
+    const underBrightness = ease(1 - (box.bottom - height) / (height / 2)) * lamps.under.power
+    // 光源の位置。上の光は画面の上、下の光はロゴのもとの位置の真下から underShift ずらした床の上
+    const at = {
+      upper: lightAt(stage.current, {width: screen.current?.clientWidth ?? 0, height}),
+      under: {x: home.x + tuning.underShift, y: box.bottom - tuning.underHeight}
     }
+    // 向きは、Auto ならロゴの今の位置へ、傾けてあればその向きへ。今の向きからそこへ滑らかに寄せる
+    const follow = 1 - Math.exp(-Math.min(0.1, (now - lastFrame.current) / 1000) / TURN_SECONDS)
+    lastFrame.current = now
+    const turned = (key: LampKey) => {
+      const {tilt} = lamps[key]
+      const target = tilt === null ? Math.atan2(logo.y - at[key].y, logo.x - at[key].x) : angleOf(key, tilt)
+      const was = facing.current?.[key]
+      if (was === undefined) return target
+      const gap = wrapAngle(target - was)
+      return Math.abs(gap) < 0.001 ? target : was + gap * follow
+    }
+    facing.current = {upper: turned('upper'), under: turned('under')}
     send({
       frame: {
-        upper: {...upperAt, angle: lamps.current.upper.aim + turn.upper, brightness, focus},
-        under: {...underAt, angle: lamps.current.under.aim + turn.under, brightness: underBrightness},
+        upper: {...at.upper, angle: facing.current.upper, brightness, focus},
+        under: {...at.under, angle: facing.current.under, brightness: underBrightness},
         logo,
         material: mix.current
       }
     })
+
+    // フッターに出す状態。向きは傾きにして 1 度に丸め、ロゴを動かすあいだ毎フレーム出し直さないようにする
+    const degree = Math.PI / 180
+    const control = (key: LampKey): LampControl => {
+      const tilt = Math.min(MAX_TILT, Math.max(-MAX_TILT, tiltOf(key, facing.current![key])))
+      return {...lamps[key], facing: Math.round(tilt / degree) * degree}
+    }
+    const next: Shown = {
+      lit: nowLit,
+      changed: !isDefault(arrangement.current),
+      scale: Math.round(scale * 100) / 100,
+      lamps: {upper: control('upper'), under: control('under')}
+    }
+    if (JSON.stringify(next) !== JSON.stringify(shown.current)) publish(next)
   })
 
   return (
@@ -266,19 +289,6 @@ export function Light({
         onPointerCancel={onLogoUp}
         onWheel={onLogoWheel}
       />
-      {/* 光源のつかみ場所 */}
-      {(['upper', 'under'] as const).map((key) => (
-        <div
-          key={key}
-          ref={lampGrips[key]}
-          data-grab
-          className="pointer-events-auto absolute top-0 left-0 hidden cursor-grab touch-none rounded-full active:cursor-grabbing"
-          onPointerDown={onLampDown(key)}
-          onPointerMove={onLampMove}
-          onPointerUp={onLampUp}
-          onPointerCancel={onLampUp}
-        />
-      ))}
       {import.meta.env.DEV && (
         <DevPanel<LightTuning>
           title="光とロゴ"
@@ -294,8 +304,11 @@ export function Light({
   )
 }
 
-/** 光源のつかみ場所の大きさ px。指で押せる大きさにする */
-const LAMP_GRIP = 44
+/** フッターに出している状態 */
+type Shown = {lit: boolean; changed: boolean; scale: number; lamps: Record<LampKey, LampControl>}
+
+/** 光の設定の既定（フッターに出す前の値） */
+const STILL: LampControl = {...DEFAULT_ARRANGEMENT.lamps.upper, facing: 0}
 
 /** つかみ場所を、舞台の左上からの位置と大きさに置いて出す */
 function place(el: HTMLElement | null, x: number, y: number, width: number, height: number) {
