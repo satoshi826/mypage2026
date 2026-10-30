@@ -125,7 +125,7 @@ function createStage(canvas: OffscreenCanvas, pixelRatio: number) {
       }
       // 光へ飛んでいる粒子は、光線と同じ層に光の粒として描く
       const scale = pixelRatio * (tuning.resolution / 100)
-      if (command.frame)
+      if (command.frame !== undefined)
         light.draw(command.frame, (target) => hero?.glow(target, size, tuning.particleGlow, scale) ?? false)
       schedule()
     }

@@ -16,6 +16,12 @@ export type Stage = {
 
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v))
 
+/** 0〜1 に収めて、両端をなめらかにする */
+export function ease(v: number) {
+  const t = clamp01(v)
+  return t * t * (3 - 2 * t)
+}
+
 /** 粒子が集まり始めるスクロールの長さ。画面の高さ単位 */
 export const GATHER_AT = 0.2
 
@@ -30,8 +36,8 @@ const LIGHT_RISE_SCREENS = 1
  * スクロールするあいだに、動き出しと止まり際をなめらかにして画面の上（LIGHT_TOP）まで上がる
  */
 export const lightAt = ({progress}: Stage, {width, height}: {width: number; height: number}) => {
-  const t = clamp01((progress - GATHER_AT) / LIGHT_RISE_SCREENS)
-  return {x: width / 2, y: height / 2 - (height / 2 - height * LIGHT_TOP) * t * t * (3 - 2 * t)}
+  const rise = ease((progress - GATHER_AT) / LIGHT_RISE_SCREENS)
+  return {x: width / 2, y: height / 2 - (height / 2 - height * LIGHT_TOP) * rise}
 }
 
 /** 粒子が集まりきるまで（ほどけきるまで）の秒数 */

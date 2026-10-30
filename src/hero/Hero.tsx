@@ -1,5 +1,5 @@
 import {useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState} from 'preact/hooks'
-import {useAnimationFrame} from './useCanvas'
+import {useAnimationFrame} from '../scene/useCanvas'
 import {
   advance,
   cycleProgress,
@@ -39,7 +39,7 @@ import {
   type Tuning
 } from './tuning'
 import {usePointer} from './pointer'
-import type {HeroCommand} from './scene'
+import type {HeroCommand, Rect} from './scene'
 import type {SceneCommand} from '../scene/worker'
 
 const timingOf = ({cycleSeconds, dwellRatio}: Tuning): Timing => ({cycleSeconds, dwellRatio})
@@ -74,8 +74,9 @@ export function Hero({
   const lastScrolled = useRef(0)
   const calendarRef = useRef<HTMLDivElement>(null)
   // 写真の枠（画面の上の位置）。粒子が出入りする点（光の位置）を、枠の中の位置に直すのに使う
-  const frameBox = useRef<{left: number; top: number; width: number; height: number} | null>(null)
-  const lastGatherAt = useRef<[number, number]>([0, 0])
+  const frameBox = useRef<Rect | null>(null)
+  // 最後に送った、粒子が出入りする点。枠が変わったら捨て、次のフレームで送り直す
+  const lastGatherAt = useRef<[number, number] | null>(null)
   const lastGather = useRef(0)
   // カレンダーの濃さ（0〜1）
   const calendarShown = useRef(1)
@@ -136,15 +137,6 @@ export function Hero({
     [send]
   )
 
-  // 粒子が出入りする点（光の位置。画面の上の位置）を、写真の枠の NDC に直す。光はスクロールで上がるので、毎フレーム求める
-  const gatherAtNow = useCallback((): [number, number] => {
-    const box = frameBox.current
-    const size = screen.current
-    if (!box || !size) return [0, 0]
-    const {x, y} = lightAt(stage.current, {width: size.clientWidth, height: size.clientHeight})
-    return [((x - box.left) / box.width) * 2 - 1, 1 - ((y - box.top) / box.height) * 2]
-  }, [screen, stage])
-
   useAnimationFrame(
     useCallback(() => {
       const now = performance.now()
@@ -159,10 +151,17 @@ export function Hero({
       const scrolled = stage.current.progress * innerHeight
       const {gather} = stage.current
       const shown = gather < 1
-      const gatherAt = gatherAtNow()
-      if (gatherAt[0] !== lastGatherAt.current[0] || gatherAt[1] !== lastGatherAt.current[1]) {
-        lastGatherAt.current = gatherAt
-        command.gatherAt = gatherAt
+      // 粒子が出入りする点（光の位置）を、写真の枠の NDC に直す。光はスクロールで上がるので、毎フレーム求める
+      const box = frameBox.current
+      const size = screen.current
+      if (box && size) {
+        const {x, y} = lightAt(stage.current, {width: size.clientWidth, height: size.clientHeight})
+        const at: [number, number] = [((x - box.x) / box.width) * 2 - 1, 1 - ((y - box.y) / box.height) * 2]
+        const last = lastGatherAt.current
+        if (!last || at[0] !== last[0] || at[1] !== last[1]) {
+          lastGatherAt.current = at
+          command.gatherAt = at
+        }
       }
       if (scrolled !== lastScrolled.current) {
         lastScrolled.current = scrolled
@@ -258,7 +257,7 @@ export function Hero({
         bar.style.setProperty('--progress', String(progress))
         bar.style.setProperty('--morph', `${morph * 100}%`)
       }
-    }, [autoplay, gatherAtNow, order, reduced, send, stage, takePointer])
+    }, [autoplay, order, reduced, screen, send, stage, takePointer])
   )
 
   // 行き先が変わったフレームは worker 側で位置の飛びを打ち消す（番号のクリック）
@@ -318,14 +317,15 @@ export function Hero({
   // 縦並びのパネルは写真と同じ幅に広げる。マスが上限に達したらそこで止める
   const panel = direction === 'side' ? panelWidth(layout) : Math.min(photo.width, panelWidth(layout))
 
-  // 写真の枠と粒子が集まる点（光の位置）を worker へ渡す。舞台は画面に貼りついているので、画面の上の位置がそのまま舞台の上の位置
+  // 写真の枠を worker へ渡す。舞台は画面に貼りついているので、画面の上の位置がそのまま舞台の上の位置。
+  // 粒子が集まる点は枠の中の位置で送るので、次のフレームで送り直させる
   useLayoutEffect(() => {
     const rect = frameRef.current?.getBoundingClientRect()
     if (!rect || rect.width <= 0) return
-    frameBox.current = {left: rect.left, top: rect.top, width: rect.width, height: rect.height}
-    lastGatherAt.current = gatherAtNow()
-    send({rect: {x: rect.left, y: rect.top, width: rect.width, height: rect.height}, gatherAt: lastGatherAt.current})
-  }, [send, gatherAtNow, photo.width, photo.height, panel, direction, content])
+    frameBox.current = {x: rect.left, y: rect.top, width: rect.width, height: rect.height}
+    lastGatherAt.current = null
+    send({rect: frameBox.current})
+  }, [send, photo.width, photo.height, panel, direction, content])
 
   // 段は画面全体を覆うので、触れられるのは写真とカレンダーだけにする（後ろの光の層のロゴをつかめるように）
   return (

@@ -1,7 +1,7 @@
 import {useCallback, useEffect, useRef, useState} from 'preact/hooks'
 import {DevPanel} from '../app/DevPanel'
-import {GATHER_AT, SCENE_SCREENS, lightAt, lightOf, type Stage} from '../app/stage'
-import {useAnimationFrame} from '../hero/useCanvas'
+import {GATHER_AT, SCENE_SCREENS, ease, lightAt, lightOf, type Stage} from '../app/stage'
+import {useAnimationFrame} from '../scene/useCanvas'
 import type {SceneCommand} from '../scene/worker'
 import type {LightCommand} from './scene'
 import {setArrange} from './arrange'
@@ -21,10 +21,11 @@ const BRIGHTEN_SCREENS = 0.8
 const FOCUS_AFTER_SCREENS = 0.5
 
 /**
- * トップの舞台で、光が mu のロゴを照らす層（試し）。hero の後ろに画面いっぱいに重ねる。描くのは worker（worker.ts）。
+ * トップの舞台で、光が mu のロゴを照らす層。舞台の canvas の、hero の粒子の後ろに描く。ここは毎フレーム光とロゴの位置と
+ * 明るさを決めて送るだけで、描くのは舞台の worker（src/scene/worker.ts が light/scene.ts で描く）。
  *
  * 粒子は画面の中央に集まって光になり、光はスクロールに合わせてゆっくり上がって、画面の上で止まる（lightAt）。
- * そこからページの一番下までスクロールするあいだに、少しずつ下がる（lightDrop）。少しスクロールしてからは、全周に広がる光から下向きの光に絞られていく（cone）。ついた直後は暗く、スクロールでロゴが
+ * 少しスクロールしてからは、全周に広がる光から下向きの光に絞られていく（cone）。ついた直後は暗く、スクロールでロゴが
  * 近づくにつれて明るくなり、ロゴが画面に入る前に最大になる。部屋の床の上には上向きの下の光があり、
  * 部屋が画面の下端に近づくと光り始める。ロゴを置く部屋はページの中の要素
  * （room）で、その要素と一緒に、ページの中身としてスクロールで上がってきて光の下に入る
@@ -101,19 +102,7 @@ export function Light({
     }
     // 粒子が光へ向けて飛び始めたら、光の層を描き始める（飛ぶ粒子も光の層に描くため）。光が明るくなるのは粒子が着いてから
     if (stage.current.gather <= 0 || !box) {
-      if (lit.current)
-        send({
-          frame: {
-            on: false,
-            light: {x: 0, y: 0},
-            logo: {x: 0, y: 0},
-            home: {x: 0, y: 0},
-            floor: 0,
-            brightness: 0,
-            under: 0,
-            focus: 0
-          }
-        })
+      if (lit.current) send({frame: null})
       lit.current = false
       grip?.style.setProperty('display', 'none')
       return
@@ -122,11 +111,9 @@ export function Light({
     const now = performance.now()
     const height = screen.current?.clientHeight ?? 0
     const {progress} = stage.current
-    const top = lightAt(stage.current, {width: screen.current?.clientWidth ?? 0, height})
-    // 光がついてからページの一番下までスクロールした割合。光はこれに合わせて下がる。下向きに絞るのは少しあとから
-    const scrolled = ease((progress - GATHER_AT) / (SCENE_SCREENS - GATHER_AT))
+    // 下向きに絞るのは、光がついてから少しスクロールしたあと
     const focus = ease((progress - GATHER_AT - FOCUS_AFTER_SCREENS) / (SCENE_SCREENS - GATHER_AT - FOCUS_AFTER_SCREENS))
-    const light = {x: top.x, y: top.y + ((height * tuning.lightDrop) / 100) * scrolled}
+    const light = lightAt(stage.current, {width: screen.current?.clientWidth ?? 0, height})
     // もとの位置へ戻している途中なら、減速しながら量を 0 へ寄せる
     const back = returning.current
     if (back) {
@@ -156,7 +143,7 @@ export function Light({
     const brightness = arrived * (DIM + (1 - DIM) * ease(1 - (logoTop - height) / (height * BRIGHTEN_SCREENS)))
     // 下の光は、部屋の床が画面の下端の半画面下まで来たところから光り始め、下端に着くと最大になる
     const under = ease(1 - (box.bottom - height) / (height / 2))
-    send({frame: {on: true, light, logo, home, floor: box.bottom, brightness, under, focus}})
+    send({frame: {light, logo, home, floor: box.bottom, brightness, under, focus}})
   })
 
   return (
@@ -185,10 +172,4 @@ export function Light({
       )}
     </div>
   )
-}
-
-/** 0〜1 に収めて、両端をなめらかにする */
-function ease(v: number) {
-  const t = Math.min(1, Math.max(0, v))
-  return t * t * (3 - 2 * t)
 }

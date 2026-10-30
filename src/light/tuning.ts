@@ -18,8 +18,6 @@ export type LightTuning = {
    * ページの一番下までスクロールするあいだにこの角度まで絞る
    */
   cone: number
-  /** 光がついた位置から、ページの一番下までスクロールするあいだに光が下がる量。画面の高さに対する % */
-  lightDrop: number
   /**
    * ロゴの横のずれ px。負で左。光は画面の中央にあるので、ロゴを左へずらすと光がロゴの右寄りの上に来て、
    * 上に開いた切り込み（右寄り）に光が入る
@@ -67,7 +65,6 @@ export const DEFAULT_LIGHT: LightTuning = {
   underShift: -80,
   underHeight: 120,
   logoShift: -90,
-  lightDrop: 0,
   cell: 12
 }
 
@@ -144,15 +141,6 @@ export const LIGHT_PARAMS: Param<LightTuning>[] = [
     max: 400,
     step: 10,
     hint: 'px。負で左'
-  },
-  {
-    group: '配置',
-    key: 'lightDrop',
-    label: '光が下がる量',
-    min: 0,
-    max: 40,
-    step: 1,
-    hint: '%。画面の高さ。スクロールで下がる'
   },
   {group: '配置', key: 'cell', label: 'ロゴの 1 マス', min: 4, max: 40, step: 1, hint: 'px'}
 ]

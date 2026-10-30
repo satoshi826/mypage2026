@@ -259,18 +259,16 @@ export function createLightScene(core: Core, pixelRatio: number) {
    * 1 フレーム描く。extra は、光線を描いた 1 フレームぶんの層に、加算の合成のまま重ねて描くもの（光へ飛んでいる粒子）。
    * 描いたら true を返す。そのあいだは動いているものとして、前のフレームを残す割合を弱める
    */
-  const draw = (
-    {on, light, logo, home, floor, brightness, under, focus}: LightFrame,
-    extra?: (target: Renderer) => boolean
-  ) => {
-    if (!lines) return
+  const draw = (frame: LightFrame | null, extra?: (target: Renderer) => boolean) => {
     // 消えているあいだは何も描かない。前の結果も捨て、次につくときはそのフレームだけで描き始める
-    if (!on) {
+    if (!frame) {
       lit = false
       fresh = true
       return
     }
+    if (!lines) return
     lit = true
+    const {light, logo, home, floor, brightness, under, focus} = frame
     // ロゴは画素にそろえて置く
     const unit = tuning.cell / 2
     const left = Math.round(logo.x - (LOGO_WIDTH * unit) / 2)
@@ -329,14 +327,14 @@ export function createLightScene(core: Core, pixelRatio: number) {
 /** メインスレッドからの指示 */
 export type LightCommand = {
   tuning?: LightTuning
-  /** 1 フレーム描く */
-  frame?: LightFrame
+  /**
+   * 1 フレーム描く。null なら光を消す。粒子が光へ向けて飛び始めたら描き始める（光が明るくなるのは粒子が着いてから）
+   */
+  frame?: LightFrame | null
 }
 
 /** 1 フレームぶんの光の状態。位置はどれも canvas の左上からの px */
 export type LightFrame = {
-  /** 光の層を描くか。粒子が光へ向けて飛び始めたら描く（光が明るくなるのは粒子が着いてから） */
-  on: boolean
   light: {x: number; y: number}
   /** ロゴの中心 */
   logo: {x: number; y: number}

@@ -1,7 +1,7 @@
 import {useEffect, useState} from 'preact/hooks'
 import type {Stage} from '../app/stage'
 import {Hero} from '../hero/Hero'
-import {useCanvas, useCanvasResize} from '../hero/useCanvas'
+import {useCanvas, useCanvasResize} from './useCanvas'
 import {Light} from '../light/Light'
 import type {Loaded} from './worker'
 import Worker from './worker?worker'

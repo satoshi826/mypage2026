@@ -160,7 +160,7 @@ JS 配列は無駄なのでこちらを使う。
 タブが非表示でも回り続ける。
 
 このリポジトリではメインスレッドの rAF から Worker にメッセージを送る形にしている
-（`src/useCanvas.tsx` の `useAnimationFrame`）。タブが非表示になると rAF が止まるので、
+（`src/scene/useCanvas.tsx` の `useAnimationFrame`）。タブが非表示になると rAF が止まるので、
 無駄な描画も自動的に止まる。
 
 ## バージョンの落とし穴
