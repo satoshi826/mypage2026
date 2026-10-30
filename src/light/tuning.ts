@@ -61,7 +61,7 @@ export type LightTuning = {
 
 export const DEFAULT_LIGHT: LightTuning = {
   minRays: 8192,
-  maxRays: 12288,
+  maxRays: 32000,
   bounces: 8,
   albedo: 100,
   translucency: 70,
