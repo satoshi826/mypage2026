@@ -1,9 +1,9 @@
-import {useEffect, useState} from 'preact/hooks'
+import {useCallback, useEffect, useState} from 'preact/hooks'
 import type {Stage} from '../app/stage'
 import {Hero} from '../hero/Hero'
 import {useCanvas, useCanvasResize} from './useCanvas'
 import {Light} from '../light/Light'
-import type {Loaded} from './worker'
+import type {Reply} from './worker'
 import Worker from './worker?worker'
 
 /**
@@ -24,10 +24,23 @@ export function Scene({
 }) {
   // 読み込みが済んだ写真の番号。worker が1枚上げるごとに増える
   const [available, setAvailable] = useState<number[]>([])
-  const {canvas, post, ref} = useCanvas<Loaded>(Worker, ({layer}) => {
+  // 光の 1 フレームを描き終えた知らせを受けるもの（Light）
+  const [drawn] = useState(() => new Set<() => void>())
+  const listen = useCallback(
+    (onDrawn: () => void) => {
+      drawn.add(onDrawn)
+      return () => void drawn.delete(onDrawn)
+    },
+    [drawn]
+  )
+  const {canvas, post, ref} = useCanvas<Reply>(Worker, (reply) => {
+    if ('drawn' in reply) {
+      for (const onDrawn of drawn) onDrawn()
+      return
+    }
     // 計測の印（bench/）。canvas は LCP の対象にならないので、写真が届いた時刻をここで残す
     performance.mark('hero:photo')
-    setAvailable((prev) => [...prev, layer].sort((a, b) => a - b))
+    setAvailable((prev) => [...prev, reply.layer].sort((a, b) => a - b))
   })
   useCanvasResize(post, ref)
 
@@ -42,7 +55,7 @@ export function Scene({
       <div className="pointer-events-none absolute inset-x-0 top-0 flex h-[100lvh]" aria-hidden>
         {canvas}
       </div>
-      <Light stage={stage} room={room} screen={ref} post={post} />
+      <Light stage={stage} room={room} screen={ref} post={post} listen={listen} />
       {photos.length > 0 && <Hero photos={photos} available={available} stage={stage} post={post} screen={ref} />}
     </>
   )

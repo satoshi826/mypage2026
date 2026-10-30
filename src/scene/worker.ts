@@ -9,9 +9,15 @@ import {DEFAULT_LIGHT} from '../light/tuning'
 //
 // 指示はメインスレッドの rAF から届く。hero と光はそれぞれ別に指示を送ってくるので、届いたぶんを入れたら、
 // 同じタスクで届く指示を待ってから 1 回だけ重ね直す（setTimeout 0）。
+// 光の 1 フレームを重ね終えたら、GPU が描き終わるのを待って知らせる（Drawn）。メインスレッドは知らせが来るまで次の
+// フレームを送らない。遅い端末で指示がたまって光が遅れないように、また、描ける速さを測って光線の数を決めるため。
 
-/** worker からメインスレッドへ返すもの。写真が1枚上がるごとに、その番号が届く */
+/** worker からメインスレッドへ返すもの */
+export type Reply = Loaded | Drawn
+/** 写真が1枚上がるごとに、その番号が届く */
 export type Loaded = {layer: number}
+/** 光の 1 フレームを GPU が描き終えた */
+export type Drawn = {drawn: true}
 
 /** メインスレッドからの指示 */
 export type SceneCommand = {
@@ -72,6 +78,8 @@ function createStage(canvas: OffscreenCanvas, pixelRatio: number) {
   })
 
   let scheduled = 0
+  // 光のフレームを描いたが、まだ描き終わりを知らせていない
+  let unreported = false
   const draw = () => {
     scheduled = 0
     const glow = light.layer()
@@ -88,6 +96,23 @@ function createStage(canvas: OffscreenCanvas, pixelRatio: number) {
     compose.setUniform({u_lit: glow ? 1 : 0, u_photo: photo ? 1 : 0})
     screen.clear()
     screen.render(plane, compose)
+    if (unreported) {
+      unreported = false
+      report()
+    }
+  }
+  /** ここまでの描画を GPU が終えたら知らせる。WebGL は待てないので、終わったかを短い間隔で見に行く */
+  const report = () => {
+    const {gl} = core
+    const sync = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0)
+    if (!sync) return void postMessage({drawn: true} satisfies Drawn)
+    gl.flush()
+    const check = () => {
+      if (gl.getSyncParameter(sync, gl.SYNC_STATUS) !== gl.SIGNALED) return void setTimeout(check, 1)
+      gl.deleteSync(sync)
+      postMessage({drawn: true} satisfies Drawn)
+    }
+    setTimeout(check, 1)
   }
   /** 同じタスクで届く指示を入れ終えてから、1 回だけ重ね直す */
   const schedule = () => {
@@ -123,10 +148,12 @@ function createStage(canvas: OffscreenCanvas, pixelRatio: number) {
         tuning = command.tuning
         light.tune(tuning)
       }
+      if (command.rays) light.setRays(command.rays)
       // 光へ飛んでいる粒子は、光線と同じ層に光の粒として描く
       const scale = pixelRatio * (tuning.resolution / 100)
       if (command.frame !== undefined)
         light.draw(command.frame, (target) => hero?.glow(target, size, tuning.particleGlow, scale) ?? false)
+      if (command.frame) unreported = true
       schedule()
     }
   }

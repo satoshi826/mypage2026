@@ -1,5 +1,5 @@
 import {useCallback, useEffect, useRef, useState} from 'preact/hooks'
-import {DevPanel} from '../app/DevPanel'
+import {DevPanel, DevReadout} from '../app/DevPanel'
 import {GATHER_AT, SCENE_SCREENS, ease, lightAt, lightOf, type Stage} from '../app/stage'
 import {useAnimationFrame} from '../scene/useCanvas'
 import type {SceneCommand} from '../scene/worker'
@@ -19,6 +19,7 @@ import {
   type LampSetting
 } from './arrangement'
 import {setLogoControls, type LampControl, type Material} from './controls'
+import {createRayBudget, type RayBudget} from './rayBudget'
 import {LOGO_HEIGHT, LOGO_WIDTH} from './logo'
 import {DEFAULT_LIGHT, LIGHT_PARAMS, type LightTuning} from './tuning'
 
@@ -30,6 +31,9 @@ const MATERIAL_SECONDS = 0.8
 
 /** 光の向きが、設定やロゴの位置の変化に追いつくまでの目安の秒数（指数的に寄せる時定数） */
 const TURN_SECONDS = 0.2
+
+/** 描き終わりの知らせがこれだけ来なければ、待たずに次のフレームを送る ms。知らせが失われても止まらないように */
+const DRAWN_TIMEOUT_MS = 500
 
 /** ついた直後の光の明るさ。最大に対する割合。スクロールでロゴが近づくと最大になる */
 const DIM = 0.5
@@ -61,26 +65,49 @@ const FOCUS_AFTER_SCREENS = 0.5
  * @param room ロゴを置く部屋の要素。中央（から logoShift ずらした位置）がロゴのもとの位置で、その下の床の上に下の光を置く
  * @param screen 舞台の canvas の入れ物。光の位置と明るさは、この大きさから決める
  * @param post 舞台の canvas（src/scene/worker.ts）へ指示を送る
+ * @param listen 光の 1 フレームを描き終えた知らせを受ける。知らせが来るまで次のフレームを送らず、知らせの間隔から
+ *   光線の数を決める（rayBudget.ts）
  */
 export function Light({
   stage,
   room,
   screen,
-  post
+  post,
+  listen
 }: {
   stage: {readonly current: Stage}
   room: {readonly current: HTMLElement | null}
   screen: {readonly current: HTMLElement | null}
   post: (command: SceneCommand) => void
+  listen: (onDrawn: () => void) => () => void
 }) {
   const send = useCallback((command: LightCommand) => post({light: command}), [post])
   const [tuning, setTuning] = useState(DEFAULT_LIGHT)
 
-  // スマホは光線を半分にする
+  // 光線の数は下限から始め、描き終わりの知らせの間隔に合わせて上限までのあいだで変える
+  const budget = useRef<RayBudget | null>(null)
+  // 送ったフレームの描き終わりを待っているなら、送った時刻
+  const waiting = useRef(0)
+  // 開発用に出す、今のフレームレートと光線の数
+  const [stats, setStats] = useState('測っている')
   useEffect(() => {
-    const coarse = matchMedia('(pointer: coarse)').matches
-    send({tuning: {...tuning, rays: coarse ? Math.max(256, tuning.rays / 2) : tuning.rays}})
+    budget.current = createRayBudget(tuning.minRays, tuning.maxRays)
+    send({tuning, rays: budget.current.rays})
   }, [send, tuning])
+  useEffect(
+    () =>
+      listen(() => {
+        waiting.current = 0
+        const b = budget.current
+        if (!b) return
+        const before = b.rays
+        const measured = b.drawn(performance.now())
+        if (!measured) return
+        if (measured.rays !== before) send({rays: measured.rays})
+        if (import.meta.env.DEV) setStats(`${Math.round(measured.fps)} fps · ${measured.rays} 本`)
+      }),
+    [listen, send]
+  )
 
   // 訪問者が変えたロゴと光の置き方
   const arrangement = useRef(DEFAULT_ARRANGEMENT)
@@ -183,6 +210,7 @@ export function Light({
     if (stage.current.gather <= 0 || !box) {
       if (lit.current) send({frame: null})
       lit.current = false
+      waiting.current = 0
       facing.current = null
       grip.current?.style.setProperty('display', 'none')
       if (shown.current.lit) publish({...shown.current, lit: false})
@@ -254,14 +282,18 @@ export function Light({
       return Math.abs(gap) < 0.001 ? target : was + gap * follow
     }
     facing.current = {upper: turned('upper'), under: turned('under')}
-    send({
-      frame: {
-        upper: {...at.upper, angle: facing.current.upper, power: power.upper * brightness, focus},
-        under: {...at.under, angle: facing.current.under, power: power.under * underBrightness},
-        logo,
-        material: mix.current
-      }
-    })
+    // 前に送ったフレームを描き終えるまでは送らない
+    if (!waiting.current || now - waiting.current > DRAWN_TIMEOUT_MS) {
+      waiting.current = now
+      send({
+        frame: {
+          upper: {...at.upper, angle: facing.current.upper, power: power.upper * brightness, focus},
+          under: {...at.under, angle: facing.current.under, power: power.under * underBrightness},
+          logo,
+          material: mix.current
+        }
+      })
+    }
 
     // フッターに出す状態。向きは傾きにして 1 度に丸め、ロゴを動かすあいだ毎フレーム出し直さないようにする
     const degree = Math.PI / 180
@@ -297,6 +329,7 @@ export function Light({
         onPointerCancel={onLogoUp}
         onWheel={onLogoWheel}
       />
+      {import.meta.env.DEV && <DevReadout title="光線" value={stats} />}
       {import.meta.env.DEV && (
         <DevPanel<LightTuning>
           title="光とロゴ"

@@ -3,8 +3,12 @@ import type {Param} from '../app/DevPanel'
 // 光とロゴの調整値。worker の既定値と開発用パネルの両方がここを使う
 
 export type LightTuning = {
-  /** 光源から出す光線の数（スマホは半分） */
-  rays: number
+  /**
+   * 光源から出す光線の数の下限と上限。下限から始め、60fps 出ていれば上限まで増やし、出なければ下限まで減らす
+   * （light/rayBudget.ts）
+   */
+  minRays: number
+  maxRays: number
   /** 光線がロゴに当たって跳ね返る回数の上限。ロゴの切り込みの中で棒と棒のあいだを行き来するぶん */
   bounces: number
   /** ロゴの表面が光を返す割合 %。ロゴはばらばらの向きに散らして返す */
@@ -56,7 +60,8 @@ export type LightTuning = {
 }
 
 export const DEFAULT_LIGHT: LightTuning = {
-  rays: 10496,
+  minRays: 8192,
+  maxRays: 12288,
   bounces: 8,
   albedo: 100,
   translucency: 70,
@@ -81,7 +86,16 @@ export const DEFAULT_LIGHT: LightTuning = {
 }
 
 export const LIGHT_PARAMS: Param<LightTuning>[] = [
-  {group: '光線', key: 'rays', label: '光線の数', min: 256, max: 16384, step: 256, hint: '本。スマホは半分'},
+  {group: '光線', key: 'minRays', label: '光線の数の下限', min: 256, max: 16384, step: 256, hint: '本。ここから始める'},
+  {
+    group: '光線',
+    key: 'maxRays',
+    label: '光線の数の上限',
+    min: 256,
+    max: 65536,
+    step: 1024,
+    hint: '本。60fps 出ていればここまで増やす'
+  },
   {group: '光線', key: 'bounces', label: '跳ね返り', min: 0, max: 8, step: 1, hint: '回'},
   {group: '光線', key: 'albedo', label: 'ロゴが返す割合', min: 0, max: 100, step: 5, hint: '%'},
   {group: '和紙', key: 'translucency', label: '中へ入る割合', min: 0, max: 100, step: 5, hint: '%。残りは表面で散る'},

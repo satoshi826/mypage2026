@@ -10,8 +10,9 @@ import {DEFAULT_LIGHT, type LightTuning} from './tuning'
 // - 和紙: 当たった光線の一部が中へ入り、中であちこちに散ってから、どこかの面からばらばらの向きに出る。文字が内側から明るくなる
 // - つや: 当たった光線の一部が、鏡の向きの近くにぼけて返る。光に向いた縁に柔らかいハイライトが出る
 // 光源は 2 つ。上の光（u_light）と、部屋の床の上に置く下の光（u_under）。どちらも向き（u_lightAngle、u_underAngle）を持つ
-// スポットで、ふだんはロゴの今の位置を向く（訪問者がつまんで回せる。Light.tsx）。ロゴの切り込みのうち 2 本は下に開いていて、
+// スポットで、ふだんはロゴの今の位置を向く（訪問者がフッターの設定で変えられる。Light.tsx）。ロゴの切り込みのうち 2 本は下に開いていて、
 // 上の光は奥まで入らないので、下の光で下から照らす。光線の数は 2 つで分け合う。
+// 光線の数は端末の速さに合わせてメインスレッドが決め（rayBudget.ts）、フレームの合間に変わる。
 //
 // 速さのための作り:
 // - ロゴは長方形 7 つ（logo.ts）なので、光線との交わりを式で直接求める。少しずつ進めて当たりを探さない
@@ -158,6 +159,11 @@ export function createLightScene(core: Core, pixelRatio: number) {
         int seg = (id / 2) % segments;
         int ray = id / (2 * segments);
         v_energy = a_index * 0.0;
+        // 頂点は上限の本数ぶん並べてある。今の本数を超える光線は、画面の外へ置いて描かない
+        if (float(ray) >= u_rays) {
+          gl_Position = vec4(2.0, 2.0, 0.0, 1.0);
+          return;
+        }
 
         // 先頭の u_underRays 本は下の光、残りは上の光から出す。どちらも出す範囲を等分した区画の中でフレームごとにずらす
         vec2 pos;
@@ -315,10 +321,17 @@ export function createLightScene(core: Core, pixelRatio: number) {
     fresh = true
   }
 
+  /** 今の光線の数。tuning の下限と上限のあいだ */
+  let count = tuning.minRays
+  const setRays = (next: number) => {
+    count = Math.min(tuning.maxRays, Math.max(tuning.minRays, next))
+    rays.setUniform({u_rays: count})
+  }
+
   const tune = (next: LightTuning) => {
     tuning = next
+    setRays(count)
     rays.setUniform({
-      u_rays: tuning.rays,
       u_bounces: tuning.bounces,
       u_albedo: tuning.albedo / 100,
       u_scatter: tuning.scatter,
@@ -328,11 +341,11 @@ export function createLightScene(core: Core, pixelRatio: number) {
       u_underCone: (tuning.underCone * Math.PI) / 180,
       u_cone: (tuning.cone * Math.PI) / 180
     })
-    // 頂点の数は光線の数と跳ね返りの回数で決まるので、変わったら作り直す
-    const count = tuning.rays * (tuning.bounces + 1) * 2
-    if (count !== lineCount) {
-      lineCount = count
-      lines = new Vao(core, {attributes: {a_index: new Float32Array(count) as unknown as number[]}})
+    // 頂点の数は光線の数の上限と跳ね返りの回数で決まるので、変わったら作り直す。光線の数が変わっても作り直さない
+    const vertices = tuning.maxRays * (tuning.bounces + 1) * 2
+    if (vertices !== lineCount) {
+      lineCount = vertices
+      lines = new Vao(core, {attributes: {a_index: new Float32Array(vertices) as unknown as number[]}})
     }
     layout()
   }
@@ -378,7 +391,7 @@ export function createLightScene(core: Core, pixelRatio: number) {
       // 消えているあいだは下の光に光線を回さない
       u_under: [under.x, under.y],
       u_underAngle: under.angle,
-      u_underRays: under.power > 0 ? Math.round((tuning.rays * tuning.underShare) / 100) : 0,
+      u_underRays: under.power > 0 ? Math.round((count * tuning.underShare) / 100) : 0,
       u_underPower: under.power,
       u_rects: LOGO_RECTS.flatMap(([l, t, r, b]) => [left + l * unit, top + t * unit, left + r * unit, top + b * unit])
     })
@@ -406,6 +419,7 @@ export function createLightScene(core: Core, pixelRatio: number) {
       layout()
     },
     tune,
+    setRays,
     draw,
     /** ためた光の層。消えているあいだは null */
     layer: () => (lit ? acc[0].renderTexture[0] : null)
@@ -415,6 +429,8 @@ export function createLightScene(core: Core, pixelRatio: number) {
 /** メインスレッドからの指示 */
 export type LightCommand = {
   tuning?: LightTuning
+  /** 光線の数。tuning の下限と上限に収めて使う */
+  rays?: number
   /**
    * 1 フレーム描く。null なら光を消す。粒子が光へ向けて飛び始めたら描き始める（光が明るくなるのは粒子が着いてから）
    */

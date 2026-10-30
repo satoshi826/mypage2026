@@ -157,6 +157,19 @@ export function DevPanel<T extends Record<string, number | string>>({
   )
 }
 
+/** 開発用ドックの「このページ」に、測った値を読むだけの行を出す（フレームレートなど） */
+export function DevReadout({title, value}: {title: string; value: string}) {
+  const dock = useExternal(noop, () => document.getElementById(SECTIONS[0].id), null)
+  if (!dock) return null
+  return createPortal(
+    <div data-dev-panel className="flex justify-between gap-2 px-2 py-1">
+      <span>{title}</span>
+      <span className="opacity-60 tabular-nums">{value}</span>
+    </div>,
+    dock
+  )
+}
+
 const subscribeResize = (onChange: () => void) => {
   addEventListener('resize', onChange)
   return () => removeEventListener('resize', onChange)
