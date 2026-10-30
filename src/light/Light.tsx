@@ -58,7 +58,7 @@ const FOCUS_AFTER_SCREENS = 0.5
  * 訪問者はロゴと光を変えられる（arrangement.ts）。
  * - ロゴはドラッグで動かせ（マウスでも指でも。ロゴの上に見えないつかみ場所を重ねて受ける）、ピンチで大きさを変えられる
  *   （指は 2 本で、トラックパッドはそのままピンチ。ブラウザには ctrl を押したホイールとして届く）。離した位置と大きさに
- *   とどまり、部屋の外へは出ない。大きさと素材（白い面・和紙・つや）は、フッターのロゴの設定でも変えられる
+ *   とどまり、部屋の外へは出ない。大きさと素材（白い面・ガラス・つや）は、フッターのロゴの設定でも変えられる
  * - 光は光源をドラッグで動かせる（光源の上に見えないつかみ場所を重ねて受ける）。上の光は画面の中、下の光は部屋の中に
  *   とどまる。向きと強さはフッターのライトの設定で変えられる。向きはふだんロゴの今の位置を向き（Auto）、ロゴや光源を
  *   動かすとついてくる。向きは設定が変わっても跳ばさず、滑らかに追う
@@ -131,7 +131,7 @@ export function Light({
   }, [])
   // ロゴの素材。切り替えたら、切り替えた時刻から素材の割合を滑らかに移す
   const [material, setMaterialState] = useState<Material>('matte')
-  const mix = useRef({paper: 0, gloss: 0})
+  const mix = useRef({glass: 0, gloss: 0})
   const switched = useRef({at: 0, from: mix.current})
   const setMaterial = useCallback((next: Material) => {
     switched.current = {at: performance.now(), from: {...mix.current}}
@@ -298,9 +298,9 @@ export function Light({
     const logo = {x: home.x + arrangement.current.offset.x, y: home.y + arrangement.current.offset.y, scale}
     const change = switched.current
     const r = ease((now - change.at) / 1000 / MATERIAL_SECONDS)
-    const to = {paper: material === 'paper' ? 1 : 0, gloss: material === 'gloss' ? 1 : 0}
+    const to = {glass: material === 'glass' ? 1 : 0, gloss: material === 'gloss' ? 1 : 0}
     const from = change.from
-    mix.current = {paper: from.paper + (to.paper - from.paper) * r, gloss: from.gloss + (to.gloss - from.gloss) * r}
+    mix.current = {glass: from.glass + (to.glass - from.glass) * r, gloss: from.gloss + (to.gloss - from.gloss) * r}
     place(grip.current, logo.x - logoWidth / 2, logo.y - logoHeight / 2, logoWidth, logoHeight)
     // 光は、ロゴの上端（部屋の中央からロゴの高さの半分上）が画面の下端に届くところで最大になる
     const logoTop = (box.top + box.bottom) / 2 - (LOGO_HEIGHT * tuning.cell) / 4

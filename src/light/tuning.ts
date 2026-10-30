@@ -3,7 +3,7 @@ import type {Param} from '../app/DevPanel'
 // 光とロゴの調整値。worker の既定値と開発用パネルの両方がここを使う
 
 export type LightTuning = {
-  // 上の光と下の光。どちらもロゴの中心を向くスポット。位置は、最後に画面に収まるロゴの中心からのずれで、部屋の高さに対する %。
+  // 上の光と下の光。どちらもロゴの中心を向くスポット。光線は強さの比で 2 つに分ける。位置は、最後に画面に収まるロゴの中心からのずれで、部屋の高さに対する %。
   // x は正で右、y は正で下。上の光はスクロールで画面の中央からそこまで上がり、下の光は部屋と一緒に動く
   /** 上の光の強さ */
   upperPower: number
@@ -24,20 +24,18 @@ export type LightTuning = {
   underCone: number
   underX: number
   underY: number
-  /** 下の光に回す光線の割合 %。残りは上の光 */
-  underShare: number
 
-  // ロゴ。素材は白い面・和紙・つやの 3 つ（訪問者がフッターで切り替える）
+  // ロゴ。素材は白い面・ガラス・つやの 3 つ（訪問者がフッターで切り替える）
   /** ロゴの横のずれ px。負で左。2 つの光もロゴからのずれで置くので、一緒にずれる */
   logoShift: number
   /** ロゴの格子 1 マスの大きさ px（ロゴは 12 マス × 11 マス） */
   cell: number
   /** 白い面が光を返す割合 %。ばらばらの向きに散らして返す */
   albedo: number
-  /** 和紙にしたとき、ロゴに当たった光線のうち中へ入る割合 %。残りは白い面と同じく表面で散る */
-  translucency: number
-  /** 和紙の中で、光線が向きを変えるまでに進む平均の長さ px。短いほど入ったところの近くで出て、柔らかく光る */
-  scatter: number
+  /** ガラスの屈折率。1.33 で水、1.5 でガラスに近い。大きいほど強く曲がり、面で返る割合も増える */
+  ior: number
+  /** ガラスのぼけ。屈折した向きから左右にずれる最大の角度（度）。大きいほどすりガラスに近く、光の筋が柔らかくなる */
+  frost: number
   /** つやにしたとき、ロゴに当たった光線のうち鏡の向きに返る割合 %。残りは白い面と同じく散る */
   shine: number
   /** つやのぼけ。鏡の向きから左右にずれる最大の角度（度）。小さいほど鏡に近い */
@@ -63,24 +61,23 @@ export type LightTuning = {
 }
 
 export const DEFAULT_LIGHT: LightTuning = {
-  upperPower: 70.5,
+  upperPower: 40,
   upperSize: 4,
   upperCone: 36,
-  upperX: 0,
-  upperY: -30,
-  underPower: 60,
+  upperX: 10,
+  upperY: -21,
+  underPower: 40,
   underSize: 4,
-  underCone: 45,
-  underX: 0,
-  underY: 30,
-  underShare: 50,
-  logoShift: 0,
+  underCone: 30,
+  underX: -12,
+  underY: 18,
+  logoShift: -10,
   cell: 10,
   albedo: 100,
-  translucency: 70,
-  scatter: 8,
-  shine: 40,
-  roughness: 12,
+  ior: 1.5,
+  frost: 4,
+  shine: 100,
+  roughness: 6,
   minRays: 8192,
   maxRays: 32000,
   bounces: 8,
@@ -121,15 +118,6 @@ export const LIGHT_PARAMS: Param<LightTuning>[] = [
   {group: '下の光', key: 'underX', label: '横の位置', ...SHIFT, hint: '部屋の高さの %。ロゴの中心から。正で右'},
   {group: '下の光', key: 'underY', label: '縦の位置', ...SHIFT, hint: '部屋の高さの %。ロゴの中心から。正で下'},
   {
-    group: '下の光',
-    key: 'underShare',
-    label: '光線の割合',
-    min: 0,
-    max: 90,
-    step: 5,
-    hint: '%。下の光に回す光線。残りは上の光'
-  },
-  {
     group: 'ロゴ',
     key: 'logoShift',
     label: '横のずれ',
@@ -140,16 +128,8 @@ export const LIGHT_PARAMS: Param<LightTuning>[] = [
   },
   {group: 'ロゴ', key: 'cell', label: '1 マス', min: 4, max: 40, step: 1, hint: 'px'},
   {group: 'ロゴ', key: 'albedo', label: '白い面: 返す割合', min: 0, max: 100, step: 5, hint: '%'},
-  {
-    group: 'ロゴ',
-    key: 'translucency',
-    label: '和紙: 中へ入る割合',
-    min: 0,
-    max: 100,
-    step: 5,
-    hint: '%。残りは表面で散る'
-  },
-  {group: 'ロゴ', key: 'scatter', label: '和紙: 散るまでの長さ', min: 1, max: 60, step: 1, hint: 'px。平均'},
+  {group: 'ロゴ', key: 'ior', label: 'ガラス: 屈折率', min: 1, max: 2.4, step: 0.01, hint: '1.33 で水、1.5 でガラス'},
+  {group: 'ロゴ', key: 'frost', label: 'ガラス: ぼけ', min: 0, max: 45, step: 1, hint: '度。屈折した向きから左右に'},
   {group: 'ロゴ', key: 'shine', label: 'つや: 鏡の向きに返す割合', min: 0, max: 100, step: 5, hint: '%。残りは散る'},
   {group: 'ロゴ', key: 'roughness', label: 'つや: ぼけ', min: 0, max: 90, step: 1, hint: '度。鏡の向きから左右に'},
   {group: '描画', key: 'minRays', label: '光線の数の下限', min: 256, max: 16384, step: 256, hint: '本。ここから始める'},

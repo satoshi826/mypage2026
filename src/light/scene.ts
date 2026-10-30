@@ -5,9 +5,10 @@ import {DEFAULT_LIGHT, type LightTuning} from './tuning'
 // 光源から出た光線が mu のロゴに当たって跳ね返る様子を、光線の通った線を重ねて描く（2D の光の経路追跡）。
 // 光そのものは描かず、光線の線の重なりの明るさで光を見せる。ロゴに遮られたところは影になる。
 // ロゴは部屋（ページの中の要素）の中央に置く。ロゴは光をばらばらの向きに散らして返し、ロゴに当たらなかった光線はそこで終わる。
-// ロゴの素材は 3 つ。白い面（ばらばらの向きに散らして返す）と、和紙（u_paper）と、つや（u_gloss）。素材を切り替えるあいだは、
+// ロゴの素材は 3 つ。白い面（ばらばらの向きに散らして返す）と、ガラス（u_glass）と、つや（u_gloss）。素材を切り替えるあいだは、
 // 光線ごとに今の素材と次の素材を割合で選ぶ。
-// - 和紙: 当たった光線の一部が中へ入り、中であちこちに散ってから、どこかの面からばらばらの向きに出る。文字が内側から明るくなる
+// - ガラス: 面で一部が鏡の向きに返り（フレネル）、残りは屈折して中へ入る。中をまっすぐ進み、出る面でも屈折して出るか、
+//   中へ返る（臨界角を超えると全部返る）。屈折の向きは u_frost までぼかす。屈折率 u_ior が 1.33 なら水、1.5 ならガラスに近い
 // - つや: 当たった光線の一部が、鏡の向きの近くにぼけて返る。光に向いた縁に柔らかいハイライトが出る
 // 光源は 2 つ。上の光（u_upper）と、ロゴの下に置く下の光（u_under）。どちらも向き（u_upperAngle、u_underAngle）を持つ
 // スポットで、ふだんはロゴの今の位置を向く（訪問者がフッターの設定で変えられる。Light.tsx）。ロゴの切り込みのうち 2 本は下に開いていて、
@@ -69,8 +70,9 @@ export function createLightScene(core: Core, pixelRatio: number) {
       u_rays: 'float',
       u_bounces: 'float',
       u_albedo: 'float',
-      u_paper: 'float',
-      u_scatter: 'float',
+      u_glass: 'float',
+      u_ior: 'float',
+      u_frost: 'float',
       u_gloss: 'float',
       u_rough: 'float',
       u_upperPower: 'float',
@@ -126,7 +128,7 @@ export function createLightScene(core: Core, pixelRatio: number) {
         return best;
       }
 
-      // 和紙のロゴの中（ro）から rd へ進んだ光線が、ロゴの外へ出るところまでの距離と、出る面の外向きの向き（normal）。
+      // ガラスのロゴの中（ro）から rd へ進んだ光線が、ロゴの外へ出るところまでの距離と、出る面の外向きの向き（normal）。
       // 長方形どうしは辺を接しているので、出た先が隣の長方形の中なら、そのまま通り抜けて先を探す
       float traceInside(vec2 ro, vec2 rd, out vec2 normal) {
         vec2 safe = mix(rd, vec2(1e-6), lessThan(abs(rd), vec2(1e-6)));
@@ -153,6 +155,20 @@ export function createLightScene(core: Core, pixelRatio: number) {
       vec2 diffuse(vec2 n, float r) {
         float sn = 2.0 * r - 1.0;
         return n * sqrt(1.0 - sn * sn) + vec2(-n.y, n.x) * sn;
+      }
+
+      // ガラスの面で鏡の向きに返る割合（シュリックの近似）。c は空気の側で面の向きとなす角の cos
+      float fresnel(float c) {
+        float r0 = (1.0 - u_ior) / (1.0 + u_ior);
+        r0 *= r0;
+        return r0 + (1.0 - r0) * pow(1.0 - clamp(c, 0.0, 1.0), 5.0);
+      }
+
+      // 屈折した向き d を、左右に最大 u_frost までぼかす（真ん中ほど多い）。面の向き n の側から外れたら折り返す
+      vec2 frost(vec2 d, vec2 n, int ray, int s) {
+        float off = u_frost * (rand(ray, ${2 * MAX_SEGMENTS + 3} + s) + rand(ray, s + 1) - 1.0);
+        vec2 m = vec2(d.x * cos(off) - d.y * sin(off), d.x * sin(off) + d.y * cos(off));
+        return dot(m, n) < 0.0 ? reflect(m, n) : m;
       }
 
       void main() {
@@ -199,36 +215,27 @@ export function createLightScene(core: Core, pixelRatio: number) {
         }
         vec2 a = pos;
         vec2 b = pos;
-        // 光線が和紙のロゴの中にいるか
+        // 光線がガラスのロゴの中にいるか
         bool inside = false;
         for (int s = 0; s < ${MAX_SEGMENTS}; s++) {
           vec2 normal;
           bool solid;
-          float t;
-          // 和紙の中では、外へ出る面に着く前に散ることがある。散るまでの長さは平均 u_scatter の指数分布
-          bool scatter = false;
-          if (inside) {
-            t = traceInside(pos, dir, normal);
-            float free = -log(max(rand(ray, ${MAX_SEGMENTS + 3} + s), 1e-6)) * u_scatter;
-            scatter = free < t;
-            t = min(t, free);
-          } else {
-            t = trace(pos, dir, normal, solid);
-          }
+          float t = inside ? traceInside(pos, dir, normal) : trace(pos, dir, normal, solid);
           vec2 next = pos + dir * t;
           if (s == seg) {
             a = pos;
             b = next;
             break;
           }
-          // 和紙の中。散るなら全周のどこかへ向きを変え、面に着いたらばらばらの向きに外へ出る
+          // ガラスの中から出る面に着いた。屈折して外へ出るか、中へ返る。normal は外向き
           if (inside) {
-            if (scatter) {
-              float angle = TAU * rand(ray, ${2 * MAX_SEGMENTS + 3} + s);
-              dir = vec2(cos(angle), sin(angle));
-              pos = next;
+            vec2 leave = refract(dir, -normal, u_ior);
+            bool back = leave == vec2(0.0) || rand(ray, ${4 * MAX_SEGMENTS + 3} + s) < fresnel(dot(leave, normal));
+            if (back) {
+              dir = reflect(dir, -normal);
+              pos = next - normal * 0.01;
             } else {
-              dir = diffuse(normal, rand(ray, ${2 * MAX_SEGMENTS + 3} + s));
+              dir = frost(leave, normal, ray, s);
               pos = next + normal * 0.01;
               inside = false;
             }
@@ -240,15 +247,20 @@ export function createLightScene(core: Core, pixelRatio: number) {
             break;
           }
           float pick = rand(ray, ${3 * MAX_SEGMENTS + 3} + s);
-          // 和紙として当たった光線は、ばらばらの向きに中へ入る
-          if (pick < u_paper) {
-            dir = diffuse(-normal, rand(ray, ${2 * MAX_SEGMENTS + 3} + s));
-            pos = next - normal * 0.01;
-            inside = true;
+          // ガラスとして当たった光線は、一部が鏡の向きに返り、残りは屈折して中へ入る
+          if (pick < u_glass) {
+            if (rand(ray, ${4 * MAX_SEGMENTS + 3} + s) < fresnel(-dot(dir, normal))) {
+              dir = reflect(dir, normal);
+              pos = next + normal * 0.01;
+            } else {
+              dir = frost(refract(dir, normal, 1.0 / u_ior), -normal, ray, s);
+              pos = next - normal * 0.01;
+              inside = true;
+            }
             continue;
           }
           // つやとして当たった光線は、鏡の向きから左右に最大 u_rough ずれた向きに返る（真ん中ほど多い）。面の中へ向いたら折り返す
-          if (pick < u_paper + u_gloss) {
+          if (pick < u_glass + u_gloss) {
             vec2 m = reflect(dir, normal);
             float off = u_rough * (rand(ray, ${2 * MAX_SEGMENTS + 3} + s) + rand(ray, s + 1) - 1.0);
             m = vec2(m.x * cos(off) - m.y * sin(off), m.x * sin(off) + m.y * cos(off));
@@ -340,7 +352,8 @@ export function createLightScene(core: Core, pixelRatio: number) {
     rays.setUniform({
       u_bounces: tuning.bounces,
       u_albedo: tuning.albedo / 100,
-      u_scatter: tuning.scatter,
+      u_ior: tuning.ior,
+      u_frost: (tuning.frost * Math.PI) / 180,
       u_rough: (tuning.roughness * Math.PI) / 180,
       u_upperSize: tuning.upperSize,
       u_underSize: tuning.underSize,
@@ -381,7 +394,7 @@ export function createLightScene(core: Core, pixelRatio: number) {
       Math.hypot(under.x - lastLamps.under.x, under.y - lastLamps.under.y) +
       Math.hypot(left - lastLogo.x, top - lastLogo.y) +
       Math.abs(unit - lastLogo.unit) * LOGO_WIDTH
-    const turn = [upper.angle, under.angle, material.paper, material.gloss].join()
+    const turn = [upper.angle, under.angle, material.glass, material.gloss].join()
     moving = Math.max(Math.min(1, moved / MOVING_PX), turn === lastTurn ? 0 : 1, moving * SETTLE_RATE)
     lastBase = upper.base
     lastLamps = {upper: {x: upper.x, y: upper.y}, under: {x: under.x, y: under.y}}
@@ -394,12 +407,13 @@ export function createLightScene(core: Core, pixelRatio: number) {
       u_upper: [upper.x, upper.y],
       u_upperAngle: upper.angle,
       u_focus: upper.focus,
-      u_paper: material.paper * (tuning.translucency / 100),
+      u_glass: material.glass,
       u_gloss: material.gloss * (tuning.shine / 100),
-      // 消えているあいだは下の光に光線を回さない
       u_under: [under.x, under.y],
       u_underAngle: under.angle,
-      u_underRays: under.power > 0 ? Math.round((count * tuning.underShare) / 100) : 0,
+      // 光線は強さの比で 2 つの光に分ける。どちらの光線も 1 本あたりのエネルギーが同じになり、ざらつきが一番少なくなる。
+      // 消えている光には回さない
+      u_underRays: Math.round((count * under.power) / Math.max(upper.power + under.power, 1e-6)),
       u_underPower: under.power,
       u_rects: LOGO_RECTS.flatMap(([l, t, r, b]) => [left + l * unit, top + t * unit, left + r * unit, top + b * unit])
     })
@@ -470,8 +484,8 @@ export type LightFrame = {
   /** ロゴの中心と、大きさの倍率（tuning の cell に掛ける） */
   logo: {x: number; y: number; scale: number}
   /**
-   * ロゴの素材の割合。どちらも 0 で白い面、paper が 1 で和紙、gloss が 1 でつや。切り替えるあいだはあいだを通る
-   * （和紙は tuning の translucency の割合だけ中へ入り、つやは shine の割合だけ鏡の向きに返る。残りは白い面と同じ）
+   * ロゴの素材の割合。どちらも 0 で白い面、glass が 1 でガラス、gloss が 1 でつや。切り替えるあいだはあいだを通る
+   * （つやは tuning の shine の割合だけ鏡の向きに返る。残りは白い面と同じ）
    */
-  material: {paper: number; gloss: number}
+  material: {glass: number; gloss: number}
 }

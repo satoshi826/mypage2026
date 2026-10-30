@@ -4,8 +4,8 @@ import type {LampKey, LampSetting} from './arrangement'
 // フッターに出すロゴとライトの操作（ロゴの素材と大きさ、光の向きと明るさ、変えた置き方を戻す操作）の受け渡し。状態と操作は Light が持ち、
 // マウント中だけここへ出す。フッターはここを読んで描く。光の層のチャンク（worker・シェーダ）は読み込まない。
 
-/** ロゴの素材。白い面（ばらばらの向きに散らして返す）、和紙（中へ入って散り、内側から光る）、つや（鏡の向きの近くに返す） */
-export const MATERIALS = ['matte', 'paper', 'gloss'] as const
+/** ロゴの素材。白い面（ばらばらの向きに散らして返す）、ガラス（屈折して中を通り抜ける）、つや（鏡の向きの近くに返す） */
+export const MATERIALS = ['matte', 'glass', 'gloss'] as const
 export type Material = (typeof MATERIALS)[number]
 
 /** フッターに出す 1 つの光の設定と、今照らしている向き */
