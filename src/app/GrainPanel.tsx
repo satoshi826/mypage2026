@@ -29,6 +29,7 @@ function apply(g: Grain) {
 export function GrainPanel() {
   return (
     <DevPanel
+      site
       title="地の粒"
       typeName="Grain"
       constName="DEFAULT_GRAIN"

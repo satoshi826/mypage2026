@@ -83,7 +83,7 @@ export function Top() {
       {import.meta.env.DEV && (
         <DevPanel<Placement>
           key={narrow ? 'narrow' : 'wide'}
-          title={narrow ? 'ロゴの段の配置（スマホ）' : 'ロゴの段の配置（PC）'}
+          title={narrow ? '導線の配置（スマホ）' : '導線の配置（PC）'}
           typeName="Placement"
           constName={narrow ? 'NARROW_PLACEMENT' : 'WIDE_PLACEMENT'}
           params={PLACEMENT_PARAMS}

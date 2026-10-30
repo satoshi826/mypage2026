@@ -380,7 +380,7 @@ export function Hero({
       {import.meta.env.DEV && (
         <>
           <DevPanel
-            title="粒子パラメータ"
+            title="粒子"
             typeName="Tuning"
             constName="DEFAULT_TUNING"
             params={TUNING_PARAMS}
@@ -389,7 +389,7 @@ export function Hero({
             onChange={applyTuning}
           />
           <DevPanel
-            title="マウス・指の干渉"
+            title="粒子と指の干渉"
             typeName="Interaction"
             constName="DEFAULT_INTERACTION"
             params={INTERACTION_PARAMS}
@@ -400,7 +400,7 @@ export function Hero({
           {/* 並べ方が変わったら key で作り直し、その並べ方用の値を読み込ませる */}
           <DevPanel
             key={direction}
-            title={direction === 'side' ? 'パネルの寸法（横並び）' : 'パネルの寸法（縦並び）'}
+            title={direction === 'side' ? '写真とカレンダーの寸法（横並び）' : '写真とカレンダーの寸法（縦並び）'}
             typeName="Layout"
             constName={direction === 'side' ? 'SIDE_LAYOUT' : 'STACKED_LAYOUT'}
             params={LAYOUT_PARAMS}
@@ -409,7 +409,7 @@ export function Hero({
             onChange={setOverride}
           />
           <DevPanel
-            title="カレンダーの濃さ（共通）"
+            title="カレンダーの濃さ"
             typeName="Tone"
             constName="TONE"
             params={TONE_PARAMS}

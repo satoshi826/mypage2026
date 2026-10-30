@@ -61,6 +61,7 @@ function apply(g: Glow) {
 export function GlowPanel() {
   return (
     <DevPanel
+      site
       title="部品の光"
       typeName="Glow"
       constName="DEFAULT_GLOW"

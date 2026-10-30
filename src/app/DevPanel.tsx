@@ -15,9 +15,14 @@ export type Param<T> = {
 )
 
 const BUTTON = 'flex-1 cursor-pointer border border-white/25 bg-white/10 p-1 text-inherit'
+/** 開閉する見出しの行。パネルとグループで共通 */
+const ROW = 'flex w-full cursor-pointer gap-1 px-2 py-1 text-left text-inherit hover:bg-white/10'
 
-/** パネルを集めるドックの中の置き場。DevDock が持ち、各 DevPanel がここへ描く */
-const DOCK = 'dev-dock-panels'
+/** ドックの中の置き場。DevDock が持ち、各 DevPanel が自分の側へ描く。サイト全体のパネルは常に下にまとめる */
+const SECTIONS = [
+  {id: 'dev-dock-page', label: 'このページ'},
+  {id: 'dev-dock-site', label: '全体'}
+]
 const noop = () => () => {}
 
 /**
@@ -25,10 +30,12 @@ const noop = () => () => {}
  * `import.meta.env.DEV` の中でのみ描画されるので、本番バンドルには入らない。
  *
  * どこで描いても、画面に 1 つの DevDock の中に集まる（ページのあちこちに散らばって重ならないように）。
- * 最初は畳んだ状態で、開閉はブラウザに覚える。
+ * どのページにも出るものは site を付けて「全体」へ、そのページのものは「このページ」へ置く。
+ * 最初は畳んだ状態で、開閉はブラウザに覚える。触った値もブラウザに残るので、既定値から変えているパネルとグループには ● を付ける。
  * 決まった値は「コードをコピー」で定義の形にして、既定値へ貼り戻す。
  */
 export function DevPanel<T extends Record<string, number | string>>({
+  site = false,
   title,
   typeName,
   constName,
@@ -37,6 +44,8 @@ export function DevPanel<T extends Record<string, number | string>>({
   storageKey,
   onChange
 }: {
+  /** どのページにも出るパネルか */
+  site?: boolean
   title: string
   /** コピーする定義の型注釈と定数名 */
   typeName: string
@@ -49,7 +58,7 @@ export function DevPanel<T extends Record<string, number | string>>({
   const [values, setValues] = useState<T>(() => load(storageKey, defaults))
   const [open, setOpen] = useState(() => load(`${storageKey}.open`, false))
   // ドックはこのパネルより後に描かれることがある。描き終わった時点で読み直されるので、そこで見つかる
-  const dock = useExternal(noop, () => document.getElementById(DOCK), null)
+  const dock = useExternal(noop, () => document.getElementById(SECTIONS[site ? 1 : 0].id), null)
   useEffect(() => save(`${storageKey}.open`, open), [open, storageKey])
   // グループは畳んだ状態から始める。触るものだけ開いて使う
   const [closed, setClosed] = useState<Record<string, boolean>>(() =>
@@ -70,60 +79,70 @@ export function DevPanel<T extends Record<string, number | string>>({
     setTimeout(() => setCopied(false), 1500)
   }
 
+  const changed = (items: Param<T>[]) => items.some(({key}) => values[key] !== defaults[key])
+  const mark = (items: Param<T>[]) => changed(items) && <span className="opacity-60">●</span>
+
   if (!dock) return null
   return createPortal(
-    <div className="flex flex-col gap-2 border border-white/20 bg-black/75 p-3 font-mono text-[11px] leading-tight text-ink">
-      <button type="button" onClick={() => setOpen(!open)} className={`${BUTTON} w-full`}>
-        {open ? '▾' : '▸'} {title}
+    <div data-dev-panel className="flex flex-col">
+      <button type="button" onClick={() => setOpen(!open)} className={ROW}>
+        <span>{open ? '▾' : '▸'}</span>
+        <span className="flex-1">{title}</span>
+        {mark(params)}
       </button>
       {open && (
-        <>
+        <div className="flex flex-col pr-2 pb-3 pl-4">
           {groupOf(params).map(({name, items}) => (
-            <div key={name ?? ''} className="flex flex-col gap-2">
+            <div key={name ?? ''} className="flex flex-col">
               {name && (
                 <button
                   type="button"
                   onClick={() => setClosed({...closed, [name]: !closed[name]})}
-                  className={`${BUTTON} w-full`}
+                  className={`${ROW} -mx-2 w-auto opacity-80`}
                 >
-                  {closed[name] ? '▸' : '▾'} {name}
+                  <span>{closed[name] ? '▸' : '▾'}</span>
+                  <span className="flex-1">{name}</span>
+                  {mark(items)}
                 </button>
               )}
-              {(!name || !closed[name]) &&
-                items.map((param) => (
-                  <label key={param.key} className="flex flex-col gap-0.5" title={param.hint}>
-                    <span className="flex justify-between">
-                      <span>{param.label}</span>
-                      {'options' in param || <span className="opacity-60">{values[param.key]}</span>}
-                    </span>
-                    {'options' in param ? (
-                      <select
-                        value={values[param.key]}
-                        onChange={(e) => setValues({...values, [param.key]: e.currentTarget.value})}
-                        className="w-full border border-white/25 bg-black/75 p-0.5 text-inherit"
-                      >
-                        {param.options.map((option) => (
-                          <option key={option} value={option}>
-                            {option}
-                          </option>
-                        ))}
-                      </select>
-                    ) : (
-                      <input
-                        type="range"
-                        min={param.min}
-                        max={param.max}
-                        step={param.step}
-                        value={values[param.key]}
-                        onInput={(e) => setValues({...values, [param.key]: Number(e.currentTarget.value)})}
-                        className="w-full"
-                      />
-                    )}
-                  </label>
-                ))}
+              {(!name || !closed[name]) && (
+                <div className={`flex flex-col gap-2 py-1 ${name ? 'pl-3' : ''}`}>
+                  {items.map((param) => (
+                    <label key={param.key} className="flex flex-col gap-0.5" title={param.hint}>
+                      <span className="flex justify-between">
+                        <span>{param.label}</span>
+                        {'options' in param || <span className="opacity-60">{values[param.key]}</span>}
+                      </span>
+                      {'options' in param ? (
+                        <select
+                          value={values[param.key]}
+                          onChange={(e) => setValues({...values, [param.key]: e.currentTarget.value})}
+                          className="w-full border border-white/25 bg-black/75 p-0.5 text-inherit"
+                        >
+                          {param.options.map((option) => (
+                            <option key={option} value={option}>
+                              {option}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input
+                          type="range"
+                          min={param.min}
+                          max={param.max}
+                          step={param.step}
+                          value={values[param.key]}
+                          onInput={(e) => setValues({...values, [param.key]: Number(e.currentTarget.value)})}
+                          className="w-full"
+                        />
+                      )}
+                    </label>
+                  ))}
+                </div>
+              )}
             </div>
           ))}
-          <div className="mt-1 flex gap-2">
+          <div className="mt-2 flex gap-2">
             <button type="button" onClick={() => setValues(defaults)} className={BUTTON}>
               既定値
             </button>
@@ -131,7 +150,7 @@ export function DevPanel<T extends Record<string, number | string>>({
               {copied ? 'コピーした' : 'コードをコピー'}
             </button>
           </div>
-        </>
+        </div>
       )}
     </div>,
     dock
@@ -196,10 +215,15 @@ export function DevDock() {
           {dock.folded ? '▸ 開く' : '▾ 畳む'}
         </button>
       </div>
-      <div
-        id={DOCK}
-        className={`flex max-h-[calc(100svh-8rem)] flex-col gap-2 overflow-y-auto p-2 ${dock.folded ? 'hidden' : ''}`}
-      />
+      {/* 置き場は、パネルが 1 つも来ていなければ見出しごと隠す */}
+      <div className={`flex max-h-[calc(100svh-8rem)] flex-col overflow-y-auto pb-1 ${dock.folded ? 'hidden' : ''}`}>
+        {SECTIONS.map(({id, label}) => (
+          <div key={id} className="hidden flex-col has-[[data-dev-panel]]:flex">
+            <div className="px-2 pt-2 pb-1 opacity-50">{label}</div>
+            <div id={id} className="flex flex-col" />
+          </div>
+        ))}
+      </div>
     </div>
   )
 }

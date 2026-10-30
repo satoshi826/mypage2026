@@ -38,10 +38,10 @@ hero 専用の画像は持たず、Photos で広げたときの拡大用の画�
 GPU には RGBA8 のデータテクスチャ `t_table` を1枚だけ置く。N枚ぶんの表を縦横に
 敷き詰めたアトラスで、1テクセルが粒子1つ。
 
-| チャンネル | 内容 |
-|---|---|
-| RGB | ランク k → 元画像の画素インデックス（24bit LE）。シェーダで格子座標に戻す |
-| A   | その粒子の輝度 |
+| チャンネル | 内容                                                                      |
+| ---------- | ------------------------------------------------------------------------- |
+| RGB        | ランク k → 元画像の画素インデックス（24bit LE）。シェーダで格子座標に戻す |
+| A          | その粒子の輝度                                                            |
 
 座標ではなくインデックスを持つのは、3バイトに収まって A が空くため。作品がモノクロ
 なので、色は輝度1バイトで足りる。アトラスの列数は「確保するブロック数が最小で、同数なら
@@ -177,41 +177,41 @@ src/
 worker/     Cloudflare Worker（写真の API）
 ```
 
-| ファイル | 役割 |
-|---|---|
-| `hero/table.ts`     | 読む画像の寸法、粒子グリッドの決定、切り出し・縮小・輝度計算・カウントソート、アトラス配置 |
-| `hero/scene.ts`     | テクスチャ構築、シェーダ、描画と干渉の更新。舞台の worker（`scene/worker.ts`）の中で、粒子の層に描く |
-| `scene/useCanvas.tsx` | 舞台の canvas を worker へ譲渡する配線、resize 監視、rAF フック |
-| `scene/multisample.ts` | glaku で作れないマルチサンプルの描き先（hero の粒子を画素に丸めず描く） |
-| `hero/sequence.ts`  | 自動再生の進行状態。次の1枚の抽選、静止帯と遷移帯の割り当て |
-| `hero/pointer.ts`   | ポインタを写真の枠基準の NDC で追う。マウスも指も同じ経路 |
-| `hero/Hero.tsx`     | 100svh の hero、時計の駆動 |
-| `hero/ControlPanel.tsx` | 写真の横（縦並びでは下）に置く番号のカレンダー |
-| `hero/HeroPlayer.tsx`| フッターに置く再生操作と、その後ろのプログレス。状態は `hero/playback.ts` で Hero から受け取る |
-| `hero/tuning.ts`    | 調整値の既定と開発用パネルの定義 |
-| `app/DevPanel.tsx`  | 数値や選択肢を詰める開発用パネル（`import.meta.env.DEV` の中でのみ描画）。hero と Photos が使う |
-| `hero/layout.ts`    | コントロールパネルの寸法と、写真との並べ方の決定 |
-| `app/routes.ts`     | ルート定義。ナビ・プリレンダ・title/description の唯一の出典 |
-| `app/lang.ts`       | 日本語と英語の出し分け。英語版は About と Contact だけで、URL の頭に `/en` を付ける。フッターの JA / EN で行き来する |
-| `app/pageMotion.ts` | ページの移動。URL と表示中の中身を分け、中身とフッターの操作を「消える → 見えないあいだに差し替えて先頭へ戻す → 現れる」で入れ替える。演出は開発用パネル（`app/PageTransition.tsx`）で切り替える |
-| `app/Footer.tsx`    | 固定フッター。右に SNS、左にそのページ固有の操作（URL で選ぶ。hero の再生、Photos のカテゴリ、About と Contact の言語）。リンク先は `app/social.ts` |
-| `app/pages/`        | 各ページ |
-| `app/useSmoothScroll.ts` | 慣性スクロール。ホイールを横取りして目標へ減衰追従させる。全ページ共通 |
-| `app/Scrollbar.tsx` | 自前のスクロールバー（マウスなどの環境だけ）。ブラウザのものは消し、ナビとフッターのあいだに出す |
-| `app/profile.ts`    | 本人の情報（受賞・展示・掲載・リンク）。About の表示と、検索エンジン向けの人物の情報（JSON-LD）の両方の出典 |
-| `app/glow.ts`       | 部品の光の強さを置くクラス（ホバーで弱く、選んでいる状態で強く）。光の見た目は `styles.css` の `.glow-*`、詰めるのは開発用パネル（`app/GlowPanel.tsx`）。ルールは docs/design.md の「光」 |
-| `app/cursor.ts`     | 自前のマウスカーソル（マウスのある環境だけ）。ふだんは丸、リンクは三角、スライダーは横長、Photos の写真はピントを合わせる枠（広げた写真は内向きの四隅）。見た目は `styles.css` の `#cursor`。入力欄と編集中は OS のカーソル |
-| `gallery/layout.ts` | Photos の段組の計算。写真の順・幅・列数・広げている写真から各写真の位置を決める純粋関数 |
-| `gallery/Gallery.tsx` | Photos の一覧。layout.ts の結果を絶対配置で並べ、クリックでその場に広げる（FLIP）。`Img.tsx` が先読みと派生の切り替え |
-| `gallery/reveal.ts` | 視界に入った要素を現す演出（`data-reveal`）。見た目は `styles.css` |
-| `photos/index.ts`   | 写真一覧の取得（`/api/manifest`）と、派生画像の URL |
-| `editor/`           | サイトの上での編集。操作バー、下書きと公開、派生画像の生成、API の呼び出し。ログイン中だけ読み込む |
-| `worker/`           | Cloudflare Worker。写真の API と Access の検証、問い合わせフォームの受け口（`contact.ts`） |
-| `scripts/encode-photos.mjs` | 原本（`.photos/originals/`）から派生画像を `.photos/` に書き出し、manifest.json を更新する（移行と作り直し用） |
-| `scripts/sync-photos.mjs` | 写真を `.photos/` → ローカル、本番 ⇄ ローカルで動かす。作り直しの前に本番の一覧と原本を手元に揃える |
-| `scripts/prerender.js` | ビルド後に各ルートを HTML 化する。CSS は読み込みの往復を減らすため `<style>` で埋め込む。共有のプレビュー（OGP、画像は `public/og.png`）、トップと About の人物の情報（JSON-LD）、サイトマップ（`sitemap.xml`、`public/robots.txt` から指す）も書く。英語版は `<html lang="en">` にし、日英の版を互いに指す（hreflang）。編集の入口と 404 は検索に載せない |
-| `index.html` | ページの雛形。初めて開いたとき（タブごとに 1 回）のスプラッシュを HTML と CSS だけで持つ。JS を待たずに動き、ロゴが組み上がってナビのロゴへ移る |
-| `scripts/fonts.js` | 本文の書体（Zen Kaku Gothic New）を、プリレンダした全ページに出てくる文字と英数字だけに絞って woff2 にし、各ページの先頭で先読みさせる。元のフォントは `fonts/`（OFL）。開発中は絞らずに `src/dev-fonts.css` で読む |
+| ファイル                    | 役割                                                                                                                                                                                                                                                                                                                                                       |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `hero/table.ts`             | 読む画像の寸法、粒子グリッドの決定、切り出し・縮小・輝度計算・カウントソート、アトラス配置                                                                                                                                                                                                                                                                 |
+| `hero/scene.ts`             | テクスチャ構築、シェーダ、描画と干渉の更新。舞台の worker（`scene/worker.ts`）の中で、粒子の層に描く                                                                                                                                                                                                                                                       |
+| `scene/useCanvas.tsx`       | 舞台の canvas を worker へ譲渡する配線、resize 監視、rAF フック                                                                                                                                                                                                                                                                                            |
+| `scene/multisample.ts`      | glaku で作れないマルチサンプルの描き先（hero の粒子を画素に丸めず描く）                                                                                                                                                                                                                                                                                    |
+| `hero/sequence.ts`          | 自動再生の進行状態。次の1枚の抽選、静止帯と遷移帯の割り当て                                                                                                                                                                                                                                                                                                |
+| `hero/pointer.ts`           | ポインタを写真の枠基準の NDC で追う。マウスも指も同じ経路                                                                                                                                                                                                                                                                                                  |
+| `hero/Hero.tsx`             | 100svh の hero、時計の駆動                                                                                                                                                                                                                                                                                                                                 |
+| `hero/ControlPanel.tsx`     | 写真の横（縦並びでは下）に置く番号のカレンダー                                                                                                                                                                                                                                                                                                             |
+| `hero/HeroPlayer.tsx`       | フッターに置く再生操作と、その後ろのプログレス。状態は `hero/playback.ts` で Hero から受け取る                                                                                                                                                                                                                                                             |
+| `hero/tuning.ts`            | 調整値の既定と開発用パネルの定義                                                                                                                                                                                                                                                                                                                           |
+| `app/DevPanel.tsx`          | 数値や選択肢を詰める開発用パネル（`import.meta.env.DEV` の中でのみ描画）。1 つのドックに「このページ」と「全体」に分けて集まり、既定値から変えたものに ● が付く                                                                                                                                                                                            |
+| `hero/layout.ts`            | コントロールパネルの寸法と、写真との並べ方の決定                                                                                                                                                                                                                                                                                                           |
+| `app/routes.ts`             | ルート定義。ナビ・プリレンダ・title/description の唯一の出典                                                                                                                                                                                                                                                                                               |
+| `app/lang.ts`               | 日本語と英語の出し分け。英語版は About と Contact だけで、URL の頭に `/en` を付ける。フッターの JA / EN で行き来する                                                                                                                                                                                                                                       |
+| `app/pageMotion.ts`         | ページの移動。URL と表示中の中身を分け、中身とフッターの操作を「消える → 見えないあいだに差し替えて先頭へ戻す → 現れる」で入れ替える。演出は開発用パネル（`app/PageTransition.tsx`）で切り替える                                                                                                                                                           |
+| `app/Footer.tsx`            | 固定フッター。右に SNS、左にそのページ固有の操作（URL で選ぶ。hero の再生、Photos のカテゴリ、About と Contact の言語）。リンク先は `app/social.ts`                                                                                                                                                                                                        |
+| `app/pages/`                | 各ページ                                                                                                                                                                                                                                                                                                                                                   |
+| `app/useSmoothScroll.ts`    | 慣性スクロール。ホイールを横取りして目標へ減衰追従させる。全ページ共通                                                                                                                                                                                                                                                                                     |
+| `app/Scrollbar.tsx`         | 自前のスクロールバー（マウスなどの環境だけ）。ブラウザのものは消し、ナビとフッターのあいだに出す                                                                                                                                                                                                                                                           |
+| `app/profile.ts`            | 本人の情報（受賞・展示・掲載・リンク）。About の表示と、検索エンジン向けの人物の情報（JSON-LD）の両方の出典                                                                                                                                                                                                                                                |
+| `app/glow.ts`               | 部品の光の強さを置くクラス（ホバーで弱く、選んでいる状態で強く）。光の見た目は `styles.css` の `.glow-*`、詰めるのは開発用パネル（`app/GlowPanel.tsx`）。ルールは docs/design.md の「光」                                                                                                                                                                  |
+| `app/cursor.ts`             | 自前のマウスカーソル（マウスのある環境だけ）。ふだんは丸、リンクは三角、スライダーは横長、Photos の写真はピントを合わせる枠（広げた写真は内向きの四隅）。見た目は `styles.css` の `#cursor`。入力欄と編集中は OS のカーソル                                                                                                                                |
+| `gallery/layout.ts`         | Photos の段組の計算。写真の順・幅・列数・広げている写真から各写真の位置を決める純粋関数                                                                                                                                                                                                                                                                    |
+| `gallery/Gallery.tsx`       | Photos の一覧。layout.ts の結果を絶対配置で並べ、クリックでその場に広げる（FLIP）。`Img.tsx` が先読みと派生の切り替え                                                                                                                                                                                                                                      |
+| `gallery/reveal.ts`         | 視界に入った要素を現す演出（`data-reveal`）。見た目は `styles.css`                                                                                                                                                                                                                                                                                         |
+| `photos/index.ts`           | 写真一覧の取得（`/api/manifest`）と、派生画像の URL                                                                                                                                                                                                                                                                                                        |
+| `editor/`                   | サイトの上での編集。操作バー、下書きと公開、派生画像の生成、API の呼び出し。ログイン中だけ読み込む                                                                                                                                                                                                                                                         |
+| `worker/`                   | Cloudflare Worker。写真の API と Access の検証、問い合わせフォームの受け口（`contact.ts`）                                                                                                                                                                                                                                                                 |
+| `scripts/encode-photos.mjs` | 原本（`.photos/originals/`）から派生画像を `.photos/` に書き出し、manifest.json を更新する（移行と作り直し用）                                                                                                                                                                                                                                             |
+| `scripts/sync-photos.mjs`   | 写真を `.photos/` → ローカル、本番 ⇄ ローカルで動かす。作り直しの前に本番の一覧と原本を手元に揃える                                                                                                                                                                                                                                                        |
+| `scripts/prerender.js`      | ビルド後に各ルートを HTML 化する。CSS は読み込みの往復を減らすため `<style>` で埋め込む。共有のプレビュー（OGP、画像は `public/og.png`）、トップと About の人物の情報（JSON-LD）、サイトマップ（`sitemap.xml`、`public/robots.txt` から指す）も書く。英語版は `<html lang="en">` にし、日英の版を互いに指す（hreflang）。編集の入口と 404 は検索に載せない |
+| `index.html`                | ページの雛形。初めて開いたとき（タブごとに 1 回）のスプラッシュを HTML と CSS だけで持つ。JS を待たずに動き、ロゴが組み上がってナビのロゴへ移る                                                                                                                                                                                                            |
+| `scripts/fonts.js`          | 本文の書体（Zen Kaku Gothic New）を、プリレンダした全ページに出てくる文字と英数字だけに絞って woff2 にし、各ページの先頭で先読みさせる。元のフォントは `fonts/`（OFL）。開発中は絞らずに `src/dev-fonts.css` で読む                                                                                                                                        |
 
 Worker には `requestAnimationFrame` がないため、駆動はメインスレッドの rAF から。
 タブが非表示になると rAF が止まり、無駄な描画も止まる。
@@ -231,12 +231,12 @@ Worker には `requestAnimationFrame` がないため、駆動はメインスレ
 写真の正本は R2（バケット `mypage2026-photos`）。サイトは起動時に `/api/manifest` から
 一覧を読み、画像は `/images/<kind>/<name>` から取る。再ビルドなしで写真を入れ替えられる。
 
-| キー | 内容 |
-|---|---|
-| `manifest.json` | 一覧。`file / w / h / category / hero / tag / caption / v` の配列。形は `src/photos/manifest.ts` が検証する。`category` は Photos の street / abstract / color と、Works に並ぶ works。`hero` はトップの hero での順番（1 から。使わない写真は持たない）、`tag` と `caption` は Works の案件の種類と説明の 1 行（案件の最初の写真だけが持つ）、`v` は派生画像の版（下記） |
-| `list-<長辺>/<file>.webp` | 一覧用。長辺 200 / 400 / 800 / 1200px、画質 60 |
-| `large-<長辺>/<file>.webp` | 拡大用。長辺 1200 / 2000px、画質 80、カラー、トリミングなし。一覧で広げたときと、トップの hero（1200、`hero: true` のもの）が読む |
-| `originals/<file>.<ext>` | 原本。再派生のために置く。認証なしでは取れない |
+| キー                       | 内容                                                                                                                                                                                                                                                                                                                                                                      |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `manifest.json`            | 一覧。`file / w / h / category / hero / tag / caption / v` の配列。形は `src/photos/manifest.ts` が検証する。`category` は Photos の street / abstract / color と、Works に並ぶ works。`hero` はトップの hero での順番（1 から。使わない写真は持たない）、`tag` と `caption` は Works の案件の種類と説明の 1 行（案件の最初の写真だけが持つ）、`v` は派生画像の版（下記） |
+| `list-<長辺>/<file>.webp`  | 一覧用。長辺 200 / 400 / 800 / 1200px、画質 60                                                                                                                                                                                                                                                                                                                            |
+| `large-<長辺>/<file>.webp` | 拡大用。長辺 1200 / 2000px、画質 80、カラー、トリミングなし。一覧で広げたときと、トップの hero（1200、`hero: true` のもの）が読む                                                                                                                                                                                                                                         |
+| `originals/<file>.<ext>`   | 原本。再派生のために置く。認証なしでは取れない                                                                                                                                                                                                                                                                                                                            |
 
 API は `worker/index.ts`。読み取りは誰でも、書き込みと原本の取得は Cloudflare Access の
 JWT を検証する（`worker/access.ts`）。`ACCESS_TEAM_DOMAIN` と `ACCESS_AUD` が未設定なら
@@ -259,6 +259,7 @@ PC の密度 1 倍の 3 列なら 800 と、表示に見合う段だけを読ん
 印付きの URL は中身が変わらないので、Worker は 1 年持ってよい（`immutable`）と返す。
 
 **Service Worker（`src/sw/`）。** 本番だけで登録する。ローディングを感じさせないためのもの。
+
 - 印付きの画像と、名前にハッシュが付く JS・CSS・フォントは、手元にあれば手元から出す。HTML と一覧は通信で
   最新を取り、取れないときだけ手元のものを出す。2 回目以降の訪問は、ほぼ通信を待たずに表示される。
 - 表示に要る読み込みが落ち着いたら、その端末で列数をどれにしても一覧に要る段を、今のカテゴリから順に

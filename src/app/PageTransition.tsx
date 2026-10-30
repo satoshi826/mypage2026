@@ -20,6 +20,7 @@ export function PageCover() {
 export function PageMotionPanel({onChange}: {onChange: (motion: PageMotion) => void}) {
   return (
     <DevPanel
+      site
       title="ページの移動"
       typeName="PageMotion"
       constName="DEFAULT_PAGE_MOTION"
