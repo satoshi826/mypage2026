@@ -19,7 +19,8 @@ import {DEFAULT_LIGHT, type LightTuning} from './tuning'
 // - 光線の経路は線を描く頂点シェーダの中で求める。頂点 1 つが「何本目の光線の、何回目の跳ね返りの、始点か終点か」
 //   を受け持ち、その点までの経路を自分で計算する。経路を一度テクスチャに書き出す段を挟まない
 // - 光線の向きは全周を等分した区画の中で毎フレームずらし、前のフレームの結果と混ぜて、光線のすき間をならす。
-//   光が動いたときは、前のフレームの結果を光が動いたぶんずらしてから混ぜる（跡を引かない）。ロゴや光が動いているあいだは
+//   スクロールで上の光が動いたときは、前のフレームの結果を光が動いたぶんずらしてから混ぜる（跡を引かない）。
+//   訪問者が光源を動かしたぶんではずらさない（層全体がずれて、止まっているロゴの光と影までぶれるので）。ロゴや光が動いているあいだは
 //   前の結果を残す割合を弱め（keepMoving）、跡を引かないようにする。止まるとなめらかに元の割合（keep）へ戻す
 // - 光をためる層は画面より粗い解像度（resolution）で持ち、画面へはなめらかに拡大する
 
@@ -28,6 +29,9 @@ const MOVING_PX = 2
 
 /** 止まってから、残す割合が元へ戻る速さ。1 フレームごとに、動いている度合いをこの割合に減らす */
 const SETTLE_RATE = 0.9
+
+/** 訪問者が光源をつかんで動かしているあいだの、前の結果を残す割合の上限。光源は速く動くので、動いているときの値では跡が点々と残る */
+const GRABBED_KEEP = 0.5
 
 /** 1 本の光線が描く線分の数の上限（光源からの 1 本 + 跳ね返り 8 回）。tuning.ts の跳ね返りの上限と合わせる */
 const MAX_SEGMENTS = 9
@@ -304,8 +308,10 @@ export function createLightScene(core: Core, pixelRatio: number) {
   let fresh = true
   /** 光がついているか。消えているあいだは層を空にしてあり、舞台は重ねない */
   let lit = false
-  /** 前のフレームの光の位置。前の結果をずらす量を出す */
-  let lastLight = {x: 0, y: 0}
+  /** 前のフレームの上の光の、スクロールで決まる位置。前の結果をずらす量を出す */
+  let lastBase = {x: 0, y: 0}
+  /** 前のフレームの 2 つの光源の位置。動いているかを見る */
+  let lastLamps = {upper: {x: 0, y: 0}, under: {x: 0, y: 0}}
   /** 前のフレームのロゴの位置と大きさ（左上と 1 マス） */
   let lastLogo = {x: 0, y: 0, unit: 0}
   /** 動いている度合い（0〜1）。動くと上がり、止まるとなめらかに 0 へ戻る */
@@ -369,14 +375,16 @@ export function createLightScene(core: Core, pixelRatio: number) {
     const left = Math.round(logo.x - (LOGO_WIDTH * unit) / 2)
     const top = Math.round(logo.y - (LOGO_HEIGHT * unit) / 2)
     const {width, height} = size
-    blend.setUniform({u_shift: [-(upper.x - lastLight.x) / width, (upper.y - lastLight.y) / height]})
+    blend.setUniform({u_shift: [-(upper.base.x - lastBase.x) / width, (upper.base.y - lastBase.y) / height]})
     const moved =
-      Math.hypot(upper.x - lastLight.x, upper.y - lastLight.y) +
+      Math.hypot(upper.x - lastLamps.upper.x, upper.y - lastLamps.upper.y) +
+      Math.hypot(under.x - lastLamps.under.x, under.y - lastLamps.under.y) +
       Math.hypot(left - lastLogo.x, top - lastLogo.y) +
       Math.abs(unit - lastLogo.unit) * LOGO_WIDTH
     const turn = [upper.angle, under.angle, material.paper, material.gloss].join()
     moving = Math.max(Math.min(1, moved / MOVING_PX), turn === lastTurn ? 0 : 1, moving * SETTLE_RATE)
-    lastLight = {x: upper.x, y: upper.y}
+    lastBase = upper.base
+    lastLamps = {upper: {x: upper.x, y: upper.y}, under: {x: under.x, y: under.y}}
     lastLogo = {x: left, y: top, unit}
     lastTurn = turn
     seed = (seed + 1) % 1_000_000
@@ -403,7 +411,8 @@ export function createLightScene(core: Core, pixelRatio: number) {
     core.gl.disable(core.gl.BLEND)
 
     // 大きさが変わった直後は前の結果が無いので、このフレームだけで描く
-    const keep = (tuning.keep + (tuning.keepMoving - tuning.keep) * moving) / 100
+    const settled = (tuning.keep + (tuning.keepMoving - tuning.keep) * moving) / 100
+    const keep = frame.grabbed ? Math.min(GRABBED_KEEP, settled) : settled
     blend.setUniform({u_keep: fresh ? 0 : keep})
     blend.setTexture({t_prev: acc[0].renderTexture[0]})
     acc[1].render(plane, blend)
@@ -449,10 +458,15 @@ export type Lamp = {
 
 /** 1 フレームぶんの光の状態。位置はどれも canvas の左上からの px */
 export type LightFrame = {
-  /** 上の光。focus は絞れ具合で、0 で全周に均一、1 で向きの円錐に絞りきる（tuning の cone） */
-  upper: Lamp & {focus: number}
+  /**
+   * 上の光。focus は絞れ具合で、0 で全周に均一、1 で向きの円錐に絞りきる（tuning の cone）。base はスクロールで決まる
+   * 位置（訪問者が動かしたぶんを除く）で、前のフレームの結果はこの位置が動いたぶんだけずらす
+   */
+  upper: Lamp & {focus: number; base: {x: number; y: number}}
   /** 部屋の床の上に置く下の光 */
   under: Lamp
+  /** 訪問者が光源をつかんで動かしているか */
+  grabbed: boolean
   /** ロゴの中心と、大きさの倍率（tuning の cell に掛ける） */
   logo: {x: number; y: number; scale: number}
   /**

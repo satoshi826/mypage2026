@@ -346,8 +346,9 @@ export function Light({
       waiting.current = now
       send({
         frame: {
-          upper: {...at.upper, angle: facing.current.upper, power: power.upper * brightness, focus},
+          upper: {...at.upper, base: base.upper, angle: facing.current.upper, power: power.upper * brightness, focus},
           under: {...at.under, angle: facing.current.under, power: power.under * underBrightness},
+          grabbed: dragging.current !== null,
           logo,
           material: mix.current
         }
