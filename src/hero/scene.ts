@@ -402,7 +402,7 @@ export function createHeroScene(
   }).catch((e) => console.error('hero: 写真の読み込みが止まった', e))
 
   // 粒子を描く層。写真の枠の大きさで、粒子のすき間は透明にする（舞台が重ねたとき、下の光の層や地を透かす）。
-  // 粒子は不透明に描く
+  // 粒子は不透明に描く。マルチサンプルで描いてから、この層へ写す
   const renderer = new Renderer(core, {
     frameBuffer: [['RGBA8', 'RGBA', 'UNSIGNED_BYTE', 'LINEAR', 'CLAMP_TO_EDGE']],
     screenFit: false,
@@ -410,6 +410,7 @@ export function createHeroScene(
     width: 1,
     height: 1
   })
+  const sampled = createMultisample(core, renderer)
 
   // 粒子は u_fit を掛ける前の空間にいるので、ポインタも同じ空間へ戻してから渡す
   let fit = [1, 1]
@@ -458,8 +459,9 @@ export function createHeroScene(
     // 枠の寸法が決まる前と、両端の写真が揃う前は描かない
     if (!drawable()) return
     core.setTexture('t_state', state[readIndex].renderTexture[0])
-    renderer.clear()
-    renderer.render(vao, program)
+    sampled.renderer.clear()
+    sampled.renderer.render(vao, program)
+    sampled.resolve()
   }
 
   /** 干渉の状態を dt 秒ぶん進める。読んだ側とは別のテクスチャへ書き、role を入れ替える */
@@ -492,6 +494,7 @@ export function createHeroScene(
     // 見える。格子の解像度で描けば粒子 1 つが 1 画素に乗り、拡大は舞台が重ねるときになめらかに行う
     const ratio = pixelRatio * Math.min(1, grid.height / (height * pixelRatio))
     renderer.resize({width, height, pixelRatio: ratio})
+    sampled.resize({width, height, pixelRatio: ratio})
     // 画像を歪めずに収める
     const canvasAR = width / height
     fit = canvasAR > imageAspect ? [imageAspect / canvasAR, 1] : [1, canvasAR / imageAspect]
@@ -598,4 +601,55 @@ export function applyHero(scene: ReturnType<typeof createHeroScene>, command: He
   // 打ち消しは更新パスの中で効くので、干渉が止まっていても1回は回す
   if (command.step !== undefined || command.catchUp) scene.step(command.step ?? 0)
   scene.draw()
+}
+
+/**
+ * target と同じ大きさの、4 倍のマルチサンプルの描き先。粒子の点の縁が画素の一部だけを覆えるようにして、半端な位置の粒子を
+ * 画素に丸めず描く（丸めると、干渉や写真の切り替えで動く粒子が 1 画素ずつ跳んでがたついて見える）。
+ * glaku はマルチサンプルの層を作れないので、glaku の Renderer の描き先をマルチサンプルのレンダーバッファにすり替えて
+ * 使い（clear・render・viewport は glaku のまま）、描いたら resolve で target のテクスチャへ写す
+ */
+function createMultisample(core: Core, target: Renderer) {
+  const gl = core.gl
+  const samples = Math.min(4, gl.getParameter(gl.MAX_SAMPLES) as number)
+  const color = gl.createRenderbuffer()
+  const frameBuffer = gl.createFramebuffer()
+  const renderer = new Renderer(core, {
+    frameBuffer: [['RGBA8', 'RGBA', 'UNSIGNED_BYTE', 'NEAREST', 'CLAMP_TO_EDGE']],
+    screenFit: false,
+    backgroundColor: [0, 0, 0, 0],
+    width: 1,
+    height: 1
+  })
+  renderer.frameBuffer = frameBuffer
+  let size = {width: 1, height: 1}
+
+  const resize = (next: {width: number; height: number; pixelRatio: number}) => {
+    renderer.resize(next)
+    // glaku の層と同じく、端数は切り捨てた画素数にする
+    size = {width: Math.trunc(next.width * next.pixelRatio), height: Math.trunc(next.height * next.pixelRatio)}
+    gl.bindRenderbuffer(gl.RENDERBUFFER, color)
+    gl.renderbufferStorageMultisample(gl.RENDERBUFFER, samples, gl.RGBA8, size.width, size.height)
+    gl.bindFramebuffer(gl.FRAMEBUFFER, frameBuffer)
+    gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.RENDERBUFFER, color)
+    gl.bindRenderbuffer(gl.RENDERBUFFER, null)
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null)
+    // 描き先を glaku の外で付け替えたので、次の描画で glaku に描き先を結び直させる
+    core.currentRenderer = null
+  }
+
+  return {
+    renderer,
+    resize,
+    /** 描いたものを target のテクスチャへ写す */
+    resolve() {
+      gl.bindFramebuffer(gl.READ_FRAMEBUFFER, frameBuffer)
+      gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, target.frameBuffer)
+      const {width, height} = size
+      gl.blitFramebuffer(0, 0, width, height, 0, 0, width, height, gl.COLOR_BUFFER_BIT, gl.NEAREST)
+      gl.bindFramebuffer(gl.READ_FRAMEBUFFER, null)
+      gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, null)
+      core.currentRenderer = null
+    }
+  }
 }
