@@ -117,9 +117,6 @@ export function Light({
   const returning = useRef<{at: number; from: Arrangement} | null>(null)
   // フッターに出している状態。変わったときだけ出し直す
   const shown = useRef<Shown>({lit: false, changed: false, scale: 1, lamps: {upper: STILL, under: STILL}})
-  const reset = useCallback(() => {
-    returning.current = {at: performance.now(), from: arrangement.current}
-  }, [])
   const setScale = useCallback((scale: number) => {
     returning.current = null
     arrangement.current = {...arrangement.current, scale}
@@ -137,6 +134,11 @@ export function Light({
     switched.current = {at: performance.now(), from: {...mix.current}}
     setMaterialState(next)
   }, [])
+  // 置き方と素材を既定へ戻す
+  const reset = useCallback(() => {
+    returning.current = {at: performance.now(), from: arrangement.current}
+    setMaterial('matte')
+  }, [setMaterial])
   const publish = (next: Shown) => {
     shown.current = next
     setLogoControls({...next, reset, material, setMaterial, setScale, setLamp})
@@ -377,7 +379,7 @@ export function Light({
     }
     const next: Shown = {
       lit: nowLit,
-      changed: !isDefault(arrangement.current),
+      changed: !isDefault(arrangement.current) || material !== 'matte',
       scale: Math.round(scale * 100) / 100,
       lamps: {upper: control('upper'), under: control('under')}
     }
