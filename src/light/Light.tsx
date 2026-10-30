@@ -360,7 +360,7 @@ export function Light({
           upper: {...at.upper, base: base.upper, angle: facing.current.upper, power: power.upper * brightness, focus},
           under: {...at.under, angle: facing.current.under, power: power.under * underBrightness},
           grabbed: dragging.current !== null,
-          logo,
+          logo: {...logo, shown: arrived},
           material: mix.current
         }
       })

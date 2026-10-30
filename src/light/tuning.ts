@@ -28,6 +28,8 @@ export type LightTuning = {
   // ロゴ。素材は白い面・ガラス・金属の 3 つ（訪問者がフッターで切り替える）
   /** ロゴの横のずれ px。負で左。2 つの光もロゴからのずれで置くので、一緒にずれる */
   logoShift: number
+  /** ロゴの面の色。灰色の明るさ 0〜255（地の色 --color-ground と同じ測り方）。地より暗い単色で塗り、地の粒を隠す */
+  logoColor: number
   /** ロゴの格子 1 マスの大きさ px（ロゴは 12 マス × 11 マス） */
   cell: number
   /** 白い面が光を返す割合 %。ばらばらの向きに散らして返す */
@@ -72,6 +74,7 @@ export const DEFAULT_LIGHT: LightTuning = {
   underX: -12,
   underY: 18,
   logoShift: -10,
+  logoColor: 8,
   cell: 10,
   albedo: 100,
   ior: 2,
@@ -126,6 +129,7 @@ export const LIGHT_PARAMS: Param<LightTuning>[] = [
     step: 10,
     hint: 'px。負で左。光も一緒にずれる'
   },
+  {group: 'ロゴ', key: 'logoColor', label: '面の色', min: 0, max: 40, step: 1, hint: '灰色の明るさ 0〜255。地は 18'},
   {group: 'ロゴ', key: 'cell', label: '1 マス', min: 4, max: 40, step: 1, hint: 'px'},
   {group: 'ロゴ', key: 'albedo', label: '白い面: 返す割合', min: 0, max: 100, step: 5, hint: '%'},
   {group: 'ロゴ', key: 'ior', label: 'ガラス: 屈折率', min: 1, max: 2.4, step: 0.01, hint: '1.33 で水、1.5 でガラス'},

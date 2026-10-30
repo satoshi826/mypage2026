@@ -325,6 +325,8 @@ export function createLightScene(core: Core, pixelRatio: number) {
   let lastLamps = {upper: {x: 0, y: 0}, under: {x: 0, y: 0}}
   /** 前のフレームのロゴの位置と大きさ（左上と 1 マス） */
   let lastLogo = {x: 0, y: 0, unit: 0}
+  /** 今のロゴの長方形（canvas の左上からの px で [左, 上, 右, 下]）と、見え具合 */
+  let logoShape = {rects: [] as number[], shown: 0}
   /** 動いている度合い（0〜1）。動くと上がり、止まるとなめらかに 0 へ戻る */
   let moving = 0
   /** 前のフレームの光の向きと素材。回しているあいだと切り替えているあいだも動いているものとする */
@@ -401,6 +403,10 @@ export function createLightScene(core: Core, pixelRatio: number) {
     lastLogo = {x: left, y: top, unit}
     lastTurn = turn
     seed = (seed + 1) % 1_000_000
+    logoShape = {
+      rects: LOGO_RECTS.flatMap(([l, t, r, b]) => [left + l * unit, top + t * unit, left + r * unit, top + b * unit]),
+      shown: logo.shown
+    }
     rays.setUniform({
       u_seed: seed,
       u_upperPower: upper.power,
@@ -415,7 +421,7 @@ export function createLightScene(core: Core, pixelRatio: number) {
       // 消えている光には回さない
       u_underRays: Math.round((count * under.power) / Math.max(upper.power + under.power, 1e-6)),
       u_underPower: under.power,
-      u_rects: LOGO_RECTS.flatMap(([l, t, r, b]) => [left + l * unit, top + t * unit, left + r * unit, top + b * unit])
+      u_rects: logoShape.rects
     })
 
     frameLayer.clear()
@@ -445,7 +451,9 @@ export function createLightScene(core: Core, pixelRatio: number) {
     setRays,
     draw,
     /** ためた光の層。消えているあいだは null */
-    layer: () => (lit ? acc[0].renderTexture[0] : null)
+    layer: () => (lit ? acc[0].renderTexture[0] : null),
+    /** 今のロゴの形と見え具合。舞台が面を塗る。消えているあいだは null */
+    logo: () => (lit ? logoShape : null)
   }
 }
 
@@ -481,8 +489,8 @@ export type LightFrame = {
   under: Lamp
   /** 訪問者が光源をつかんで動かしているか */
   grabbed: boolean
-  /** ロゴの中心と、大きさの倍率（tuning の cell に掛ける） */
-  logo: {x: number; y: number; scale: number}
+  /** ロゴの中心と、大きさの倍率（tuning の cell に掛ける）と、面の見え具合（0〜1。粒子が光に着くにつれて現れる） */
+  logo: {x: number; y: number; scale: number; shown: number}
   /**
    * ロゴの素材の割合。どちらも 0 で白い面、glass が 1 でガラス、metal が 1 で金属。切り替えるあいだはあいだを通る
    */

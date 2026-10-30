@@ -1,6 +1,7 @@
 import {Core, Program, Renderer, Vao, plane2D} from 'glaku'
 import {applyHero, createHeroScene, type HeroCommand} from '../hero/scene'
 import {createLightScene, type LightCommand} from '../light/scene'
+import {LOGO_RECTS} from '../light/logo'
 import {DEFAULT_LIGHT} from '../light/tuning'
 
 // トップの舞台の canvas。写真の粒子（hero）と、光がロゴを照らす層（light）を 1 枚の canvas に描く。
@@ -52,12 +53,21 @@ function createStage(canvas: OffscreenCanvas, pixelRatio: number) {
     type: 'UNSIGNED_BYTE'
   })
 
-  // 光の層を明るさに直し、その上に写真の粒子の層を枠の位置へ拡大して重ねる。どちらも透ける部分は透明にして、
-  // ページの地を透かす（プリマルチプライド）。粒子の層は格子の解像度で描いてあり、ここでなめらかに拡大する
+  // ロゴの面を地より暗い単色で塗り、その上に光の層を明るさに直して重ね、さらに写真の粒子の層を枠の位置へ拡大して重ねる。
+  // どれも透ける部分は透明にして、ページの地を透かす（プリマルチプライド）。ロゴの面は画面の画素で縁をなめらかにする
+  // （光をためる層は粗いので、そちらでは塗らない）。粒子の層は格子の解像度で描いてあり、ここでなめらかに拡大する
   const compose = new Program(core, {
     id: 'compose',
     attributeTypes: {a_position: 'vec2', a_textureCoord: 'vec2'},
-    uniformTypes: {u_lit: 'float', u_photo: 'float', u_rect: 'vec4'},
+    uniformTypes: {
+      u_lit: 'float',
+      u_photo: 'float',
+      u_rect: 'vec4',
+      u_size: 'vec2',
+      u_logo: 'float',
+      u_logoColor: 'float',
+      u_logoRects: `vec4[${LOGO_RECTS.length}]`
+    },
     texture: {t_light: empty, t_photo: empty},
     vert: /* glsl */ `
       out vec2 v_uv;
@@ -69,11 +79,23 @@ function createStage(canvas: OffscreenCanvas, pixelRatio: number) {
       in vec2 v_uv;
       out vec4 o_color;
       void main() {
+        // この画素がロゴに覆われる割合。画素の正方形と長方形の重なりを縦横で求めて掛ける（長方形どうしは重ならない）
+        vec2 p = vec2(v_uv.x, 1.0 - v_uv.y) * u_size;
+        vec2 h = 0.5 * fwidth(p);
+        float cover = 0.0;
+        for (int i = 0; i < ${LOGO_RECTS.length}; i++) {
+          vec4 r = u_logoRects[i];
+          vec2 overlap = clamp((min(p + h, r.zw) - max(p - h, r.xy)) / (2.0 * h), 0.0, 1.0);
+          cover += overlap.x * overlap.y;
+        }
+        float body = u_logo * min(cover, 1.0);
         float c = u_lit * (1.0 - exp(-texture(t_light, v_uv).r));
+        // 光をロゴの面の上に重ねる
+        vec4 lit = vec4(vec3(c + u_logoColor * body * (1.0 - c)), c + body * (1.0 - c));
         vec2 uv = (v_uv - u_rect.xy) / (u_rect.zw - u_rect.xy);
         bool inside = all(greaterThanEqual(uv, vec2(0.0))) && all(lessThanEqual(uv, vec2(1.0)));
         vec4 photo = u_photo > 0.5 && inside ? texture(t_photo, uv) : vec4(0.0);
-        o_color = vec4(photo.rgb + vec3(c) * (1.0 - photo.a), photo.a + c * (1.0 - photo.a));
+        o_color = photo + lit * (1.0 - photo.a);
       }`
   })
 
@@ -93,7 +115,14 @@ function createStage(canvas: OffscreenCanvas, pixelRatio: number) {
         u_rect: [x / size.width, 1 - (y + height) / size.height, (x + width) / size.width, 1 - y / size.height]
       })
     }
-    compose.setUniform({u_lit: glow ? 1 : 0, u_photo: photo ? 1 : 0})
+    const logo = light.logo()
+    if (logo) compose.setUniform({u_logoRects: logo.rects, u_logoColor: tuning.logoColor / 255})
+    compose.setUniform({
+      u_lit: glow ? 1 : 0,
+      u_photo: photo ? 1 : 0,
+      u_logo: logo?.shown ?? 0,
+      u_size: [size.width, size.height]
+    })
     screen.clear()
     screen.render(plane, compose)
     if (unreported) {
