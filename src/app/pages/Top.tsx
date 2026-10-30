@@ -47,7 +47,7 @@ export function Top() {
       </div>
       {/* ロゴと導線の段。ふつうのページの中身として舞台の上を下から上がってきて、ページの一番下で画面に収まる。
           段は光の層にとっての部屋で、光の層が段の中央にロゴを描き（光とロゴのパネルの logoShift でずらせる）、
-          その真下の床の上に下の光を置く。導線は右に置く。舞台に重ねて始め、
+          ロゴの中心からずらして上の光と下の光を置く。導線は右に置く。舞台に重ねて始め、
           一番下までのスクロールを SCENE_SCREENS にする */}
       <div
         ref={room}
@@ -159,7 +159,7 @@ const LINKS = [
  * 粒子が集まった割合は時間で進める
  */
 function useStage() {
-  const state = useRef<Stage>({progress: 0, gather: 0})
+  const state = useRef<Stage>({progress: 0, gather: 0, light: {x: 0, y: 0}})
   useEffect(() => {
     const current = state.current
     const measure = () => {

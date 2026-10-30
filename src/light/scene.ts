@@ -9,7 +9,7 @@ import {DEFAULT_LIGHT, type LightTuning} from './tuning'
 // 光線ごとに今の素材と次の素材を割合で選ぶ。
 // - 和紙: 当たった光線の一部が中へ入り、中であちこちに散ってから、どこかの面からばらばらの向きに出る。文字が内側から明るくなる
 // - つや: 当たった光線の一部が、鏡の向きの近くにぼけて返る。光に向いた縁に柔らかいハイライトが出る
-// 光源は 2 つ。上の光（u_light）と、部屋の床の上に置く下の光（u_under）。どちらも向き（u_lightAngle、u_underAngle）を持つ
+// 光源は 2 つ。上の光（u_upper）と、ロゴの下に置く下の光（u_under）。どちらも向き（u_upperAngle、u_underAngle）を持つ
 // スポットで、ふだんはロゴの今の位置を向く（訪問者がフッターの設定で変えられる。Light.tsx）。ロゴの切り込みのうち 2 本は下に開いていて、
 // 上の光は奥まで入らないので、下の光で下から照らす。光線の数は 2 つで分け合う。
 // 光線の数は端末の速さに合わせてメインスレッドが決め（rayBudget.ts）、フレームの合間に変わる。
@@ -62,9 +62,9 @@ export function createLightScene(core: Core, pixelRatio: number) {
     uniformTypes: {
       u_size: 'vec2',
       u_scale: 'float',
-      u_light: 'vec2',
-      u_lightSize: 'float',
-      u_cone: 'float',
+      u_upper: 'vec2',
+      u_upperSize: 'float',
+      u_upperCone: 'float',
       u_focus: 'float',
       u_rays: 'float',
       u_bounces: 'float',
@@ -73,9 +73,9 @@ export function createLightScene(core: Core, pixelRatio: number) {
       u_scatter: 'float',
       u_gloss: 'float',
       u_rough: 'float',
-      u_power: 'float',
+      u_upperPower: 'float',
       u_seed: 'float',
-      u_lightAngle: 'float',
+      u_upperAngle: 'float',
       u_under: 'vec2',
       u_underAngle: 'float',
       u_underRays: 'float',
@@ -184,18 +184,18 @@ export function createLightScene(core: Core, pixelRatio: number) {
           float falloff = cos(across * TAU * 0.25);
           energy = u_underPower * falloff * falloff / (u_underRays * 0.5);
         } else {
-          // 絞れ具合（u_focus）が 0 なら全周に均一に出す。1 なら向き u_lightAngle の円錐（中心の向きから左右に u_cone）だけに出し、
+          // 絞れ具合（u_focus）が 0 なら全周に均一に出す。1 なら向き u_upperAngle の円錐（中心の向きから左右に u_upperCone）だけに出し、
           // 真下が一番明るく、端に向かってなめらかに 0 になるよう重みを付ける。あいだは広がりも重みもなめらかに移す。
-          // 出す範囲を光線の数で等分する。重みの平均（均一なら 1、cos² なら 1/2）で割り、全体の強さは u_power のまま
-          // 光は半径 u_lightSize の円の中のどこかから出す。点から出すと影の縁がくっきりして、光の筋のように見える
+          // 出す範囲を光線の数で等分する。重みの平均（均一なら 1、cos² なら 1/2）で割り、全体の強さは u_upperPower のまま
+          // 光は半径 u_upperSize の円の中のどこかから出す。点から出すと影の縁がくっきりして、光の筋のように見える
           float pointRays = u_rays - u_underRays;
           float across = 2.0 * (float(ray) - u_underRays + rand(ray, 0)) / pointRays - 1.0;
-          float angle = u_lightAngle + across * mix(TAU * 0.5, u_cone, u_focus);
+          float angle = u_upperAngle + across * mix(TAU * 0.5, u_upperCone, u_focus);
           float spread = TAU * rand(ray, ${MAX_SEGMENTS + 1});
-          pos = u_light + u_lightSize * sqrt(rand(ray, ${MAX_SEGMENTS + 2})) * vec2(cos(spread), sin(spread));
+          pos = u_upper + u_upperSize * sqrt(rand(ray, ${MAX_SEGMENTS + 2})) * vec2(cos(spread), sin(spread));
           dir = vec2(cos(angle), sin(angle));
           float falloff = cos(across * TAU * 0.25);
-          energy = u_power * mix(1.0, falloff * falloff, u_focus) / (pointRays * mix(1.0, 0.5, u_focus));
+          energy = u_upperPower * mix(1.0, falloff * falloff, u_focus) / (pointRays * mix(1.0, 0.5, u_focus));
         }
         vec2 a = pos;
         vec2 b = pos;
@@ -342,10 +342,10 @@ export function createLightScene(core: Core, pixelRatio: number) {
       u_albedo: tuning.albedo / 100,
       u_scatter: tuning.scatter,
       u_rough: (tuning.roughness * Math.PI) / 180,
-      u_lightSize: tuning.lightSize,
+      u_upperSize: tuning.upperSize,
       u_underSize: tuning.underSize,
       u_underCone: (tuning.underCone * Math.PI) / 180,
-      u_cone: (tuning.cone * Math.PI) / 180
+      u_upperCone: (tuning.upperCone * Math.PI) / 180
     })
     // 頂点の数は光線の数の上限と跳ね返りの回数で決まるので、変わったら作り直す。光線の数が変わっても作り直さない
     const vertices = tuning.maxRays * (tuning.bounces + 1) * 2
@@ -390,9 +390,9 @@ export function createLightScene(core: Core, pixelRatio: number) {
     seed = (seed + 1) % 1_000_000
     rays.setUniform({
       u_seed: seed,
-      u_power: upper.power,
-      u_light: [upper.x, upper.y],
-      u_lightAngle: upper.angle,
+      u_upperPower: upper.power,
+      u_upper: [upper.x, upper.y],
+      u_upperAngle: upper.angle,
       u_focus: upper.focus,
       u_paper: material.paper * (tuning.translucency / 100),
       u_gloss: material.gloss * (tuning.shine / 100),
@@ -463,7 +463,7 @@ export type LightFrame = {
    * 位置（訪問者が動かしたぶんを除く）で、前のフレームの結果はこの位置が動いたぶんだけずらす
    */
   upper: Lamp & {focus: number; base: {x: number; y: number}}
-  /** 部屋の床の上に置く下の光 */
+  /** ロゴの下に置く下の光 */
   under: Lamp
   /** 訪問者が光源をつかんで動かしているか */
   grabbed: boolean

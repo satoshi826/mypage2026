@@ -17,7 +17,7 @@ import {
 import {ControlPanel} from './ControlPanel'
 import {progressLines, setPlayer} from './playback'
 import {DevPanel} from '../app/DevPanel'
-import {lightAt, type Stage} from '../app/stage'
+import type {Stage} from '../app/stage'
 import {
   LAYOUT_PARAMS,
   LAYOUT_PRESETS,
@@ -47,22 +47,19 @@ const timingOf = ({cycleSeconds, dwellRatio}: Tuning): Timing => ({cycleSeconds,
 /**
  * @param photos hero 用の派生画像の URL。空では呼ばない
  * @param available 読み込みが済んだ写真の番号。抽選はこの中から
- * @param stage トップの舞台。スクロールすると、粒子を光の位置（画面の中央からスクロールで上がる）へ集める
+ * @param stage トップの舞台。スクロールすると、粒子を光の位置（画面の中央からスクロールで上がる。Light が書く）へ集める
  * @param post 舞台の canvas（src/scene/worker.ts）へ指示を送る。粒子は舞台の canvas に、写真の枠（frame）の位置へ描かれる
- * @param screen 舞台の canvas の入れ物。粒子が集まる光の位置は、この大きさから決める（光の層と同じ位置にするため）
  */
 export function Hero({
   photos: PHOTOS,
   available,
   stage,
-  post,
-  screen
+  post
 }: {
   photos: string[]
   available: number[]
   stage: {current: Stage}
   post: (command: SceneCommand) => void
-  screen: {readonly current: HTMLElement | null}
 }) {
   const sectionRef = useRef<HTMLElement | null>(null)
   const frameRef = useRef<HTMLDivElement>(null)
@@ -151,11 +148,10 @@ export function Hero({
       const scrolled = stage.current.progress * innerHeight
       const {gather} = stage.current
       const shown = gather < 1
-      // 粒子が出入りする点（光の位置）を、写真の枠の NDC に直す。光はスクロールで上がるので、毎フレーム求める
+      // 粒子が出入りする点（光の位置。Light が書く）を、写真の枠の NDC に直す。光はスクロールで上がるので、毎フレーム求める
       const box = frameBox.current
-      const size = screen.current
-      if (box && size) {
-        const {x, y} = lightAt(stage.current, {width: size.clientWidth, height: size.clientHeight})
+      if (box) {
+        const {x, y} = stage.current.light
         const at: [number, number] = [((x - box.x) / box.width) * 2 - 1, 1 - ((y - box.y) / box.height) * 2]
         const last = lastGatherAt.current
         if (!last || at[0] !== last[0] || at[1] !== last[1]) {
@@ -257,7 +253,7 @@ export function Hero({
         bar.style.setProperty('--progress', String(progress))
         bar.style.setProperty('--morph', `${morph * 100}%`)
       }
-    }, [autoplay, order, reduced, screen, send, stage, takePointer])
+    }, [autoplay, order, reduced, send, stage, takePointer])
   )
 
   // 行き先が変わったフレームは worker 側で位置の飛びを打ち消す（番号のクリック）

@@ -56,7 +56,7 @@ export function Scene({
         {canvas}
       </div>
       <Light stage={stage} room={room} screen={ref} post={post} listen={listen} />
-      {photos.length > 0 && <Hero photos={photos} available={available} stage={stage} post={post} screen={ref} />}
+      {photos.length > 0 && <Hero photos={photos} available={available} stage={stage} post={post} />}
     </>
   )
 }

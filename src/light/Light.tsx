@@ -48,11 +48,12 @@ const FOCUS_AFTER_SCREENS = 0.5
  * トップの舞台で、光が mu のロゴを照らす層。舞台の canvas の、hero の粒子の後ろに描く。ここは毎フレーム光とロゴの位置と
  * 明るさを決めて送るだけで、描くのは舞台の worker（src/scene/worker.ts が light/scene.ts で描く）。
  *
- * 粒子は画面の中央に集まって光になり、光はスクロールに合わせてゆっくり上がって、画面の上で止まる（lightAt）。
+ * 粒子は画面の中央に集まって光になり、光はスクロールに合わせてゆっくり上がって止まる（lightAt）。
  * 少しスクロールしてからは、全周に広がる光から下向きの光に絞られていく（cone）。ついた直後は暗く、スクロールでロゴが
- * 近づくにつれて明るくなり、ロゴが画面に入る前に最大になる。部屋の床の上には上向きの下の光があり、
+ * 近づくにつれて明るくなり、ロゴが画面に入る前に最大になる。ロゴの下にはロゴを照らす下の光があり、
  * 部屋が画面の下端に近づくと光り始める。ロゴを置く部屋はページの中の要素
- * （room）で、その要素と一緒に、ページの中身としてスクロールで上がってきて光の下に入る
+ * （room）で、その要素と一緒に、ページの中身としてスクロールで上がってきて光の下に入る。
+ * 2 つの光は、最後に画面に収まったときのロゴの中心からのずれで置く（調整値の upperX・upperY・underX・underY）
  *
  * 訪問者はロゴと光を変えられる（arrangement.ts）。
  * - ロゴはドラッグで動かせ（マウスでも指でも。ロゴの上に見えないつかみ場所を重ねて受ける）、ピンチで大きさを変えられる
@@ -63,7 +64,7 @@ const FOCUS_AFTER_SCREENS = 0.5
  *   動かすとついてくる。向きは設定が変わっても跳ばさず、滑らかに追う
  * 変えたあとは、フッターの操作（LogoControls.tsx）で既定へ戻せる。
  *
- * @param room ロゴを置く部屋の要素。中央（から logoShift ずらした位置）がロゴのもとの位置で、その下の床の上に下の光を置く
+ * @param room ロゴを置く部屋の要素。中央（から logoShift ずらした位置）がロゴのもとの位置で、下の光も部屋と一緒に動く
  * @param screen 舞台の canvas の入れ物。光の位置と明るさは、この大きさから決める
  * @param post 舞台の canvas（src/scene/worker.ts）へ指示を送る
  * @param listen 光の 1 フレームを描き終えた知らせを受ける。知らせが来るまで次のフレームを送らず、知らせの間隔から
@@ -234,6 +235,20 @@ export function Light({
     // フッターのロゴとライトの操作は、光がつききっている（hero の再生操作が隠れている）あいだだけ出す。戻す操作は置き方を
     // 変えたときだけ
     const nowLit = arrived >= 1
+    const width = screen.current?.clientWidth ?? 0
+    const height = screen.current?.clientHeight ?? 0
+    // 2 つの光のもとの位置は、部屋が画面にちょうど収まったときのロゴのもとの位置からのずれ（部屋の高さの %）で置く。
+    // 上の光はスクロールで画面の中央からそこまで上がり、下の光は部屋と一緒に動く。
+    // 上の光の位置は、粒子が飛び込む先として hero も読む
+    const roomHeight = box?.height ?? height
+    const shift = (x: number, y: number) => ({x: (x / 100) * roomHeight, y: (y / 100) * roomHeight})
+    const upperShift = shift(tuning.upperX, tuning.upperY)
+    const underShift = shift(tuning.underX, tuning.underY)
+    stage.current.light = lightAt(
+      stage.current,
+      {width, height},
+      {x: width / 2 + tuning.logoShift + upperShift.x, y: roomHeight / 2 + upperShift.y}
+    )
     // 粒子が光へ向けて飛び始めたら、光の層を描き始める（飛ぶ粒子も光の層に描くため）。光が明るくなるのは粒子が着いてから
     if (stage.current.gather <= 0 || !box) {
       if (lit.current) send({frame: null})
@@ -247,12 +262,11 @@ export function Light({
     }
     lit.current = true
     const now = performance.now()
-    const height = screen.current?.clientHeight ?? 0
     const {progress} = stage.current
     // 下向きに絞るのは、光がついてから少しスクロールしたあと
     const focus = ease((progress - GATHER_AT - FOCUS_AFTER_SCREENS) / (SCENE_SCREENS - GATHER_AT - FOCUS_AFTER_SCREENS))
     // 光の強さの既定は tuning の値
-    const powers = {upper: tuning.power, under: tuning.underPower}
+    const powers = {upper: tuning.upperPower, under: tuning.underPower}
     // 既定へ戻している途中なら、減速しながらずれを 0 へ寄せる
     const back = returning.current
     if (back) {
@@ -294,13 +308,8 @@ export function Light({
     // 下の光は、部屋の床が画面の下端の半画面下まで来たところから光り始め、下端に着くと最大になる
     const underBrightness = ease(1 - (box.bottom - height) / (height / 2))
     const power = {upper: lamps.upper.power ?? powers.upper, under: lamps.under.power ?? powers.under}
-    // 光源のもとの位置。上の光は画面の上、下の光はロゴのもとの位置の真下から underShift ずらした床の上。
-    // 訪問者が動かした量を足し、上の光は画面の中、下の光は部屋の中に収める
-    const width = screen.current?.clientWidth ?? 0
-    const base = {
-      upper: lightAt(stage.current, {width, height}),
-      under: {x: home.x + tuning.underShift, y: box.bottom - tuning.underHeight}
-    }
+    // 光源のもとの位置に訪問者が動かした量を足し、上の光は画面の中、下の光は部屋の中に収める
+    const base = {upper: stage.current.light, under: {x: home.x + underShift.x, y: home.y + underShift.y}}
     const bounds = {
       upper: {left: 0, top: 0, right: width, bottom: height},
       under: {left: box.left, top: box.top, right: box.right, bottom: box.bottom}

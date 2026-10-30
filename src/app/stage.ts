@@ -4,7 +4,8 @@
 //   0 → GATHER_AT    写真は動かず、カレンダーだけがスクロールで上へ流れる
 //   GATHER_AT を越えた 粒子が画面の中央へ飛び込み、着いた粒子から順に光に吸い込まれて消える。光は着いた粒子の分だけ
 //                    明るくなる。スクロール量によらず時間で進む。GATHER_AT より戻ると、時間で逆にたどって写真に戻る。
-//                    光はスクロールに合わせてゆっくり上がり、画面の上（LIGHT_TOP）で止まる（lightAt）
+//                    光はスクロールに合わせてゆっくり上がり、止まる位置で止まる（lightAt）。止まる位置は、最後に
+//                    画面に収まるロゴの中心からのずれで、Light が調整値から決める
 //   → SCENE_SCREENS  ロゴと導線が、ページの中身と同じくスクロールで上がってきて、光の下に入る
 
 export type Stage = {
@@ -12,6 +13,8 @@ export type Stage = {
   progress: number
   /** 粒子が集まった割合。advanceGather が時間で進める */
   gather: number
+  /** 上の光の位置（訪問者が動かしたぶんを除く）。舞台の左上からの px。Light が毎フレーム書き、hero は粒子をここへ飛ばす */
+  light: {x: number; y: number}
 }
 
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v))
@@ -25,19 +28,20 @@ export function ease(v: number) {
 /** 粒子が集まり始めるスクロールの長さ。画面の高さ単位 */
 export const GATHER_AT = 0.2
 
-/** 光が上がって止まる高さ。画面の高さに対する割合。ロゴは最後に画面の中央に来て、この光の下に入る */
-const LIGHT_TOP = 0.2
-
-/** 光が画面の中央から LIGHT_TOP まで上がるのにかけるスクロールの長さ。画面の高さ単位 */
+/** 光が画面の中央から止まる位置まで上がるのにかけるスクロールの長さ。画面の高さ単位 */
 const LIGHT_RISE_SCREENS = 1
 
 /**
- * 光の位置。舞台の大きさ（px）から決める。粒子は画面の中央に集まって光になり、光は集まり始めてから LIGHT_RISE_SCREENS
- * スクロールするあいだに、動き出しと止まり際をなめらかにして画面の上（LIGHT_TOP）まで上がる
+ * 上の光の位置。舞台の大きさ（px）と、止まる位置 rest から決める。粒子は画面の中央に集まって光になり、光は集まり始めてから
+ * LIGHT_RISE_SCREENS スクロールするあいだに、動き出しと止まり際をなめらかにして rest まで上がる
  */
-export const lightAt = ({progress}: Stage, {width, height}: {width: number; height: number}) => {
+export const lightAt = (
+  {progress}: Stage,
+  {width, height}: {width: number; height: number},
+  rest: {x: number; y: number}
+) => {
   const rise = ease((progress - GATHER_AT) / LIGHT_RISE_SCREENS)
-  return {x: width / 2, y: height / 2 - (height / 2 - height * LIGHT_TOP) * rise}
+  return {x: width / 2 + (rest.x - width / 2) * rise, y: height / 2 + (rest.y - height / 2) * rise}
 }
 
 /** 粒子が集まりきるまで（ほどけきるまで）の秒数 */
