@@ -5,6 +5,10 @@ import {DEFAULT_LIGHT, type LightTuning} from './tuning'
 // 光源から出た光線が mu のロゴに当たって跳ね返る様子を、光線の通った線を重ねて描く（2D の光の経路追跡）。
 // 光そのものは描かず、光線の線の重なりの明るさで光を見せる。ロゴに遮られたところは影になる。
 // ロゴは部屋（ページの中の要素）の中央に置く。ロゴは光をばらばらの向きに散らして返し、ロゴに当たらなかった光線はそこで終わる。
+// ロゴの素材は 3 つ。白い面（ばらばらの向きに散らして返す）と、和紙（u_paper）と、つや（u_gloss）。素材を切り替えるあいだは、
+// 光線ごとに今の素材と次の素材を割合で選ぶ。
+// - 和紙: 当たった光線の一部が中へ入り、中であちこちに散ってから、どこかの面からばらばらの向きに出る。文字が内側から明るくなる
+// - つや: 当たった光線の一部が、鏡の向きの近くにぼけて返る。光に向いた縁に柔らかいハイライトが出る
 // 光源は 2 つ。上の光（u_light）と、部屋の床の上に置く下の光（u_under）。どちらもロゴの中心を向くスポット。ロゴの切り込みの
 // うち 2 本は下に開いていて、上の光は奥まで入らないので、下の光で下から照らす。光線の数は 2 つで分け合う。
 //
@@ -59,6 +63,10 @@ export function createLightScene(core: Core, pixelRatio: number) {
       u_rays: 'float',
       u_bounces: 'float',
       u_albedo: 'float',
+      u_paper: 'float',
+      u_scatter: 'float',
+      u_gloss: 'float',
+      u_rough: 'float',
       u_power: 'float',
       u_seed: 'float',
       u_under: 'vec2',
@@ -111,6 +119,35 @@ export function createLightScene(core: Core, pixelRatio: number) {
         return best;
       }
 
+      // 和紙のロゴの中（ro）から rd へ進んだ光線が、ロゴの外へ出るところまでの距離と、出る面の外向きの向き（normal）。
+      // 長方形どうしは辺を接しているので、出た先が隣の長方形の中なら、そのまま通り抜けて先を探す
+      float traceInside(vec2 ro, vec2 rd, out vec2 normal) {
+        vec2 safe = mix(rd, vec2(1e-6), lessThan(abs(rd), vec2(1e-6)));
+        vec2 inv = 1.0 / safe;
+        float t = 0.0;
+        normal = rd;
+        for (int k = 0; k < ${LOGO_RECTS.length}; k++) {
+          vec2 p = ro + rd * (t + 1e-3);
+          int found = -1;
+          for (int i = 0; i < ${LOGO_RECTS.length}; i++) {
+            vec4 r = u_rects[i];
+            if (all(greaterThanEqual(p, r.xy)) && all(lessThanEqual(p, r.zw))) found = i;
+          }
+          if (found < 0) break;
+          vec4 r = u_rects[found];
+          vec2 far = max((r.xy - ro) * inv, (r.zw - ro) * inv);
+          t = min(far.x, far.y);
+          normal = far.x < far.y ? vec2(sign(rd.x), 0.0) : vec2(0.0, sign(rd.y));
+        }
+        return t;
+      }
+
+      // 面の向き n の側へ、ばらばらの向きに出す。面の向きに近いほど多く出す（2D の完全拡散）。r は 0〜1 の乱数
+      vec2 diffuse(vec2 n, float r) {
+        float sn = 2.0 * r - 1.0;
+        return n * sqrt(1.0 - sn * sn) + vec2(-n.y, n.x) * sn;
+      }
+
       void main() {
         // 頂点は光線ごとに「線分の数 × 2」個並ぶ
         int segments = int(u_bounces) + 1;
@@ -152,24 +189,65 @@ export function createLightScene(core: Core, pixelRatio: number) {
         }
         vec2 a = pos;
         vec2 b = pos;
+        // 光線が和紙のロゴの中にいるか
+        bool inside = false;
         for (int s = 0; s < ${MAX_SEGMENTS}; s++) {
           vec2 normal;
           bool solid;
-          float t = trace(pos, dir, normal, solid);
+          float t;
+          // 和紙の中では、外へ出る面に着く前に散ることがある。散るまでの長さは平均 u_scatter の指数分布
+          bool scatter = false;
+          if (inside) {
+            t = traceInside(pos, dir, normal);
+            float free = -log(max(rand(ray, ${MAX_SEGMENTS + 3} + s), 1e-6)) * u_scatter;
+            scatter = free < t;
+            t = min(t, free);
+          } else {
+            t = trace(pos, dir, normal, solid);
+          }
           vec2 next = pos + dir * t;
           if (s == seg) {
             a = pos;
             b = next;
             break;
           }
+          // 和紙の中。散るなら全周のどこかへ向きを変え、面に着いたらばらばらの向きに外へ出る
+          if (inside) {
+            if (scatter) {
+              float angle = TAU * rand(ray, ${2 * MAX_SEGMENTS + 3} + s);
+              dir = vec2(cos(angle), sin(angle));
+              pos = next;
+            } else {
+              dir = diffuse(normal, rand(ray, ${2 * MAX_SEGMENTS + 3} + s));
+              pos = next + normal * 0.01;
+              inside = false;
+            }
+            continue;
+          }
           // ロゴに当たらなかった光線はそこで終わる
           if (!solid) {
             energy = 0.0;
             break;
           }
-          // ばらばらの向きに散る。面の向きに近いほど多く返す（2D の完全拡散）
-          float sn = 2.0 * rand(ray, s + 1) - 1.0;
-          dir = normal * sqrt(1.0 - sn * sn) + vec2(-normal.y, normal.x) * sn;
+          float pick = rand(ray, ${3 * MAX_SEGMENTS + 3} + s);
+          // 和紙として当たった光線は、ばらばらの向きに中へ入る
+          if (pick < u_paper) {
+            dir = diffuse(-normal, rand(ray, ${2 * MAX_SEGMENTS + 3} + s));
+            pos = next - normal * 0.01;
+            inside = true;
+            continue;
+          }
+          // つやとして当たった光線は、鏡の向きから左右に最大 u_rough ずれた向きに返る（真ん中ほど多い）。面の中へ向いたら折り返す
+          if (pick < u_paper + u_gloss) {
+            vec2 m = reflect(dir, normal);
+            float off = u_rough * (rand(ray, ${2 * MAX_SEGMENTS + 3} + s) + rand(ray, s + 1) - 1.0);
+            m = vec2(m.x * cos(off) - m.y * sin(off), m.x * sin(off) + m.y * cos(off));
+            dir = dot(m, normal) < 0.0 ? reflect(m, normal) : m;
+            pos = next + normal * 0.01;
+            continue;
+          }
+          // 白い面。ばらばらの向きに散る
+          dir = diffuse(normal, rand(ray, s + 1));
           energy *= u_albedo;
           pos = next + normal * 0.01;
         }
@@ -226,6 +304,8 @@ export function createLightScene(core: Core, pixelRatio: number) {
   let lastLogo = {x: 0, y: 0}
   /** 動いている度合い（0〜1）。動くと上がり、止まるとなめらかに 0 へ戻る */
   let moving = 0
+  /** 前のフレームの素材。切り替えているあいだも動いているものとする */
+  let lastMaterial = {paper: 0, gloss: 0}
 
   const layout = () => {
     const {width, height} = size
@@ -241,6 +321,8 @@ export function createLightScene(core: Core, pixelRatio: number) {
       u_rays: tuning.rays,
       u_bounces: tuning.bounces,
       u_albedo: tuning.albedo / 100,
+      u_scatter: tuning.scatter,
+      u_rough: (tuning.roughness * Math.PI) / 180,
       u_lightSize: tuning.lightSize,
       u_underSize: tuning.underSize,
       u_underCone: (tuning.underCone * Math.PI) / 180,
@@ -268,7 +350,7 @@ export function createLightScene(core: Core, pixelRatio: number) {
     }
     if (!lines) return
     lit = true
-    const {light, logo, home, floor, brightness, under, focus} = frame
+    const {light, logo, home, floor, brightness, under, focus, material} = frame
     // ロゴは画素にそろえて置く
     const unit = tuning.cell / 2
     const left = Math.round(logo.x - (LOGO_WIDTH * unit) / 2)
@@ -277,8 +359,10 @@ export function createLightScene(core: Core, pixelRatio: number) {
     blend.setUniform({u_shift: [-(light.x - lastLight.x) / width, (light.y - lastLight.y) / height]})
     const moved =
       Math.hypot(light.x - lastLight.x, light.y - lastLight.y) + Math.hypot(left - lastLogo.x, top - lastLogo.y)
-    moving = Math.max(Math.min(1, moved / MOVING_PX), moving * SETTLE_RATE)
+    const turning = material.paper !== lastMaterial.paper || material.gloss !== lastMaterial.gloss
+    moving = Math.max(Math.min(1, moved / MOVING_PX), turning ? 1 : 0, moving * SETTLE_RATE)
     lastLight = light
+    lastMaterial = material
     lastLogo = {x: left, y: top}
     seed = (seed + 1) % 1_000_000
     rays.setUniform({
@@ -286,6 +370,8 @@ export function createLightScene(core: Core, pixelRatio: number) {
       u_power: tuning.power * brightness,
       u_light: [light.x, light.y],
       u_focus: focus,
+      u_paper: material.paper * (tuning.translucency / 100),
+      u_gloss: material.gloss * (tuning.shine / 100),
       // 照明はロゴのもとの位置に合わせて固定する。どちらの光もそこを向き、下の光はその真下から underShift ずらした床の上に
       // 置く。ロゴを動かしても照明は動かないので、光の外へ動かすと暗くなる。消えているあいだは下の光に光線を回さない
       u_aim: [home.x, home.y],
@@ -348,4 +434,9 @@ export type LightFrame = {
   under: number
   /** 上の光の絞れ具合。0 で全周に均一、1 で下向きに絞りきる（tuning の cone） */
   focus: number
+  /**
+   * ロゴの素材の割合。どちらも 0 で白い面、paper が 1 で和紙、gloss が 1 でつや。切り替えるあいだはあいだを通る
+   * （和紙は tuning の translucency の割合だけ中へ入り、つやは shine の割合だけ鏡の向きに返る。残りは白い面と同じ）
+   */
+  material: {paper: number; gloss: number}
 }

@@ -4,12 +4,15 @@ import {GATHER_AT, SCENE_SCREENS, ease, lightAt, lightOf, type Stage} from '../a
 import {useAnimationFrame} from '../scene/useCanvas'
 import type {SceneCommand} from '../scene/worker'
 import type {LightCommand} from './scene'
-import {setArrange} from './arrange'
+import {setLogoControls, type Material} from './controls'
 import {LOGO_HEIGHT, LOGO_WIDTH} from './logo'
 import {DEFAULT_LIGHT, LIGHT_PARAMS, type LightTuning} from './tuning'
 
 /** 動かしたロゴを、フッターの操作でもとの位置へ戻すのにかける秒数 */
 const RESET_SECONDS = 0.8
+
+/** ロゴの素材を切り替えるのにかける秒数 */
+const MATERIAL_SECONDS = 0.8
 
 /** ついた直後の光の明るさ。最大に対する割合。スクロールでロゴが近づくと最大になる */
 const DIM = 0.5
@@ -32,7 +35,8 @@ const FOCUS_AFTER_SCREENS = 0.5
  *
  * ロゴはドラッグで動かせる（マウスでも指でも）。ロゴの上に見えないつかみ場所を重ねて受ける。照明はロゴのもとの位置に
  * 合わせて固定したまま動かないので、光の外へ動かすと暗くなる。離した位置にとどまり、部屋の外へは出ない。
- * 動かしたあとは、フッターの操作（LogoReset.tsx）でもとの位置へ戻せる。
+ * 動かしたあとは、フッターの操作（LogoControls.tsx）でもとの位置へ戻せる。ロゴの素材も、フッターの操作で白い面・和紙・つやに
+ * 切り替えられる。
  *
  * @param room ロゴを置く部屋の要素。中央（から logoShift ずらした位置）がロゴのもとの位置で、その下の床の上に下の光を置く
  * @param screen 舞台の canvas の入れ物。光の位置と明るさは、この大きさから決める
@@ -64,15 +68,23 @@ export function Light({
   const handle = useRef<HTMLDivElement>(null)
   // もとの位置へ戻している途中なら、戻し始めた時刻と、そのときの量
   const returning = useRef<{at: number; from: {x: number; y: number}} | null>(null)
-  // フッターに出している「動いている」かどうか。変わったときだけ出し直す
-  const moved = useRef(false)
+  // フッターに出している「光がつききっている」と「動いている」かどうか。変わったときだけ出し直す
+  const shown = useRef({lit: false, moved: false})
   const reset = useCallback(() => {
     returning.current = {at: performance.now(), from: {...offset.current}}
   }, [])
+  // ロゴの素材。切り替えたら、切り替えた時刻から素材の割合を滑らかに移す
+  const [material, setMaterialState] = useState<Material>('matte')
+  const mix = useRef({paper: 0, gloss: 0})
+  const turn = useRef({at: 0, from: mix.current})
+  const setMaterial = useCallback((next: Material) => {
+    turn.current = {at: performance.now(), from: {...mix.current}}
+    setMaterialState(next)
+  }, [])
   useEffect(() => {
-    setArrange({moved: false, reset})
-    return () => setArrange(null)
-  }, [reset])
+    setLogoControls({...shown.current, reset, material, setMaterial})
+  }, [reset, material, setMaterial])
+  useEffect(() => () => setLogoControls(null), [])
   const onPointerDown = (event: PointerEvent) => {
     returning.current = null
     drag.current = {id: event.pointerId, x: event.clientX, y: event.clientY, from: {...offset.current}}
@@ -94,11 +106,12 @@ export function Light({
     const arrived = lightOf(stage.current)
     const box = room.current?.getBoundingClientRect()
     const grip = handle.current
-    // フッターの戻す操作は、ロゴが動いていて、光がつききっている（hero の再生操作が隠れている）あいだだけ出す
-    const nowMoved = arrived >= 1 && (offset.current.x !== 0 || offset.current.y !== 0)
-    if (nowMoved !== moved.current) {
-      moved.current = nowMoved
-      setArrange({moved: nowMoved, reset})
+    // フッターのロゴの操作は、光がつききっている（hero の再生操作が隠れている）あいだだけ出す。戻す操作はロゴが動いているときだけ
+    const nowLit = arrived >= 1
+    const nowMoved = offset.current.x !== 0 || offset.current.y !== 0
+    if (nowLit !== shown.current.lit || nowMoved !== shown.current.moved) {
+      shown.current = {lit: nowLit, moved: nowMoved}
+      setLogoControls({...shown.current, reset, material, setMaterial})
     }
     // 粒子が光へ向けて飛び始めたら、光の層を描き始める（飛ぶ粒子も光の層に描くため）。光が明るくなるのは粒子が着いてから
     if (stage.current.gather <= 0 || !box) {
@@ -132,6 +145,10 @@ export function Light({
       y: clamp(offset.current.y, box.top + logoHeight / 2 - home.y, box.bottom - logoHeight / 2 - home.y)
     }
     const logo = {x: home.x + offset.current.x, y: home.y + offset.current.y}
+    const {at, from} = turn.current
+    const r = ease((now - at) / 1000 / MATERIAL_SECONDS)
+    const to = {paper: material === 'paper' ? 1 : 0, gloss: material === 'gloss' ? 1 : 0}
+    mix.current = {paper: from.paper + (to.paper - from.paper) * r, gloss: from.gloss + (to.gloss - from.gloss) * r}
     if (grip) {
       grip.style.setProperty('display', 'block')
       grip.style.setProperty('width', `${logoWidth}px`)
@@ -143,7 +160,7 @@ export function Light({
     const brightness = arrived * (DIM + (1 - DIM) * ease(1 - (logoTop - height) / (height * BRIGHTEN_SCREENS)))
     // 下の光は、部屋の床が画面の下端の半画面下まで来たところから光り始め、下端に着くと最大になる
     const under = ease(1 - (box.bottom - height) / (height / 2))
-    send({frame: {light, logo, home, floor: box.bottom, brightness, under, focus}})
+    send({frame: {light, logo, home, floor: box.bottom, brightness, under, focus, material: mix.current}})
   })
 
   return (

@@ -9,6 +9,14 @@ export type LightTuning = {
   bounces: number
   /** ロゴの表面が光を返す割合 %。ロゴはばらばらの向きに散らして返す */
   albedo: number
+  /** 和紙にしたとき、ロゴに当たった光線のうち中へ入る割合 %。残りは白い面と同じく表面で散る */
+  translucency: number
+  /** 和紙の中で、光線が向きを変えるまでに進む平均の長さ px。短いほど入ったところの近くで出て、柔らかく光る */
+  scatter: number
+  /** つやにしたとき、ロゴに当たった光線のうち鏡の向きに返る割合 %。残りは白い面と同じく散る */
+  shine: number
+  /** つやのぼけ。鏡の向きから左右にずれる最大の角度（度）。小さいほど鏡に近い */
+  roughness: number
   /** 光の強さ */
   power: number
   /** 光源の半径 px。大きいほど影の縁がぼける */
@@ -51,6 +59,10 @@ export const DEFAULT_LIGHT: LightTuning = {
   rays: 10496,
   bounces: 8,
   albedo: 100,
+  translucency: 70,
+  scatter: 8,
+  shine: 40,
+  roughness: 12,
   power: 22.5,
   lightSize: 4,
   cone: 36,
@@ -72,6 +84,10 @@ export const LIGHT_PARAMS: Param<LightTuning>[] = [
   {group: '光線', key: 'rays', label: '光線の数', min: 256, max: 16384, step: 256, hint: '本。スマホは半分'},
   {group: '光線', key: 'bounces', label: '跳ね返り', min: 0, max: 8, step: 1, hint: '回'},
   {group: '光線', key: 'albedo', label: 'ロゴが返す割合', min: 0, max: 100, step: 5, hint: '%'},
+  {group: '和紙', key: 'translucency', label: '中へ入る割合', min: 0, max: 100, step: 5, hint: '%。残りは表面で散る'},
+  {group: '和紙', key: 'scatter', label: '散るまでの長さ', min: 1, max: 60, step: 1, hint: 'px。平均'},
+  {group: 'つや', key: 'shine', label: '鏡の向きに返す割合', min: 0, max: 100, step: 5, hint: '%。残りは散る'},
+  {group: 'つや', key: 'roughness', label: 'ぼけ', min: 0, max: 90, step: 1, hint: '度。鏡の向きから左右に'},
   {group: '見え方', key: 'power', label: '強さ', min: 0.5, max: 200, step: 0.5, hint: ''},
   {
     group: '見え方',

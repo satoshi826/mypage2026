@@ -2,7 +2,7 @@ import {matchRoute, useLocation, useRouter} from 'wouter-preact'
 import {PhotoCategories} from './pages/Photos'
 import {toCategory} from '../photos'
 import {HeroPlayer} from '../hero/HeroPlayer'
-import {LogoReset} from '../light/LogoReset'
+import {LogoControls} from '../light/LogoControls'
 import {GalleryTools} from '../gallery/GalleryTools'
 import {INSTAGRAM, X} from './social'
 import {basePath, isBilingual, langOf, localized} from './lang'
@@ -14,7 +14,7 @@ const LINK = `glow-mark flex w-10 items-center justify-center opacity-55 transit
 
 /**
  * 固定フッター。ナビと対になり、右に SNS、左にそのページ固有の操作を置く
- * （トップは hero の再生操作と動かしたロゴを戻す操作、Photos はカテゴリ、About と Contact は言語。Photos の一覧の操作は右の SNS の手前に仕切って置く）。上の線は、そのページの進み具合を示す
+ * （トップは hero の再生操作とロゴの操作、Photos はカテゴリ、About と Contact は言語。Photos の一覧の操作は右の SNS の手前に仕切って置く）。上の線は、そのページの進み具合を示す
  * （Photos の一覧をどこまで見たか）。
  * 左の中身は場所で選ぶ。ページから差し込む形にすると、プリレンダの HTML に入らないため。
  * 場所は App が渡す表示中の場所で、ページの移動では中身（main）とは別の演出で消えて現れる
@@ -37,11 +37,11 @@ export function Footer({location}: {location: string}) {
   return (
     <footer className="fixed right-[env(safe-area-inset-right)] bottom-0 left-[env(safe-area-inset-left)] z-10 box-border flex h-[calc(var(--spacing-footer)+env(safe-area-inset-bottom))] items-center justify-between gap-4 border-t border-white/10 bg-black/60 px-8 pb-[env(safe-area-inset-bottom)] backdrop-blur-[12px] max-sm:px-5">
       <div data-page-footer className="flex items-center self-stretch will-change-[opacity]">
-        {/* トップは hero の再生操作と、動かしたロゴを戻す操作を同じ場所に重ねる。同時には出ない */}
+        {/* トップは hero の再生操作と、ロゴの操作を同じ場所に重ねる。同時には出ない */}
         {isTop && (
           <div className="grid items-center self-stretch *:[grid-area:1/1]">
             <HeroPlayer />
-            <LogoReset />
+            <LogoControls />
           </div>
         )}
         {isPhotos && <PhotoCategories current={category} />}
