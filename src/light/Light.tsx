@@ -37,8 +37,8 @@ const FOCUS_AFTER_SCREENS = 0.5
  * 訪問者はロゴと光を触れる（arrangement.ts）。ロゴと光源の上に見えないつかみ場所を重ねて受ける。
  * - ロゴはドラッグで動かせ（マウスでも指でも）、ピンチで大きさを変えられる（指は 2 本で、トラックパッドはそのままピンチ。
  *   ブラウザには ctrl を押したホイールとして届く）。離した位置と大きさにとどまり、部屋の外へは出ない
- * - 光は光源をつまんで回せる。光源の位置はそのままで、照らす向きがつまんだ指の方へ向く。ふだんの向きはロゴのもとの位置で、
- *   ロゴを動かしても光はついてこないので、光の外へ動かすと暗くなる
+ * - 光は光源をつまんで回せる。光源の位置はそのままで、照らす向きがつまんだ指の方へ向く。ふだんはロゴの今の位置を向き、
+ *   ロゴを動かすと光の向きもついてくる。回したぶんは、ロゴを向く向きからのずれとして保つ
  * 変えたあとは、フッターの操作（LogoControls.tsx）で既定へ戻せる。ロゴの素材も、フッターの操作で白い面・和紙・つやに
  * 切り替えられる。
  *
@@ -91,7 +91,7 @@ export function Light({
   // ロゴのつかみ場所と、光源のつかみ場所。位置は毎フレーム書く
   const grip = useRef<HTMLDivElement>(null)
   const lampGrips = {upper: useRef<HTMLDivElement>(null), under: useRef<HTMLDivElement>(null)}
-  // 前のフレームの光源の位置と、ふだんの向き（ロゴのもとの位置を向く向き）。つまんで回すときの基準
+  // 前のフレームの光源の位置と、ふだんの向き（ロゴの今の位置を向く向き）。つまんで回すときの基準
   const lamps = useRef({upper: {x: 0, y: 0, aim: 0}, under: {x: 0, y: 0, aim: 0}})
 
   // ロゴをつかんでいる指（マウスは 1 つ）。指が増えたり減ったりしたら、そのときの置き方と指の位置から測り直す。
@@ -230,10 +230,10 @@ export function Light({
     // 下の光は、部屋の床が画面の下端の半画面下まで来たところから光り始め、下端に着くと最大になる
     const underBrightness = ease(1 - (box.bottom - height) / (height / 2))
     // 光源の位置。上の光は画面の上、下の光はロゴのもとの位置の真下から underShift ずらした床の上。どちらもふだんは
-    // ロゴのもとの位置を向き、訪問者が回したぶんだけ向きを変える
+    // ロゴの今の位置を向き、訪問者が回したぶんだけ向きを変える
     const upperAt = lightAt(stage.current, {width: screen.current?.clientWidth ?? 0, height})
     const underAt = {x: home.x + tuning.underShift, y: box.bottom - tuning.underHeight}
-    const aim = (at: {x: number; y: number}) => Math.atan2(home.y - at.y, home.x - at.x)
+    const aim = (at: {x: number; y: number}) => Math.atan2(logo.y - at.y, logo.x - at.x)
     lamps.current = {upper: {...upperAt, aim: aim(upperAt)}, under: {...underAt, aim: aim(underAt)}}
     // 光源のつかみ場所は、光がつききってから、その光が点いているあいだだけ出す
     const lampOn = {upper: nowLit, under: nowLit && underBrightness > 0}

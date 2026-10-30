@@ -6,7 +6,7 @@ export type Arrangement = {
   offset: {x: number; y: number}
   /** ロゴの大きさの倍率 */
   scale: number
-  /** 上の光と下の光の向きを、ロゴのもとの位置を向く向きから回した角度。ラジアン */
+  /** 上の光と下の光の向きを、ロゴの今の位置を向く向きから回した角度。ラジアン */
   turn: {upper: number; under: number}
 }
 
