@@ -89,6 +89,17 @@ export function createHeroScene(
   // 頂点ごとのランク。glaku の型は number[] だが内部で Float32Array に詰め直すだけ
   const rankIndices = Float32Array.from({length: grid.count}, (_, i) => i)
   const vao = new Vao(core, {attributes: {a_rank: rankIndices as unknown as number[]}})
+  // 光へ飛ぶ粒子を光の層に描くときの、stride 個に 1 個へ間引いたランク。stride ごとに作って使い回す
+  const sparse = new Map<number, Vao>([[1, vao]])
+  const sparseVao = (stride: number) => {
+    let found = sparse.get(stride)
+    if (!found) {
+      const ranks = Float32Array.from({length: Math.ceil(grid.count / stride)}, (_, i) => i * stride)
+      found = new Vao(core, {attributes: {a_rank: ranks as unknown as number[]}})
+      sparse.set(stride, found)
+    }
+    return found
+  }
 
   // 干渉の状態（ズレと速度）を粒子1つにつき1テクセルで持つ。読みと書きで別の
   // テクスチャが要るので2枚を交互に使う。半精度で足りるのは、値が 0 付近では
@@ -536,6 +547,11 @@ export function createHeroScene(
       // 粒子の格子は target の画素より細かいことがあり、そのぶん 1 画素に何粒も重なって足される。写真の枠の中の
       // 1 画素あたりの粒の数で割り、重なっても写真と同じくらいの明るさにする
       const perPixel = Math.max(1, grid.count / (rect.width * scale * rect.height * scale))
+      // 描くのは、写真の枠の 1 CSS px に 1 粒までに間引いた粒子。点の大きさは 1 CSS px なので、それより多く描いても
+      // 重なるだけで見え方は変わらず、足す画素の数だけが増える（写真の小さいスマホほど重なる）。間引いたぶん 1 粒を明るくする
+      const stride = Math.max(1, Math.floor(grid.count / (rect.width * rect.height)))
+      const lights = sparseVao(stride)
+      const drawn = Math.ceil(grid.count / stride)
       glow.setUniform({
         u_rect: [
           ((rect.x + rect.width / 2) / screen.width) * 2 - 1,
@@ -543,11 +559,11 @@ export function createHeroScene(
           rect.width / screen.width,
           rect.height / screen.height
         ],
-        u_glow: energy / perPixel,
+        u_glow: (energy / perPixel) * (grid.count / drawn),
         u_glowSize: Math.max(1, Math.round(scale))
       })
       core.setTexture('t_state', state[readIndex].renderTexture[0])
-      target.render(vao, glow)
+      target.render(lights, glow)
       return true
     },
     setPointer({x, y, vx, vy}: PointerCommand) {
