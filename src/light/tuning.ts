@@ -74,7 +74,7 @@ export const DEFAULT_LIGHT: LightTuning = {
   logoShift: -10,
   cell: 10,
   albedo: 100,
-  ior: 1.5,
+  ior: 2,
   frost: 4,
   reflectance: 90,
   roughness: 6,
