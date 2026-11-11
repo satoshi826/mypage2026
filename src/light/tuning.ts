@@ -82,12 +82,12 @@ export const DEFAULT_LIGHT: LightTuning = {
   reflectance: 90,
   roughness: 6,
   minRays: 4096,
-  maxRays: 36096,
+  maxRays: 32000,
   bounces: 8,
-  keep: 95,
+  keep: 98,
   keepMoving: 75,
   resolution: 100,
-  particleGlow: 1.5
+  particleGlow: 1
 }
 
 /** 光源の位置の範囲。部屋の高さの % */
