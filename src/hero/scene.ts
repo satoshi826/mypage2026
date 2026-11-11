@@ -3,7 +3,7 @@ import {GRID, SLOTS, blockOrigin, layoutFor} from './table'
 import type {Frame} from './sequence'
 import {GATHER_STAGGER} from '../app/stage'
 import {createMultisample} from '../scene/multisample'
-import {DEFAULT_INTERACTION, DEFAULT_TUNING, type Interaction, type Tuning} from './tuning'
+import {DEFAULT_INTERACTION, DEFAULT_TUNING, MASS_RANGE, type Interaction, type Tuning} from './tuning'
 
 /** 写真の枠。canvas の左上からの px */
 export type Rect = {x: number; y: number; width: number; height: number}
@@ -306,7 +306,7 @@ export function createHeroScene(core: Core, pixelRatio: number) {
         // 指数にしているのは、重さが比で効くため。差を線形に取ると軽い側だけ
         // 先に下限へ張り付き、gain を上げても明るい側が変わらなくなる
         float shaped = pow(1.0 - lum, u_massCurve);
-        float mass = clamp(exp(u_massGain * (2.0 * shaped - 1.0)), 0.05, 20.0)
+        float mass = clamp(exp(u_massGain * (2.0 * shaped - 1.0)), ${MASS_RANGE[0].toFixed(2)}, ${MASS_RANGE[1].toFixed(1)})
                    * mix(1.0 - u_spread, 1.0 + u_spread, hash(uint(k)));
 
         // 目標のズレへバネで引かれる。力が消えれば目標は 0 になり、必ず写真に戻る。

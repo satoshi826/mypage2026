@@ -94,6 +94,20 @@ export type Interaction = {
   stopBelow: number
 }
 
+/** 粒子の質量の範囲。ばらつき（spread）を掛ける前（hero/scene.ts の update） */
+export const MASS_RANGE = [0.05, 20] as const
+
+/**
+ * 干渉が止んでから、一番重い粒子のズレが 1/1000 まで戻るまでの秒数。ここまで更新を回してから止める。
+ * 粒子は質量で加速度ごと割るので、重いほど遅く戻り、減衰も弱い（ズレは e^(-減衰比 × 角振動数 ÷ 質量 × 秒) で小さくなる）。
+ * 速さの余韻（release）が消えるぶんも足す
+ */
+export function settleSeconds({massGain, spread, release, returnSeconds, damping}: Interaction) {
+  const omega = (2 * Math.PI) / Math.max(returnSeconds, 0.1)
+  const heaviest = Math.min(MASS_RANGE[1], Math.exp(Math.abs(massGain))) * (1 + spread)
+  return release * 4 + (Math.log(1000) * heaviest) / (damping * omega)
+}
+
 export const DEFAULT_INTERACTION: Interaction = {
   radius: 0.3,
   push: 0.3,

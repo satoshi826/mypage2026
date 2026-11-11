@@ -36,6 +36,7 @@ import {
   DEFAULT_TUNING,
   INTERACTION_PARAMS,
   TUNING_PARAMS,
+  settleSeconds,
   type Interaction,
   type Tuning
 } from './tuning'
@@ -262,7 +263,7 @@ export function Hero({
         ])
       ])
 
-      const {attack, release, returnSeconds, stopBelow} = interactionRef.current
+      const {attack, release, stopBelow} = interactionRef.current
 
       const {from, to, phase: linear} = frameOf(stateRef.current, timing)
       // 動きを減らす設定では中点で切り替えるだけにして、粒子の移動を見せない
@@ -288,7 +289,7 @@ export function Hero({
       if (jumped.current) {
         jumped.current = false
         command.catchUp = true
-        settling.current = (release + returnSeconds) * 4
+        settling.current = settleSeconds(interactionRef.current)
       }
 
       // ポインタ速度は瞬間値をそのまま使わず、時定数で均した値にする。
@@ -312,7 +313,7 @@ export function Hero({
       const speed = Math.abs(current.x) + Math.abs(current.y)
       const forced = shown && (stopBelow <= 0 || speed > stopBelow)
       if (shown) {
-        settling.current = forced ? (release + returnSeconds) * 4 : Math.max(0, settling.current - delta)
+        settling.current = forced ? settleSeconds(interactionRef.current) : Math.max(0, settling.current - delta)
       }
       if (forced || (shown && settling.current > 0)) {
         command.pointer = {x: p.x, y: p.y, vx: current.x, vy: current.y}
