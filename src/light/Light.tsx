@@ -250,16 +250,20 @@ export function Light({
       if (r >= 1) returning.current = null
     }
     const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v))
-    // 2 つの光のもとの位置は、部屋が画面にちょうど収まったときのロゴのもとの位置からのずれ（部屋の高さの %）で置く。
+    // 2 つの光のもとの位置は、一番下までスクロールしたときのロゴのもとの位置からのずれ（部屋の高さの %）で置く。
     // 上の光はスクロールで画面の中央からそこまで上がり、下の光は部屋と一緒に動く
     const roomHeight = box?.height ?? height
+    // 一番下までスクロールしたときの部屋の上端。今の位置から残りのスクロール量だけ上げたところ。部屋の高さ（100svh）は
+    // 見えている画面の高さと同じとは限らない（下に URL バーがあるブラウザでは、スクロールでバーが引っ込んで画面が伸び、
+    // 部屋は画面の上端より下で止まる）
+    const roomTop = box ? box.top - (document.documentElement.scrollHeight - innerHeight - scrollY) : 0
     const shift = (x: number, y: number) => ({x: (x / 100) * roomHeight, y: (y / 100) * roomHeight})
     const upperShift = shift(tuning.upperX, tuning.upperY)
     const underShift = shift(tuning.underX, tuning.underY)
     const upperBase = lightAt(
       stage.current,
       {width, height},
-      {x: width / 2 + tuning.logoShift + upperShift.x, y: roomHeight / 2 + upperShift.y}
+      {x: width / 2 + tuning.logoShift + upperShift.x, y: roomTop + roomHeight / 2 + upperShift.y}
     )
     // 上の光は、もとの位置に訪問者が動かした量を足し、画面の中に収める。この位置は粒子が飛び込む先として hero も読む。
     // 動かした光にも粒子が飛び込み、上へ戻るとそこから写真へ戻る
