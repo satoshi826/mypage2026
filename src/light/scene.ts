@@ -23,7 +23,8 @@ import {DEFAULT_LIGHT, type LightTuning} from './tuning'
 //   スクロールで上の光が動いたときは、前のフレームの結果を光が動いたぶんずらしてから混ぜる（跡を引かない）。
 //   訪問者が光源を動かしたぶんではずらさない（層全体がずれて、止まっているロゴの光と影までぶれるので）。ロゴや光が動いているあいだは
 //   前の結果を残す割合を弱め（keepMoving）、跡を引かないようにする。止まるとなめらかに元の割合（keep）へ戻す
-// - 光をためる層は画面より粗い解像度（resolution）で持ち、画面へはなめらかに拡大する
+// - 光をためる層は明るさ 1 つだけを持つ（R16F）。画面より粗い解像度（resolution）で持ち、画面の画素の細かさは MAX_LAYER_RATIO までにして、
+//   画面へはなめらかに拡大する
 
 /** 動いているとみなす、1 フレームでのロゴと光の動き px。これ以上動いたら、残す割合を動いているときの値にする */
 const MOVING_PX = 2
@@ -37,7 +38,14 @@ const GRABBED_KEEP = 0.5
 /** 1 本の光線が描く線分の数の上限（光源からの 1 本 + 跳ね返り 8 回）。tuning.ts の跳ね返りの上限と合わせる */
 const MAX_SEGMENTS = 9
 
-const HALF_FLOAT = [['RGBA16F', 'RGBA', 'HALF_FLOAT', 'LINEAR', 'CLAMP_TO_EDGE']] as const
+/**
+ * 光をためる層の、CSS px あたりの画素数の上限。これより細かい画面（3 倍のスマホなど）でも、層はこの細かさで持つ。
+ * 光は柔らかく広がるので、細かくしても見え方はほとんど変わらず、描く画素の数だけが増える
+ */
+const MAX_LAYER_RATIO = 2
+
+/** 光をためる層の画素。明るさだけを持つ。glaku の型にない形式なので、呼ぶ側で型を外す */
+const BRIGHTNESS = [['R16F', 'RED', 'HALF_FLOAT', 'LINEAR', 'CLAMP_TO_EDGE']] as const
 
 /**
  * 光がロゴを照らす場面。舞台の canvas（src/scene/worker.ts）の中で、写真の粒子と一緒に描く。光は層（texture）にためて、
@@ -46,7 +54,7 @@ const HALF_FLOAT = [['RGBA16F', 'RGBA', 'HALF_FLOAT', 'LINEAR', 'CLAMP_TO_EDGE']
 export function createLightScene(core: Core, pixelRatio: number) {
   const layer = () =>
     new Renderer(core, {
-      frameBuffer: HALF_FLOAT.map((args) => [...args]) as never,
+      frameBuffer: BRIGHTNESS.map((args) => [...args]) as never,
       screenFit: false,
       backgroundColor: [0, 0, 0, 0],
       width: 1,
@@ -308,7 +316,7 @@ export function createLightScene(core: Core, pixelRatio: number) {
       in vec2 v_uv;
       out vec4 o_color;
       void main() {
-        o_color = vec4(mix(texture(t_frame, v_uv).rgb, texture(t_prev, v_uv + u_shift).rgb, u_keep), 1.0);
+        o_color = vec4(mix(texture(t_frame, v_uv).r, texture(t_prev, v_uv + u_shift).r, u_keep));
       }`
   })
   let tuning: LightTuning = DEFAULT_LIGHT
@@ -334,7 +342,7 @@ export function createLightScene(core: Core, pixelRatio: number) {
 
   const layout = () => {
     const {width, height} = size
-    const scale = pixelRatio * (tuning.resolution / 100)
+    const scale = Math.min(pixelRatio, MAX_LAYER_RATIO) * (tuning.resolution / 100)
     rays.setUniform({u_size: [width, height], u_scale: scale})
     for (const r of [frameLayer, ...acc]) r.resize({width, height, pixelRatio: scale})
     fresh = true
