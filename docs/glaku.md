@@ -153,6 +153,27 @@ JS 配列は無駄なのでこちらを使う。
 描画頂点数は attribute の要素数 ÷ stride で決まる。`gl_VertexID` だけ使いたい場合でも、
 頂点数を決めるためのダミー attribute が1つ要る。
 
+## transform feedback は出力ごとに別のバッファ（4 つまで）
+
+`core.setProgram(id, vert, frag, varyings)` は `SEPARATE_ATTRIBS` でリンクする。WebGL2 で保証される
+のは 4 つの出力 × 4 成分までなので、頂点 1 つから多くの値を 1 つのバッファへ並べて書き出したいとき
+（`INTERLEAVED_ATTRIBS`、64 成分まで）は使えない。`Program` のコンストラクタも出力を渡せない。
+
+glaku の `Program` で作ったあと、自分でリンクし直せば使える。glaku はシェーダを付けたままにしているので、
+もう一度リンクできる。リンクし直すと uniform の場所が変わるので取り直す。
+
+```ts
+const linked = core.program[program.id]
+gl.transformFeedbackVaryings(linked, outputs, gl.INTERLEAVED_ATTRIBS)
+gl.linkProgram(linked)
+core.setUniLoc(program.id, Object.keys(program.uniforms))
+```
+
+描くのは自分で（`gl.drawArrays`）。glaku は今結んでいる VAO・プログラムを覚えていて、同じなら結び直さない。
+自分で `gl.bindVertexArray` したら `core.currentVao = null` にして、glaku が次に結び直すようにする。
+プログラムと uniform は `core.useProgram(program.id)` と `core.setUniforms(program.uniforms)` で glaku に結ばせる。
+実例は `src/light/scene.ts`。
+
 ## Worker で使うときの注意
 
 **`Loop` は `interval` を渡さないと `requestAnimationFrame` を使う。** Worker には rAF が
