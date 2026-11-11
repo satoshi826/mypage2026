@@ -59,6 +59,26 @@ export function createHeroScene(core: Core, pixelRatio: number) {
   })
   let readIndex = 0
 
+  // 番号を押して行き先を変えたときに、粒子の基準位置が飛ぶぶん（押した瞬間の見た目の位置 − 新しい組の始まりの位置）を
+  // 粒子1つにつき1テクセルで持つ。新しい組の進みに合わせて行き過ぎずに 0 へ寄せる（positionOf）。干渉のばねに預けると、
+  // しなって揺れる（続けて押すと大きく揺れる）。押すたびに今の値を読んで次を書くので、2枚を交互に使う
+  const carry = [0, 1].map((i) => {
+    const buffer = new Renderer(core, {
+      id: `carry${i}`,
+      width: grid.width,
+      height: grid.height,
+      screenFit: false,
+      backgroundColor: [0, 0, 0, 0],
+      frameBuffer: [['RG16F', 'RG', 'HALF_FLOAT', 'NEAREST', 'CLAMP_TO_EDGE']] as never
+    })
+    buffer.resize({width: grid.width, height: grid.height, pixelRatio: 1})
+    buffer.clear()
+    return buffer
+  })
+  let carryIndex = 0
+  // 飛ぶぶんを足している組の始まりの写真（枠の番号）。組の始まりが変わったら（次の写真へ移ったら）足すのをやめる
+  let carriedFrom: number | null = null
+
   // 描画と更新が同じ式で基準位置を出すための共有部分。二重管理を作らないため1か所に置く
   const shared = /* glsl */ `
       // RGB に入っている元画素のインデックス(24bit LE)を NDC 座標に戻す
@@ -84,9 +104,8 @@ export function createHeroScene(core: Core, pixelRatio: number) {
         return t < 0.5 ? pow(2.0 * t, p) * 0.5 : 1.0 - pow(2.0 * (1.0 - t), p) * 0.5;
       }
 
-      // 干渉がないときの粒子 k の位置と輝度。組を引数で受けるのは、ジャンプの
-      // ときに古い組と新しい組の両方を同じ式で出す必要があるため
-      void baseOf(int k, int from, int to, float phase, out vec2 pos, out float lum) {
+      // 干渉がないときの粒子 k の位置と輝度と、組の中での進み（local）
+      void baseOf(int k, int from, int to, float phase, out vec2 pos, out float lum, out float local) {
         int col = k % ${grid.width};
         int row = k / ${grid.width};
 
@@ -102,10 +121,19 @@ export function createHeroScene(core: Core, pixelRatio: number) {
         float delay = pow(darkness, u_toneCurve) * u_staggerTotal;
         // 分母が 0 にならないよう、1粒子あたりの移動時間には下限を置く
         float span = max(1.0 - u_staggerTotal, 0.05);
-        float local = easeInOut(clamp((phase - delay) / span, 0.0, 1.0), u_easePower);
+        local = easeInOut(clamp((phase - delay) / span, 0.0, 1.0), u_easePower);
 
         pos = mix(decodePosition(texFrom), decodePosition(texTo), local);
         lum = mix(texFrom.a, texTo.a, local);
+      }
+
+      // 今の組での粒子 k の位置。番号を押したときに飛ぶぶん（t_carry）を、組の進みに合わせて 0 へ寄せながら足す
+      vec2 positionOf(int k, out float lum) {
+        vec2 pos;
+        float local;
+        baseOf(k, u_from, u_to, u_phase, pos, lum, local);
+        vec2 carried = texelFetch(t_carry, ivec2(k % ${grid.width}, k / ${grid.width}), 0).xy;
+        return pos + carried * (1.0 - local) * u_carry;
       }`
 
   /** 基準位置の計算に要る uniform。描画と更新の両方が持つ */
@@ -115,7 +143,9 @@ export function createHeroScene(core: Core, pixelRatio: number) {
     u_phase: 'float',
     u_staggerTotal: 'float',
     u_toneCurve: 'float',
-    u_easePower: 'float'
+    u_easePower: 'float',
+    /** 番号を押したときに飛ぶぶん（t_carry）を足すか。1 で足す */
+    u_carry: 'float'
   } as const
 
   /** 舞台を進めたときの粒子の位置。写真のあいだの描画と、光へ飛ぶ粒子の描画が同じ式で出す */
@@ -126,8 +156,7 @@ export function createHeroScene(core: Core, pixelRatio: number) {
       // 写真を切り替えるときと同じく、明るい粒子ほど先に出発する。減速して着くと、光の位置の周りに粒子が溜まって
       // 塊に見えるので、加速だけにする
       vec2 flightOf(int k, out float lum, out float local) {
-        vec2 pos;
-        baseOf(k, u_from, u_to, u_phase, pos, lum);
+        vec2 pos = positionOf(k, lum);
         // 干渉によるズレ。更新パスが書いた値をそのまま足す
         vec2 offset = texelFetch(t_state, ivec2(k % ${grid.width}, k / ${grid.width}), 0).xy;
         float delay = (1.0 - lum) * ${GATHER_STAGGER.toFixed(2)};
@@ -153,7 +182,7 @@ export function createHeroScene(core: Core, pixelRatio: number) {
       ...flightUniforms,
       u_pointSize: 'float'
     },
-    texture: {t_table: table, t_state: state[0].renderTexture[0]},
+    texture: {t_table: table, t_state: state[0].renderTexture[0], t_carry: carry[0].renderTexture[0]},
     primitive: 'POINTS',
     vert: /* glsl */ `
       out vec3 v_color;
@@ -190,7 +219,7 @@ export function createHeroScene(core: Core, pixelRatio: number) {
       u_glow: 'float',
       u_glowSize: 'float'
     },
-    texture: {t_table: table, t_state: state[0].renderTexture[0]},
+    texture: {t_table: table, t_state: state[0].renderTexture[0], t_carry: carry[0].renderTexture[0]},
     primitive: 'POINTS',
     vert: /* glsl */ `
       out float v_energy;
@@ -227,10 +256,6 @@ export function createHeroScene(core: Core, pixelRatio: number) {
       u_radius2: 'float',
       u_push: 'float',
       u_drag: 'float',
-      u_prevFrom: 'int',
-      u_prevTo: 'int',
-      u_prevPhase: 'float',
-      u_catchUp: 'float',
       u_massGain: 'float',
       u_massCurve: 'float',
       u_spread: 'float',
@@ -239,7 +264,7 @@ export function createHeroScene(core: Core, pixelRatio: number) {
       u_damping: 'float',
       u_dt: 'float'
     },
-    texture: {t_table: table, t_state: state[0].renderTexture[0]},
+    texture: {t_table: table, t_state: state[0].renderTexture[0], t_carry: carry[0].renderTexture[0]},
     primitive: 'POINTS',
     vert: /* glsl */ `
       flat out vec4 v_state;
@@ -284,22 +309,12 @@ export function createHeroScene(core: Core, pixelRatio: number) {
         int col = k % ${grid.width};
         int row = k / ${grid.width};
 
-        vec2 pos;
         float lum;
-        baseOf(k, u_from, u_to, u_phase, pos, lum);
+        vec2 pos = positionOf(k, lum);
 
         vec4 prev = texelFetch(t_state, ivec2(col, row), 0);
         vec2 offset = prev.xy;
         vec2 velocity = prev.zw;
-
-        // 番号をクリックして行き先を変えた瞬間。基準位置が飛ぶぶんをズレに振り替えると、
-        // 見た目の位置は変わらないまま、バネが新しい軌道へ引き戻してくれる
-        if (u_catchUp > 0.5) {
-          vec2 wasPos;
-          float wasLum;
-          baseOf(k, u_prevFrom, u_prevTo, u_prevPhase, wasPos, wasLum);
-          offset += wasPos - pos;
-        }
 
         // 重い粒子は同じ力でも動きにくい。暗さにカーブを掛けてから重さに写す。
         // 写真が暗部に偏っているので、線形のままでは大半の粒子が同じ重さになる。
@@ -335,8 +350,43 @@ export function createHeroScene(core: Core, pixelRatio: number) {
       }`
   })
 
-  // 直前に描いた組（枠の番号）。ジャンプのとき、基準位置の飛びを打ち消すのに要る。画面のスレッドは、両端の写真を
-  // 枠に上げてから組を送ってくる。最初の組が届くまでは描かない
+  // 番号を押したときに、押した瞬間の見た目の位置と新しい組の始まりの位置の差を、粒子1つにつき1テクセルで書く。
+  // 見た目の位置は今の組（と今まで足していた飛ぶぶん）で出す。新しい組の始まり（進み 0）は始まりの写真の位置そのもの
+  const carryPass = new Program(core, {
+    id: 'carry',
+    attributeTypes: {a_rank: 'float'},
+    uniformTypes: {...morphUniforms, u_nextFrom: 'int'},
+    texture: {t_table: table, t_carry: carry[0].renderTexture[0]},
+    primitive: 'POINTS',
+    vert: /* glsl */ `
+      flat out vec2 v_carried;
+      ${shared}
+
+      void main() {
+        int k = int(a_rank);
+        int col = k % ${grid.width};
+        int row = k / ${grid.width};
+        float lum;
+        vec2 was = positionOf(k, lum);
+        v_carried = was - decodePosition(texelFetch(t_table, addressOf(u_nextFrom, col, row), 0));
+        gl_Position = vec4(
+          (float(col) + 0.5) / ${grid.width}.0 * 2.0 - 1.0,
+          (float(row) + 0.5) / ${grid.height}.0 * 2.0 - 1.0,
+          0.0,
+          1.0
+        );
+        gl_PointSize = 1.0;
+      }`,
+    frag: /* glsl */ `
+      flat in vec2 v_carried;
+      out vec4 o_color;
+      void main() {
+        o_color = vec4(v_carried, 0.0, 0.0);
+      }`
+  })
+
+  // 直前に描いた組（枠の番号）。番号を押したとき、押した瞬間の見た目の位置を出すのに要る。画面のスレッドは、両端の
+  // 写真を枠に上げてから組を送ってくる。最初の組が届くまでは描かない
   let frame: Frame | null = null
 
   // 粒子を描く層。写真の枠の大きさで、粒子のすき間は透明にする（舞台が重ねたとき、下の光の層や地を透かす）。
@@ -360,6 +410,12 @@ export function createHeroScene(core: Core, pixelRatio: number) {
     program.setUniform(values)
     glow.setUniform(values)
     update.setUniform(values)
+    carryPass.setUniform(values)
+  }
+  /** 干渉の状態と、番号を押したときに飛ぶぶんの、今読む側を結ぶ */
+  const bindState = () => {
+    core.setTexture('t_state', state[readIndex].renderTexture[0])
+    core.setTexture('t_carry', carry[carryIndex].renderTexture[0])
   }
   /** 舞台を進めたときの位置の uniform は、写真と光の層の描画が持つ */
   const setFlight = (values: Record<string, number | number[]>) => {
@@ -396,7 +452,7 @@ export function createHeroScene(core: Core, pixelRatio: number) {
   const draw = () => {
     // 枠の寸法が決まる前と、両端の写真が揃う前は描かない
     if (!drawable()) return
-    core.setTexture('t_state', state[readIndex].renderTexture[0])
+    bindState()
     sampled.renderer.clear()
     sampled.renderer.render(vao, program)
     sampled.resolve()
@@ -407,11 +463,9 @@ export function createHeroScene(core: Core, pixelRatio: number) {
     if (!canSimulate) return
     // 明示的な積分なので、タブ復帰などの大きい dt を入れると発散する
     update.setUniform({u_dt: Math.min(dt, 0.02)})
-    core.setTexture('t_state', state[readIndex].renderTexture[0])
+    bindState()
     state[1 - readIndex].render(vao, update)
     readIndex = 1 - readIndex
-    // 打ち消しは1回だけ効かせる
-    update.setUniform({u_catchUp: 0})
   }
 
   const drawable = () => !!rect && frame !== null
@@ -445,7 +499,7 @@ export function createHeroScene(core: Core, pixelRatio: number) {
 
   applyTuning(DEFAULT_TUNING)
   applyInteraction(DEFAULT_INTERACTION)
-  update.setUniform({u_prevFrom: 0, u_prevTo: 0, u_prevPhase: 0, u_catchUp: 0})
+  setMorph({u_carry: 0})
   setFlight({u_gather: 0, u_gatherAt: [0, 0]})
 
   return {
@@ -489,7 +543,7 @@ export function createHeroScene(core: Core, pixelRatio: number) {
         u_glow: (energy / perPixel) * (grid.count / drawn),
         u_glowSize: Math.max(1, Math.round(scale))
       })
-      core.setTexture('t_state', state[readIndex].renderTexture[0])
+      bindState()
       target.render(lights, glow)
     },
     setPointer({x, y, vx, vy}: PointerCommand) {
@@ -503,17 +557,18 @@ export function createHeroScene(core: Core, pixelRatio: number) {
       gl.texSubImage2D(gl.TEXTURE_2D, 0, x, y, grid.width, grid.height, gl.RGBA, gl.UNSIGNED_BYTE, data)
       gl.bindTexture(gl.TEXTURE_2D, null)
     },
-    setFrame(next: Frame, catchUp = false) {
-      if (catchUp && frame) {
-        update.setUniform({
-          u_prevFrom: frame.from,
-          u_prevTo: frame.to,
-          u_prevPhase: frame.phase,
-          u_catchUp: 1
-        })
-      }
+    /** 描く組を変える。jump は番号を押して行き先を変えたときで、粒子は押した瞬間の見た目の位置から新しい組を進む */
+    setFrame(next: Frame, jump = false) {
+      if (jump && frame && canSimulate) {
+        // uniform はまだ前の組なので、見た目の位置はそのまま出せる
+        carryPass.setUniform({u_nextFrom: next.from})
+        bindState()
+        carry[1 - carryIndex].render(vao, carryPass)
+        carryIndex = 1 - carryIndex
+        carriedFrom = next.from
+      } else if (next.from !== carriedFrom) carriedFrom = null
       frame = next
-      setMorph({u_from: next.from, u_to: next.to, u_phase: next.phase})
+      setMorph({u_from: next.from, u_to: next.to, u_phase: next.phase, u_carry: carriedFrom === null ? 0 : 1})
     }
   }
 }
@@ -529,8 +584,8 @@ export type HeroCommand = {
   upload?: {slot: number; table: Uint8Array}
   /** 描く組。from と to は写真の番号ではなく、アトラスの枠の番号 */
   render?: Frame
-  /** 番号のクリックで行き先が変わったフレーム。基準位置の飛びをズレに振り替える */
-  catchUp?: boolean
+  /** 番号のクリックで行き先が変わったフレーム。粒子は押した瞬間の見た目の位置から新しい組を進む */
+  jump?: boolean
   /** 干渉を進める秒数。入っているフレームだけ状態を更新する */
   step?: number
   /** 粒子が集まった割合（src/app/stage.ts） */
@@ -549,10 +604,9 @@ export function applyHero(scene: ReturnType<typeof createHeroScene>, command: He
   if (command.rect) scene.place(command.rect)
   if (command.upload) scene.upload(command.upload.slot, command.upload.table)
   if (command.pointer) scene.setPointer(command.pointer)
-  if (command.render) scene.setFrame(command.render, command.catchUp)
+  if (command.render) scene.setFrame(command.render, command.jump)
   if (command.gather !== undefined) scene.gather(command.gather)
   if (command.gatherAt) scene.gatherAt(command.gatherAt)
-  // 打ち消しは更新パスの中で効くので、干渉が止まっていても1回は回す
-  if (command.step !== undefined || command.catchUp) scene.step(command.step ?? 0)
+  if (command.step !== undefined) scene.step(command.step)
   scene.draw()
 }

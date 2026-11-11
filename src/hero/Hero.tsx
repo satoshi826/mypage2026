@@ -122,7 +122,7 @@ export function Hero({
   const timingRef = useRef<Timing>(timingOf(DEFAULT_TUNING))
   const interactionRef = useRef<Interaction>(DEFAULT_INTERACTION)
   // 最後に送った組（アトラスの枠の番号）と、その両端の写真の番号。送った組の写真は、次の組を送るまで枠から外させない
-  // （番号を押したときの位置の打ち消しが、前の組を読むため）
+  // （番号を押したとき、worker が前の組で押した瞬間の見た目の位置を出すため）
   const lastFrame = useRef<Frame>({from: -1, to: -1, phase: -1})
   const lastPhotos = useRef<number[]>([])
   // カーソルを乗せた（指で触れた）番号。押される前に読み込んでおく
@@ -284,12 +284,10 @@ export function Hero({
       // 丸は遷移の開始で動かす。粒子が飛んでいるあいだに次の番号へ移る。番号を押したときは、すぐ移す
       setIndex(stateRef.current.chosen || phase > 0 ? to : from)
 
-      // 行き先が変わったフレームは、基準位置の飛びを worker 側でズレに振り替える。
-      // そのズレが戻りきるまで更新を回す必要があるので、残り時間も入れ直す
+      // 番号を押して行き先が変わったフレーム。粒子は押した瞬間の見た目の位置から新しい組を進む（worker が飛ぶぶんを持つ）
       if (jumped.current) {
         jumped.current = false
-        command.catchUp = true
-        settling.current = settleSeconds(interactionRef.current)
+        command.jump = true
       }
 
       // ポインタ速度は瞬間値をそのまま使わず、時定数で均した値にする。
@@ -338,7 +336,7 @@ export function Hero({
     }, [autoplay, library, order, reduced, send, stage, takePointer])
   )
 
-  // 行き先が変わったフレームは worker 側で位置の飛びを打ち消す（番号のクリック）
+  // 番号を押して行き先を変える。次のフレームで、粒子の位置の飛びを worker に持たせる
   const go = useCallback((next: SequenceState) => {
     if (next === stateRef.current) return
     stateRef.current = next
