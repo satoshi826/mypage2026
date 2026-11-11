@@ -47,7 +47,7 @@ export function Top() {
       </div>
       {/* ロゴと導線の段。ふつうのページの中身として舞台の上を下から上がってきて、ページの一番下で画面に収まる。
           段は光の層にとっての部屋で、光の層が段の中央にロゴを描き（光とロゴのパネルの logoShift でずらせる）、
-          ロゴの中心からずらして上の光と下の光を置く。導線は右に置く。舞台に重ねて始め、
+          ロゴの中心からずらして上の光と下の光を置く。導線は広い画面では右半分、狭い画面ではロゴの下に横に並べる。舞台に重ねて始め、
           一番下までのスクロールを SCENE_SCREENS にする */}
       <div
         ref={room}
@@ -122,7 +122,7 @@ const ITEMS = {left: 'items-start', center: 'items-center', right: 'items-end', 
 const ROW_HEIGHT = 48
 
 const WIDE_PLACEMENT: Placement = {links: 50, align: 'right-half', direction: 'row'}
-const NARROW_PLACEMENT: Placement = {links: 50, align: 'right', direction: 'column'}
+const NARROW_PLACEMENT: Placement = {links: 80, align: 'center', direction: 'row'}
 
 const PLACEMENT_PARAMS: Param<Placement>[] = [
   {key: 'links', label: '導線の高さ', min: 5, max: 95, step: 1, hint: '%。中心の位置。段（最後の画面）の上端から'},

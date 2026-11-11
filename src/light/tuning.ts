@@ -63,17 +63,17 @@ export type LightTuning = {
 }
 
 export const DEFAULT_LIGHT: LightTuning = {
-  upperPower: 40,
+  upperPower: 50,
   upperSize: 4,
   upperCone: 36,
-  upperX: 10,
-  upperY: -21,
-  underPower: 40,
+  upperX: 12,
+  upperY: -22,
+  underPower: 50,
   underSize: 4,
   underCone: 30,
   underX: -12,
-  underY: 18,
-  logoShift: -10,
+  underY: 22,
+  logoShift: 0,
   logoColor: 8,
   cell: 10,
   albedo: 100,
@@ -81,11 +81,11 @@ export const DEFAULT_LIGHT: LightTuning = {
   frost: 4,
   reflectance: 90,
   roughness: 6,
-  minRays: 8192,
-  maxRays: 32000,
+  minRays: 4096,
+  maxRays: 36096,
   bounces: 8,
   keep: 95,
-  keepMoving: 80,
+  keepMoving: 50,
   resolution: 100,
   particleGlow: 1.5
 }
