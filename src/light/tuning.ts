@@ -63,14 +63,14 @@ export type LightTuning = {
 }
 
 export const DEFAULT_LIGHT: LightTuning = {
-  upperPower: 50,
-  upperSize: 4,
-  upperCone: 36,
+  upperPower: 42,
+  upperSize: 5,
+  upperCone: 40,
   upperX: 12,
   upperY: -22,
-  underPower: 50,
-  underSize: 4,
-  underCone: 30,
+  underPower: 42,
+  underSize: 6,
+  underCone: 40,
   underX: -12,
   underY: 22,
   logoShift: 0,
