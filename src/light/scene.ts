@@ -371,11 +371,8 @@ export function createLightScene(core: Core, pixelRatio: number) {
     layout()
   }
 
-  /**
-   * 1 フレーム描く。extra は、光線を描いた 1 フレームぶんの層に、加算の合成のまま重ねて描くもの（光へ飛んでいる粒子）。
-   * 描いたら true を返す。そのあいだは動いているものとして、前のフレームを残す割合を弱める
-   */
-  const draw = (frame: LightFrame | null, extra?: (target: Renderer) => boolean) => {
+  /** 1 フレーム描く */
+  const draw = (frame: LightFrame | null) => {
     // 消えているあいだは何も描かない。前の結果も捨て、次につくときはそのフレームだけで描き始める
     if (!frame) {
       lit = false
@@ -427,7 +424,6 @@ export function createLightScene(core: Core, pixelRatio: number) {
     frameLayer.clear()
     core.blend('ADDITIVE')
     frameLayer.render(lines, rays)
-    if (extra?.(frameLayer)) moving = 1
     core.gl.disable(core.gl.BLEND)
 
     // 大きさが変わった直後は前の結果が無いので、このフレームだけで描く
@@ -463,7 +459,7 @@ export type LightCommand = {
   /** 光線の数。tuning の下限と上限に収めて使う */
   rays?: number
   /**
-   * 1 フレーム描く。null なら光を消す。粒子が光へ向けて飛び始めたら描き始める（光が明るくなるのは粒子が着いてから）
+   * 1 フレーム描く。null なら光を消す。粒子が光に着き始めたら描き始める
    */
   frame?: LightFrame | null
 }

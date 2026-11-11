@@ -5,7 +5,7 @@ import {LOGO_RECTS} from '../light/logo'
 import {DEFAULT_LIGHT} from '../light/tuning'
 
 // トップの舞台の canvas。写真の粒子（hero）と、光がロゴを照らす層（light）を 1 枚の canvas に描く。
-// どちらも自分の層に描き、ここで 1 回の全画面の描画で重ねる（光の上に写真の粒子）。
+// どちらも自分の層に描き、ここで 1 回の全画面の描画で重ねる（光の上に写真の粒子）。光へ飛んでいる粒子は、その上に直接描く。
 // 2 枚の canvas に分けていると、粒子と光が別の物に見え、粒子が写真の枠の外へ出られなかったため 1 枚にした。
 //
 // 指示はメインスレッドの rAF から届く。hero と光はそれぞれ別に指示を送ってくるので、届いたぶんを入れたら、
@@ -125,6 +125,14 @@ function createStage(canvas: OffscreenCanvas, pixelRatio: number) {
     })
     screen.clear()
     screen.render(plane, compose)
+    // 光へ飛んでいる粒子は、重ねた上に光の粒として足す
+    if (hero) {
+      const {gl} = core
+      gl.enable(gl.BLEND)
+      gl.blendFunc(gl.ONE, gl.ONE)
+      hero.glow(screen, size, tuning.particleGlow, pixelRatio)
+      gl.disable(gl.BLEND)
+    }
     if (unreported) {
       unreported = false
       report()
@@ -178,10 +186,7 @@ function createStage(canvas: OffscreenCanvas, pixelRatio: number) {
         light.tune(tuning)
       }
       if (command.rays) light.setRays(command.rays)
-      // 光へ飛んでいる粒子は、光線と同じ層に光の粒として描く
-      const scale = pixelRatio * (tuning.resolution / 100)
-      if (command.frame !== undefined)
-        light.draw(command.frame, (target) => hero?.glow(target, size, tuning.particleGlow, scale) ?? false)
+      if (command.frame !== undefined) light.draw(command.frame)
       if (command.frame) unreported = true
       schedule()
     }

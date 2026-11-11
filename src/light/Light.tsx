@@ -251,8 +251,8 @@ export function Light({
       {width, height},
       {x: width / 2 + tuning.logoShift + upperShift.x, y: roomHeight / 2 + upperShift.y}
     )
-    // 粒子が光へ向けて飛び始めたら、光の層を描き始める（飛ぶ粒子も光の層に描くため）。光が明るくなるのは粒子が着いてから
-    if (stage.current.gather <= 0 || !box) {
+    // 粒子が光に着き始めたら、光の層を描き始める。それまでは光が暗いままなので描かない
+    if (arrived <= 0 || !box) {
       if (lit.current) send({frame: null})
       lit.current = false
       waiting.current = 0
