@@ -87,6 +87,8 @@ export function Light({
   listen: (onDrawn: () => void) => () => void
 }) {
   const send = useCallback((command: LightCommand) => post({light: command}), [post])
+  // 外れるときは光を消す。舞台の worker は残る（scene/useCanvas.tsx）ので、消さないと次に付いたときに前の光が残る
+  useEffect(() => () => send({frame: null}), [send])
   const [tuning, setTuning] = useState(DEFAULT_LIGHT)
 
   // 光線の数は下限から始め、描き終わりの知らせの間隔に合わせて上限までのあいだで変える

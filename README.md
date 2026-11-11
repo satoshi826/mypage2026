@@ -94,6 +94,12 @@ worker へ渡す。舞台の worker は表を枠に上げて描くだけで、�
 読み終わっていない番号を押したときは、丸を先に移し、粒子は読み終えてから動き出す（静止帯の終わりで待つ）。
 読めなかった写真は選ばず、その番号は薄く出して押せない。
 
+Top を離れても舞台は捨てない。canvas と worker は持ち続け（`src/scene/useCanvas.tsx`）、canvas を DOM から
+外すだけにする。hero の写真の枠の中身、進行状態、この巡で表示した番号も持ち続ける（`src/hero/Hero.tsx`）。
+戻ったら同じ canvas を付け直す（写真を読み直さない）。hero は、離れたときに丸が示していた写真を静止で描くところから
+始める（遷移の途中からにはしない）。写真の並びが変わったら作り直す。
+外れるときは光を消し、付き直した hero は最初のフレームで集まり具合などを送り直す（worker は前の状態を持っている）。
+
 トップの HTML には hero のチャンクと一覧の先読み、worker のスクリプトと最初の写真の
 prefetch が入る（`scripts/prerender.js`、`worker/index.ts`）。JS の起動と並行して
 後ろの段を取り始めるため。Photos も同じく、一覧の先読みと最初の数枚の preload が入る。
@@ -193,7 +199,7 @@ worker/     Cloudflare Worker（写真の API）
 | `hero/library.ts`           | 写真をアトラスの 5 つの枠に出し入れする。要る写真を読み込み用の worker に頼み、できた表を枠へ上げる                                                                                                                                                                                                                                                        |
 | `hero/loader.ts`            | 読み込み用の worker。写真を粒子の表にする（デコードと並べ替え）                                                                                                                                                                                                                                                                                            |
 | `hero/scene.ts`             | テクスチャ構築、シェーダ、描画と干渉の更新。舞台の worker（`scene/worker.ts`）の中で、粒子の層に描く                                                                                                                                                                                                                                                       |
-| `scene/useCanvas.tsx`       | 舞台の canvas を worker へ譲渡する配線、resize 監視、rAF フック                                                                                                                                                                                                                                                                                            |
+| `scene/useCanvas.tsx`       | 舞台の canvas を worker へ譲渡する配線（ページを離れても持ち続ける）、resize 監視、rAF フック                                                                                                                                                                                                                                                              |
 | `scene/multisample.ts`      | glaku で作れないマルチサンプルの描き先（hero の粒子を画素に丸めず描く）                                                                                                                                                                                                                                                                                    |
 | `hero/sequence.ts`          | 自動再生の進行状態。次の1枚の抽選、静止帯と遷移帯の割り当て                                                                                                                                                                                                                                                                                                |
 | `hero/pointer.ts`           | ポインタを写真の枠基準の NDC で追う。マウスも指も同じ経路                                                                                                                                                                                                                                                                                                  |

@@ -105,6 +105,16 @@ export function advance(
 const markedOf = (state: SequenceState, timing: Timing) =>
   state.chosen || frameOf(state, timing).phase > 0 ? state.to : state.from
 
+/**
+ * 丸が示している1枚を静止で描くところ（周の頭）からやり直す。行き先とその次は、決めてあったものを使う
+ * （読み込み済みのことが多い）。ページを移って戻ってきたときに、遷移の途中から再開しないために使う
+ */
+export function restart(state: SequenceState, order: Order, timing: Timing): SequenceState {
+  if (markedOf(state, timing) === state.from) return {...state, elapsed: 0, chosen: false}
+  // 行き先へ移っていたら、そこから始める。次の行き先は決めてあった 1 枚
+  return {from: state.to, to: state.after, after: pickNext(state.after, order), elapsed: 0, chosen: false}
+}
+
 /** 粒子が位置として近い1枚。中点で切り替わる */
 const originOf = ({from, to}: SequenceState, phase: number) => (phase < 0.5 ? from : to)
 

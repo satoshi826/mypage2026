@@ -8,6 +8,7 @@ import {
   jumpTo,
   morphRatio,
   pause,
+  restart,
   settle,
   type Frame,
   type Order,
@@ -39,11 +40,49 @@ import {
   type Tuning
 } from './tuning'
 import {usePointer} from './pointer'
-import {createLibrary} from './library'
+import {createLibrary, type Library} from './library'
 import type {HeroCommand, Rect} from './scene'
 import type {SceneCommand} from '../scene/worker'
 
 const timingOf = ({cycleSeconds, dwellRatio}: Tuning): Timing => ({cycleSeconds, dwellRatio})
+
+/**
+ * Top を離れても持ち続ける hero の状態。舞台の worker も残る（scene/useCanvas.tsx）ので、戻ったら続きから再開する
+ * （写真を読み直さず、カレンダーの表示済みも数え直さない）。写真の並びが変わったら作り直す
+ */
+type Memory = {
+  photos: string
+  library: Library
+  state: SequenceState
+  seen: number[]
+  broken: readonly number[]
+  /** 付いている Hero へ、読めなかった写真の番号を知らせる */
+  onBroken: ((broken: readonly number[]) => void) | null
+}
+let memory: Memory | null = null
+
+const remember = (photos: string[], post: (command: SceneCommand, transfer?: Transferable[]) => void) => {
+  const key = photos.join()
+  if (memory?.photos === key) return memory
+  memory?.library.dispose()
+  const created: Memory = {
+    photos: key,
+    library: createLibrary(
+      photos,
+      (slot, table) => post({hero: {upload: {slot, table}}}, [table.buffer]),
+      (broken) => {
+        created.broken = broken
+        created.onBroken?.(broken)
+      }
+    ),
+    state: initialState({count: photos.length, seen: [0], broken: []}),
+    seen: [0],
+    broken: [],
+    onBroken: null
+  }
+  memory = created
+  return created
+}
 
 /**
  * @param photos hero 用の派生画像の URL。空では呼ばない。写真は要るときに読み込み、舞台のアトラスに置く（library.ts）
@@ -61,15 +100,24 @@ export function Hero({
 }) {
   const sectionRef = useRef<HTMLElement | null>(null)
   const frameRef = useRef<HTMLDivElement>(null)
-  // 読めなかった写真の番号。選ばない
-  const [broken, setBroken] = useState<readonly number[]>([])
+  const [kept] = useState(() => remember(PHOTOS, post))
   // 写真の粒子の表を、要るときに読み込んで舞台のアトラスへ上げる
-  const [library] = useState(() =>
-    createLibrary(PHOTOS, (slot, table) => post({hero: {upload: {slot, table}}}, [table.buffer]), setBroken)
+  const {library} = kept
+  // 読めなかった写真の番号。選ばない
+  const [broken, setBroken] = useState(kept.broken)
+  useEffect(() => {
+    kept.onBroken = setBroken
+    return () => void (kept.onBroken = null)
+  }, [kept])
+  const stateRef = useRef<SequenceState>(kept.state)
+  // 外れるときに進行状態を残す。戻ったら、そのとき丸が示していた写真を静止で描くところから始める（遷移の途中からにはしない）
+  useEffect(
+    () => () => {
+      const order = {count: PHOTOS.length, seen: kept.seen, broken: kept.broken}
+      kept.state = restart(stateRef.current, order, timingRef.current)
+    },
+    [kept, PHOTOS.length]
   )
-  useEffect(() => () => library.dispose(), [library])
-  const [initial] = useState(() => initialState({count: PHOTOS.length, seen: [0], broken: []}))
-  const stateRef = useRef<SequenceState>(initial)
   const timingRef = useRef<Timing>(timingOf(DEFAULT_TUNING))
   const interactionRef = useRef<Interaction>(DEFAULT_INTERACTION)
   // 最後に送った組（アトラスの枠の番号）と、その両端の写真の番号。送った組の写真は、次の組を送るまで枠から外させない
@@ -85,7 +133,8 @@ export function Hero({
   const frameBox = useRef<Rect | null>(null)
   // 最後に送った、粒子が出入りする点。枠が変わったら捨て、次のフレームで送り直す
   const lastGatherAt = useRef<[number, number] | null>(null)
-  const lastGather = useRef(0)
+  // 最初のフレームで必ず送る。舞台の worker は前に付いていたときの集まり具合を持っていることがある
+  const lastGather = useRef(-1)
   // カレンダーの濃さ（0〜1）
   const calendarShown = useRef(1)
   // フッターの再生操作を出し、写真を触れるようにするか。粒子が集まり始めて写真が崩れたら下げる
@@ -98,9 +147,10 @@ export function Hero({
   // 静止帯の頭で待たせる（中の状態とは少しずれるが、バーは次の遷移までの待ち時間として読めればよい）
   const barHeld = useRef(false)
 
-  const [index, setIndex] = useState(0)
+  const [index, setIndex] = useState(kept.state.from)
   // この巡で表示した写真の番号。丸がその番号へ移った時点で数える。全部を表示し終えたら、今の1枚から数え直す
-  const [seen, setSeen] = useState<number[]>([0])
+  const [seen, setSeen] = useState(kept.seen)
+  useEffect(() => void (kept.seen = seen), [kept, seen])
   useEffect(
     () =>
       setSeen((prev) => {
