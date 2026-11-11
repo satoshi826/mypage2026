@@ -85,7 +85,7 @@ export const DEFAULT_LIGHT: LightTuning = {
   maxRays: 36096,
   bounces: 8,
   keep: 95,
-  keepMoving: 50,
+  keepMoving: 75,
   resolution: 100,
   particleGlow: 1.5
 }
