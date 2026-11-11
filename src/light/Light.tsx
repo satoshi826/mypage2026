@@ -32,6 +32,9 @@ const MATERIAL_SECONDS = 0.8
 /** 光の向きが、設定やロゴの位置の変化に追いつくまでの目安の秒数（指数的に寄せる時定数） */
 const TURN_SECONDS = 0.2
 
+/** 上の光の止まる位置が、ツールバーの出入りによる変化に追いつくまでの目安の秒数（指数的に寄せる時定数） */
+const SETTLE_SECONDS = 0.3
+
 /** 描き終わりの知らせがこれだけ来なければ、待たずに次のフレームを送る ms。知らせが失われても止まらないように */
 const DRAWN_TIMEOUT_MS = 500
 
@@ -154,6 +157,8 @@ export function Light({
   // 今照らしている向き（画面の上の角度）と、それを書いた時刻。光が消えているあいだは null
   const facing = useRef<Record<LampKey, number> | null>(null)
   const lastFrame = useRef(0)
+  /** 一番下までスクロールしたときの部屋の上端と、それを求めた時刻。なめらかに寄せるために前の値を持つ */
+  const finalTop = useRef<{top: number; at: number} | null>(null)
 
   // ロゴをつかんでいる指（マウスは 1 つ）。指が増えたり減ったりしたら、そのときの置き方と指の位置から測り直す。
   // 1 本ならその動きだけロゴを動かし、2 本なら指のあいだの距離の比で大きさを変え、2 本の中点の動きだけ動かす
@@ -255,8 +260,13 @@ export function Light({
     const roomHeight = box?.height ?? height
     // 一番下までスクロールしたときの部屋の上端。今の位置から残りのスクロール量だけ上げたところ。部屋の高さ（100svh）は
     // 見えている画面の高さと同じとは限らない（下に URL バーがあるブラウザでは、スクロールでバーが引っ込んで画面が伸び、
-    // 部屋は画面の上端より下で止まる）
-    const roomTop = box ? box.top - (document.documentElement.scrollHeight - innerHeight - scrollY) : 0
+    // 部屋は画面の上端より下で止まる）。バーが出入りするあいだは毎フレーム変わり、スマホでは読む値どうしの更新の
+    // ずれで揺れるので、そのまま使わずなめらかに寄せる
+    const measured = box ? box.top - (document.documentElement.scrollHeight - innerHeight - scrollY) : 0
+    const last = finalTop.current
+    const settle = last ? 1 - Math.exp(-Math.min(0.1, (now - last.at) / 1000) / SETTLE_SECONDS) : 1
+    const roomTop = last ? last.top + (measured - last.top) * settle : measured
+    finalTop.current = {top: roomTop, at: now}
     const shift = (x: number, y: number) => ({x: (x / 100) * roomHeight, y: (y / 100) * roomHeight})
     const upperShift = shift(tuning.upperX, tuning.upperY)
     const underShift = shift(tuning.underX, tuning.underY)
