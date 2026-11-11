@@ -239,18 +239,35 @@ export function Light({
     const nowLit = arrived >= 1
     const width = screen.current?.clientWidth ?? 0
     const height = screen.current?.clientHeight ?? 0
+    const now = performance.now()
+    // 光の強さの既定は tuning の値
+    const powers = {upper: tuning.upperPower, under: tuning.underPower}
+    // 既定へ戻している途中なら、減速しながらずれを 0 へ寄せる
+    const back = returning.current
+    if (back) {
+      const r = Math.min(1, (now - back.at) / 1000 / RESET_SECONDS)
+      arrangement.current = r < 1 ? shrink(back.from, (1 - r) ** 3, powers) : DEFAULT_ARRANGEMENT
+      if (r >= 1) returning.current = null
+    }
+    const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v))
     // 2 つの光のもとの位置は、部屋が画面にちょうど収まったときのロゴのもとの位置からのずれ（部屋の高さの %）で置く。
-    // 上の光はスクロールで画面の中央からそこまで上がり、下の光は部屋と一緒に動く。
-    // 上の光の位置は、粒子が飛び込む先として hero も読む
+    // 上の光はスクロールで画面の中央からそこまで上がり、下の光は部屋と一緒に動く
     const roomHeight = box?.height ?? height
     const shift = (x: number, y: number) => ({x: (x / 100) * roomHeight, y: (y / 100) * roomHeight})
     const upperShift = shift(tuning.upperX, tuning.upperY)
     const underShift = shift(tuning.underX, tuning.underY)
-    stage.current.light = lightAt(
+    const upperBase = lightAt(
       stage.current,
       {width, height},
       {x: width / 2 + tuning.logoShift + upperShift.x, y: roomHeight / 2 + upperShift.y}
     )
+    // 上の光は、もとの位置に訪問者が動かした量を足し、画面の中に収める。この位置は粒子が飛び込む先として hero も読む。
+    // 動かした光にも粒子が飛び込み、上へ戻るとそこから写真へ戻る
+    const upperOffset = {
+      x: clamp(arrangement.current.lamps.upper.offset.x, -upperBase.x, width - upperBase.x),
+      y: clamp(arrangement.current.lamps.upper.offset.y, -upperBase.y, height - upperBase.y)
+    }
+    stage.current.light = {x: upperBase.x + upperOffset.x, y: upperBase.y + upperOffset.y}
     // 粒子が光に着き始めたら、光の層を描き始める。それまでは光が暗いままなので描かない
     if (arrived <= 0 || !box) {
       if (lit.current) send({frame: null})
@@ -263,22 +280,11 @@ export function Light({
       return
     }
     lit.current = true
-    const now = performance.now()
     const {progress} = stage.current
     // 下向きに絞るのは、光がついてから少しスクロールしたあと
     const focus = ease((progress - GATHER_AT - FOCUS_AFTER_SCREENS) / (SCENE_SCREENS - GATHER_AT - FOCUS_AFTER_SCREENS))
-    // 光の強さの既定は tuning の値
-    const powers = {upper: tuning.upperPower, under: tuning.underPower}
-    // 既定へ戻している途中なら、減速しながらずれを 0 へ寄せる
-    const back = returning.current
-    if (back) {
-      const r = Math.min(1, (now - back.at) / 1000 / RESET_SECONDS)
-      arrangement.current = r < 1 ? shrink(back.from, (1 - r) ** 3, powers) : DEFAULT_ARRANGEMENT
-      if (r >= 1) returning.current = null
-    }
     // ロゴのもとの位置は部屋の中央から logoShift ずらしたところ。大きさと動かした量は、ロゴが部屋からはみ出さない範囲に収める
     const home = {x: (box.left + box.right) / 2 + tuning.logoShift, y: (box.top + box.bottom) / 2}
-    const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v))
     const homeWidth = (LOGO_WIDTH * tuning.cell) / 2
     const homeHeight = (LOGO_HEIGHT * tuning.cell) / 2
     const {offset, lamps} = arrangement.current
@@ -310,28 +316,22 @@ export function Light({
     // 下の光は、部屋の床が画面の下端の半画面下まで来たところから光り始め、下端に着くと最大になる
     const underBrightness = ease(1 - (box.bottom - height) / (height / 2))
     const power = {upper: lamps.upper.power ?? powers.upper, under: lamps.under.power ?? powers.under}
-    // 光源のもとの位置に訪問者が動かした量を足し、上の光は画面の中、下の光は部屋の中に収める
-    const base = {upper: stage.current.light, under: {x: home.x + underShift.x, y: home.y + underShift.y}}
-    const bounds = {
-      upper: {left: 0, top: 0, right: width, bottom: height},
-      under: {left: box.left, top: box.top, right: box.right, bottom: box.bottom}
-    }
-    const moved = (key: LampKey) => {
-      const {offset} = lamps[key]
-      const b = bounds[key]
-      return {
-        x: clamp(offset.x, b.left - base[key].x, b.right - base[key].x),
-        y: clamp(offset.y, b.top - base[key].y, b.bottom - base[key].y)
+    // 下の光は、もとの位置に訪問者が動かした量を足し、部屋の中に収める
+    const underBase = {x: home.x + underShift.x, y: home.y + underShift.y}
+    const offsets = {
+      upper: upperOffset,
+      under: {
+        x: clamp(lamps.under.offset.x, box.left - underBase.x, box.right - underBase.x),
+        y: clamp(lamps.under.offset.y, box.top - underBase.y, box.bottom - underBase.y)
       }
     }
-    const offsets = {upper: moved('upper'), under: moved('under')}
     arrangement.current = {
       ...arrangement.current,
       lamps: {upper: {...lamps.upper, offset: offsets.upper}, under: {...lamps.under, offset: offsets.under}}
     }
     const at = {
-      upper: {x: base.upper.x + offsets.upper.x, y: base.upper.y + offsets.upper.y},
-      under: {x: base.under.x + offsets.under.x, y: base.under.y + offsets.under.y}
+      upper: stage.current.light,
+      under: {x: underBase.x + offsets.under.x, y: underBase.y + offsets.under.y}
     }
     // 光源のつかみ場所は、光がつききってから、その光が点いているあいだだけ出す
     const lampOn = {upper: nowLit && power.upper > 0, under: nowLit && underBrightness > 0 && power.under > 0}
@@ -357,7 +357,7 @@ export function Light({
       waiting.current = now
       send({
         frame: {
-          upper: {...at.upper, base: base.upper, angle: facing.current.upper, power: power.upper * brightness, focus},
+          upper: {...at.upper, base: upperBase, angle: facing.current.upper, power: power.upper * brightness, focus},
           under: {...at.under, angle: facing.current.under, power: power.under * underBrightness},
           grabbed: dragging.current !== null,
           logo: {...logo, shown: arrived},
