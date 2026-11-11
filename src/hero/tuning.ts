@@ -120,7 +120,7 @@ export const DEFAULT_INTERACTION: Interaction = {
   release: 0.15,
   returnSeconds: 0.55,
   damping: 0.25,
-  stopBelow: 0.005
+  stopBelow: 0
 }
 
 export const INTERACTION_PARAMS: Param<Interaction>[] = [
