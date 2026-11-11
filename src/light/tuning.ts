@@ -147,7 +147,7 @@ export const LIGHT_PARAMS: Param<LightTuning>[] = [
     hint: '本。60fps 出ていればここまで増やす'
   },
   {group: '描画', key: 'bounces', label: '跳ね返り', min: 0, max: 8, step: 1, hint: '回'},
-  {group: '描画', key: 'keep', label: '残す割合', min: 0, max: 95, step: 5, hint: '%。前のフレーム。止まっているとき'},
+  {group: '描画', key: 'keep', label: '残す割合', min: 0, max: 99, step: 1, hint: '%。前のフレーム。止まっているとき'},
   {
     group: '描画',
     key: 'keepMoving',
