@@ -13,11 +13,7 @@ import {DEFAULT_LIGHT} from '../light/tuning'
 // 光の 1 フレームを重ね終えたら、GPU が描き終わるのを待って知らせる（Drawn）。メインスレッドは知らせが来るまで次の
 // フレームを送らない。遅い端末で指示がたまって光が遅れないように、また、描ける速さを測って光線の数を決めるため。
 
-/** worker からメインスレッドへ返すもの */
-export type Reply = Loaded | Drawn
-/** 写真が1枚上がるごとに、その番号が届く */
-export type Loaded = {layer: number}
-/** 光の 1 フレームを GPU が描き終えた */
+/** worker からメインスレッドへ返すもの。光の 1 フレームを GPU が描き終えた */
 export type Drawn = {drawn: true}
 
 /** メインスレッドからの指示 */
@@ -26,8 +22,7 @@ export type SceneCommand = {
   pixelRatio?: number
   /** canvas の大きさ。CSS px */
   resize?: {width: number; height: number}
-  /** hero に使う写真。届いたら hero の場面を作る */
-  photos?: string[]
+  /** hero への指示。最初の指示が届いたら hero の場面を作る */
   hero?: HeroCommand
   light?: LightCommand
 }
@@ -39,9 +34,8 @@ function createStage(canvas: OffscreenCanvas, pixelRatio: number) {
   const screen = new Renderer(core, {id: 'canvas', backgroundColor: [0, 0, 0, 0]})
   const plane = new Vao(core, plane2D())
   const light = createLightScene(core, pixelRatio)
+  // hero の場面。hero への最初の指示が届いたら作る（写真のないときは作らない）
   let hero: ReturnType<typeof createHeroScene> | null = null
-  // hero の場面を作る前（写真が届く前）に届いた hero への指示。作ったら入れる
-  const early: HeroCommand = {}
   let size = {width: 1, height: 1}
   let tuning = DEFAULT_LIGHT
   // どちらの層もまだ無いあいだ、重ねる描画に持たせておく空の画像
@@ -164,19 +158,8 @@ function createStage(canvas: OffscreenCanvas, pixelRatio: number) {
       light.resize(next)
       schedule()
     },
-    photos(photos: string[]) {
-      hero = createHeroScene(core, pixelRatio, photos, {
-        onLoaded: (layer) => postMessage({layer} satisfies Loaded),
-        onChange: schedule
-      })
-      applyHero(hero, early)
-      schedule()
-    },
     hero(command: HeroCommand) {
-      if (!hero) {
-        Object.assign(early, command)
-        return
-      }
+      hero ??= createHeroScene(core, pixelRatio)
       applyHero(hero, command)
       schedule()
     },
@@ -200,7 +183,6 @@ const waiting: SceneCommand[] = []
 const apply = (data: SceneCommand) => {
   if (!stage) return
   if (data.resize) stage.resize(data.resize)
-  if (data.photos) stage.photos(data.photos)
   if (data.light) stage.light(data.light)
   if (data.hero) stage.hero(data.hero)
 }

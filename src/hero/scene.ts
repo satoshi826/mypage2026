@@ -1,68 +1,9 @@
 import {type Core, Vao, Program, Renderer} from 'glaku'
-import {blockOrigin, buildTable, chooseGrid, layoutFor, loadPixels, type AtlasLayout, type Grid} from './table'
+import {GRID, SLOTS, blockOrigin, layoutFor} from './table'
 import type {Frame} from './sequence'
 import {GATHER_STAGGER} from '../app/stage'
 import {createMultisample} from '../scene/multisample'
 import {DEFAULT_INTERACTION, DEFAULT_TUNING, type Interaction, type Tuning} from './tuning'
-
-/**
- * 同時にデコードする枚数。31枚での実測では 6 で頭打ちになり、8 で全並列と同じ
- * 速さ（約530ms）。増やしてもヒープはほとんど増えないが、1枚ぶんの画素は
- * 並列数だけ同時に生きるので、際限なく上げる理由もない
- */
-const DECODE_LANES = 8
-
-/**
- * 写真を1枚ずつ読み込み、アトラスの自分の区画へ直接上げる。1枚上がるごとに onLoaded を呼ぶ。
- *
- * 最初の1枚（0 番）だけ単独で先に上げる。回線を分け合わずに済むので最初の1枚が
- * 最速で届き、そこから描き始められる。残りは順番をばらして並列に上げる。
- * 2枚目に届くものが最初の遷移先になるので、ばらさないと毎回同じ遷移で始まる。
- *
- * 全枚数ぶんを JS 側に溜めてから1枚の巨大な配列に詰め直すと、画素・テーブル・
- * アトラスが同時に生きる（31枚で 225MB）。区画ごとに上げれば、同時に生きるのは
- * 並列数ぶんだけになる。
- */
-async function fillAtlas(
-  core: Core,
-  texture: WebGLTexture,
-  photos: string[],
-  grid: Grid,
-  layout: AtlasLayout,
-  onLoaded: (layer: number) => void
-) {
-  const {gl} = core
-
-  const upload = async (layer: number) => {
-    let table: Uint8Array
-    try {
-      table = buildTable(await loadPixels(photos[layer], grid), grid)
-    } catch (e) {
-      // 1枚の失敗で全体を止めない。届かなかった写真は選ばれないまま残る
-      console.error(`hero: ${photos[layer]} を読めない`, e)
-      return
-    }
-    const {x, y} = blockOrigin(layer, layout, grid)
-    gl.bindTexture(gl.TEXTURE_2D, texture)
-    gl.texSubImage2D(gl.TEXTURE_2D, 0, x, y, grid.width, grid.height, gl.RGBA, gl.UNSIGNED_BYTE, table)
-    gl.bindTexture(gl.TEXTURE_2D, null)
-    onLoaded(layer)
-  }
-
-  await upload(0)
-
-  const rest = Array.from({length: photos.length - 1}, (_, i) => i + 1)
-  for (let i = rest.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1))
-    ;[rest[i], rest[j]] = [rest[j], rest[i]]
-  }
-  let next = 0
-  await Promise.all(
-    Array.from({length: Math.min(DECODE_LANES, rest.length)}, async () => {
-      for (let i = next++; i < rest.length; i = next++) await upload(rest[i])
-    })
-  )
-}
 
 /** 写真の枠。canvas の左上からの px */
 export type Rect = {x: number; y: number; width: number; height: number}
@@ -70,22 +11,15 @@ export type Rect = {x: number; y: number; width: number; height: number}
 /**
  * 写真の粒子を描く場面。舞台の canvas（src/scene/worker.ts）の中で、光の層と一緒に描く。粒子は写真の枠の大きさの層
  * （layer）に描き、舞台がそれを枠の位置へ拡大して重ねる。
- *
- * @param onLoaded 写真が 1 枚上がるごとに、その番号で呼ぶ
- * @param onChange 層を描き直したときに呼ぶ（舞台が重ね直す）
+ * 写真の粒子の表（table.ts の buildTable）は、アトラスの SLOTS 個の枠に置く。どの枠にどの写真を置くかは画面のスレッド
+ * （library.ts）が決め、表を枠ごと送ってくる（upload）。ここでは写真の番号を知らず、枠の番号で描く
  */
-export function createHeroScene(
-  core: Core,
-  pixelRatio: number,
-  photos: string[],
-  {onLoaded, onChange}: {onLoaded: (layer: number) => void; onChange: () => void}
-) {
-  // 粒子グリッドは起動時に一度だけ決める。以後は変わらない
+export function createHeroScene(core: Core, pixelRatio: number) {
   const textureLimit = core.gl.getParameter(core.gl.MAX_TEXTURE_SIZE) as number
-  const grid = chooseGrid({textureLimit, count: photos.length})
+  const grid = GRID
   const imageAspect = grid.width / grid.height
 
-  const layout = layoutFor(textureLimit, photos.length, grid)
+  const layout = layoutFor(textureLimit, SLOTS, grid)
 
   // 頂点ごとのランク。glaku の型は number[] だが内部で Float32Array に詰め直すだけ
   const rankIndices = Float32Array.from({length: grid.count}, (_, i) => i)
@@ -137,7 +71,7 @@ export function createHeroScene(
         );
       }
 
-      // レイヤは横 ${layout.cols} 個ずつ並べ、あふれた分は下の段へ折り返す
+      // 枠は横 ${layout.cols} 個ずつ並べ、あふれた分は下の段へ折り返す
       ivec2 addressOf(int layer, int col, int row) {
         return ivec2(
           (layer % ${layout.cols}) * ${grid.width} + col,
@@ -201,7 +135,7 @@ export function createHeroScene(
         return mix((pos + offset) * u_fit, u_gatherAt, local * local);
       }`
 
-  // 中身は空で確保し、写真ごとに区画へ上げる
+  // 中身は空で確保し、写真ごとに枠へ上げる
   const table = core.createTexture({
     width: layout.width,
     height: layout.height,
@@ -401,19 +335,9 @@ export function createHeroScene(
       }`
   })
 
-  // 直前に描いた組。ジャンプのとき、基準位置の飛びを打ち消すのに要る
-  let frame: Frame = {from: 0, to: 0, phase: 0}
-  // 上がった写真。両端が揃っていないフレームは描かない（空の区画を読むと全粒子が隅に集まる）
-  const loaded = new Set<number>()
-  fillAtlas(core, table, photos, grid, layout, (layer) => {
-    loaded.add(layer)
-    onLoaded(layer)
-    // 待っていた写真が届いたら、次の指示を待たずに描く
-    if (layer === frame.from || layer === frame.to) {
-      draw()
-      onChange()
-    }
-  }).catch((e) => console.error('hero: 写真の読み込みが止まった', e))
+  // 直前に描いた組（枠の番号）。ジャンプのとき、基準位置の飛びを打ち消すのに要る。画面のスレッドは、両端の写真を
+  // 枠に上げてから組を送ってくる。最初の組が届くまでは描かない
+  let frame: Frame | null = null
 
   // 粒子を描く層。写真の枠の大きさで、粒子のすき間は透明にする（舞台が重ねたとき、下の光の層や地を透かす）。
   // 粒子は不透明に描く。動く粒子を画素に丸めないよう、マルチサンプルで描いてから、この層へ写す
@@ -490,7 +414,7 @@ export function createHeroScene(
     update.setUniform({u_catchUp: 0})
   }
 
-  const drawable = () => !!rect && loaded.has(frame.from) && loaded.has(frame.to)
+  const drawable = () => !!rect && frame !== null
 
   /** 写真の枠を置く。位置だけ変わったときは描き直さない（舞台が重ねる位置を変えるだけ） */
   const place = (next: Rect) => {
@@ -571,8 +495,16 @@ export function createHeroScene(
     setPointer({x, y, vx, vy}: PointerCommand) {
       update.setUniform({u_pointer: [x / fit[0], y / fit[1]], u_pointerVelocity: [vx / fit[0], vy / fit[1]]})
     },
+    /** 写真の粒子の表を枠に上げる */
+    upload(slot: number, data: Uint8Array) {
+      const {x, y} = blockOrigin(slot, layout, grid)
+      const {gl} = core
+      gl.bindTexture(gl.TEXTURE_2D, table)
+      gl.texSubImage2D(gl.TEXTURE_2D, 0, x, y, grid.width, grid.height, gl.RGBA, gl.UNSIGNED_BYTE, data)
+      gl.bindTexture(gl.TEXTURE_2D, null)
+    },
     setFrame(next: Frame, catchUp = false) {
-      if (catchUp) {
+      if (catchUp && frame) {
         update.setUniform({
           u_prevFrom: frame.from,
           u_prevTo: frame.to,
@@ -593,6 +525,9 @@ export type PointerCommand = {x: number; y: number; vx: number; vy: number}
 export type HeroCommand = {
   /** 写真の枠。canvas の左上からの px */
   rect?: Rect
+  /** 写真の粒子の表を、アトラスの枠に上げる */
+  upload?: {slot: number; table: Uint8Array}
+  /** 描く組。from と to は写真の番号ではなく、アトラスの枠の番号 */
   render?: Frame
   /** 番号のクリックで行き先が変わったフレーム。基準位置の飛びをズレに振り替える */
   catchUp?: boolean
@@ -612,6 +547,7 @@ export function applyHero(scene: ReturnType<typeof createHeroScene>, command: He
   if (command.tuning) scene.tune(command.tuning)
   if (command.interaction) scene.interact(command.interaction)
   if (command.rect) scene.place(command.rect)
+  if (command.upload) scene.upload(command.upload.slot, command.upload.table)
   if (command.pointer) scene.setPointer(command.pointer)
   if (command.render) scene.setFrame(command.render, command.catchUp)
   if (command.gather !== undefined) scene.gather(command.gather)

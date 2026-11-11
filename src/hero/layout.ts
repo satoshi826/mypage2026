@@ -75,7 +75,7 @@ export type Tone = {
   /** 選択中の数字の濃さ %。100% はホバーだけに使うので、その一段下（docs/design.md の「光」） */
   activeOpacity: number
   /**
-   * この巡でまだ表示していない数字の濃さ %。読み込み前の番号はこの 3 割。地との明るさの比は文字の基準（4.5）を
+   * この巡でまだ表示していない数字の濃さ %。読めなかった番号はこの 3 割。地との明るさの比は文字の基準（4.5）を
    * 下回るが、表示済みとの差をはっきりさせるほうを取る（Lighthouse のアクセシビリティの減点は受け入れる）
    */
   idleOpacity: number
@@ -100,7 +100,7 @@ export const TONE_PARAMS: Param<Tone>[] = [
     min: 0,
     max: 100,
     step: 5,
-    hint: '%。この巡で未表示。読み込み前はこの 3 割'
+    hint: '%。この巡で未表示。読めなかった番号はこの 3 割'
   },
   {key: 'seenOpacity', label: '表示済みの濃さ', min: 0, max: 100, step: 5, hint: '%。この巡で表示した番号'},
   {key: 'markerOpacity', label: '丸の線の濃さ', min: 0, max: 100, step: 5, hint: '%'}

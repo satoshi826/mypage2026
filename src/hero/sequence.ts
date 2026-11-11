@@ -1,5 +1,7 @@
 // 自動再生の進行管理。スクロールではなく時計で進める。
 // 次の1枚はランダムに選ぶので、進行状態は progress から逆算できず、状態として持つ。
+// 写真は要るときに読み込む（library.ts）。行き先とその次の 1 枚を前もって決めておき、遷移が始まるまでに読み終える。
+// 読み終わっていない写真へは遷移を始めず、静止帯の終わりで待つ（番号を押した直後に起こりうる）
 
 /** 描画1回ぶんの指示 */
 export type Frame = {from: number; to: number; phase: number}
@@ -7,17 +9,20 @@ export type Frame = {from: number; to: number; phase: number}
 /** elapsed は現在の1周のうち経過した秒数 */
 export type SequenceState = {
   from: number
-  /** 次の1枚。null は未定で、候補が読み込まれたら advance が選ぶ。それまで時計は止まる */
-  to: number | null
+  /** 行き先 */
+  to: number
+  /** 行き先の次の 1 枚。行き先へ着いたら、次の行き先になる。前もって読み込んでおくために決めておく */
+  after: number
   elapsed: number
+  /** 行き先を番号で選んだか。選んだ番号には、遷移が始まる前から丸を移す */
+  chosen: boolean
 }
 
 /**
- * 次の1枚を選ぶ材料。available は読み込みが終わって選べる写真の番号（昇順）。
- * 写真は1枚ずつ届くので、起動直後は少なく、揃うにつれて増える。
- * seen はこの巡で表示した写真の番号。全部を表示し終えるまで、表示した写真は選ばない
+ * 次の1枚を選ぶ材料。count は写真の枚数。seen はこの巡で表示した写真の番号で、全部を表示し終えるまで、
+ * 表示した写真は選ばない。broken は読めなかった写真の番号で、選ばない
  */
-export type Order = {available: readonly number[]; seen: readonly number[]}
+export type Order = {count: number; seen: readonly number[]; broken: readonly number[]}
 
 export type Timing = {
   /** 写真1枚あたりの周期(秒)。静止と遷移の合計 */
@@ -30,40 +35,57 @@ const clamp01 = (v: number) => Math.min(Math.max(v, 0), 1)
 const cycleOf = (timing: Timing) => Math.max(timing.cycleSeconds, 0.1)
 
 /**
- * 次の1枚。この巡でまだ表示していない写真から抽選する（まだの写真がすべて読み込み前なら、直前以外の
- * 読み込み済みから）。候補がなければ今のまま
+ * current の次の1枚。この巡でまだ表示していない写真から抽選する（すべて表示していれば、current 以外から）。
+ * 候補がなければ current のまま
  */
-export function pickNext(current: number, {available, seen}: Order) {
-  const candidates = available.filter((i) => i !== current)
+export function pickNext(current: number, {count, seen, broken}: Order) {
+  const candidates = Array.from({length: count}, (_, i) => i).filter((i) => i !== current && !broken.includes(i))
   if (candidates.length === 0) return current
   const fresh = candidates.filter((i) => !seen.includes(i))
   const pool = fresh.length > 0 ? fresh : candidates
   return pool[Math.floor(Math.random() * pool.length)]
 }
 
-/** 最初の1枚は 0 番。次は読み込みが進んでから選ぶ */
-export const initialState = (): SequenceState => ({from: 0, to: null, elapsed: 0})
+/** 最初の1枚は 0 番。行き先とその次も、ここで決めておく */
+export function initialState(order: Order): SequenceState {
+  const to = pickNext(0, order)
+  return {from: 0, to, after: pickNext(to, {...order, seen: [...order.seen, to]}), elapsed: 0, chosen: false}
+}
+
+/** 読めなかった写真を、行き先とその次から外す */
+function avoidBroken(state: SequenceState, order: Order): SequenceState {
+  const to = order.broken.includes(state.to) ? pickNext(state.from, order) : state.to
+  const after = order.broken.includes(state.after) || to !== state.to ? pickNext(to, order) : state.after
+  return to === state.to && after === state.after ? state : {...state, to, after}
+}
+
+/** 遷移を始められない（遷移がまだ始まっておらず、行き先を読み終えていない）か */
+const blocked = (to: number, elapsed: number, dwell: number, ready: (photo: number) => boolean) =>
+  elapsed <= dwell && !ready(to)
 
 /**
- * 経過時間を進める。1周を終えたら次の1枚へ移る。
- *
- * 次の1枚が未定（起動直後）なら候補から選び、候補がなければ時計を止めたまま返す。
- * 遷移の途中で行き先が決まると粒子が飛ぶので、決まるまで静止帯の頭で待つ。
+ * 経過時間を進める。1周を終えたら次の1枚へ移り、その次の 1 枚を選ぶ。
+ * 行き先を読み終えていなければ、静止帯の終わりで待つ（ready）
  */
-export function advance(state: SequenceState, seconds: number, order: Order, timing: Timing): SequenceState {
-  let {from, to} = state
-  if (to === null) {
-    const picked = pickNext(from, order)
-    if (picked === from) return state
-    to = picked
-  }
-
+export function advance(
+  state: SequenceState,
+  seconds: number,
+  order: Order,
+  timing: Timing,
+  ready: (photo: number) => boolean
+): SequenceState {
+  let {from, to, after, chosen} = avoidBroken(state, order)
   const cycle = cycleOf(timing)
+  const dwell = cycle * clamp01(timing.dwellRatio)
   let elapsed = state.elapsed
   let left = seconds
 
   while (left > 0) {
     const next = elapsed + left
+    if (next > dwell && blocked(to, elapsed, dwell, ready)) {
+      elapsed = dwell
+      break
+    }
     if (next < cycle) {
       elapsed = next
       break
@@ -71,18 +93,20 @@ export function advance(state: SequenceState, seconds: number, order: Order, tim
     left = next - cycle
     elapsed = 0
     from = to
-    to = pickNext(from, order)
+    to = after
+    after = pickNext(to, order)
+    chosen = false
   }
 
-  return {from, to, elapsed}
+  return {from, to, after, elapsed, chosen}
 }
 
-/** 丸が示している1枚。遷移の開始で次へ切り替わる */
+/** 丸が示している1枚。遷移の開始で次へ切り替わる。番号で選んだ行き先には、選んだときに切り替わる */
 const markedOf = (state: SequenceState, timing: Timing) =>
-  frameOf(state, timing).phase > 0 ? (state.to ?? state.from) : state.from
+  state.chosen || frameOf(state, timing).phase > 0 ? state.to : state.from
 
 /** 粒子が位置として近い1枚。中点で切り替わる */
-const originOf = ({from, to}: SequenceState, phase: number) => (phase < 0.5 ? from : (to ?? from))
+const originOf = ({from, to}: SequenceState, phase: number) => (phase < 0.5 ? from : to)
 
 /**
  * 遷移を始める。静止帯を飛ばして即座に動き出す。
@@ -91,31 +115,33 @@ const originOf = ({from, to}: SequenceState, phase: number) => (phase < 0.5 ? fr
  * 粒子が位置として近いのは中点で切り替わる側。同じ番号を押しても何も起きない、を
  * 成り立たせるには前者で判定し、出発点としては後者を使う。
  */
-function startFrom(state: SequenceState, target: number, timing: Timing): SequenceState {
+function startFrom(state: SequenceState, target: number, order: Order, timing: Timing): SequenceState {
   const {phase} = frameOf(state, timing)
   return {
     from: originOf(state, phase),
     to: target,
-    elapsed: cycleOf(timing) * clamp01(timing.dwellRatio)
+    after: state.after === target ? pickNext(target, order) : state.after,
+    elapsed: cycleOf(timing) * clamp01(timing.dwellRatio),
+    chosen: true
   }
 }
 
-/** 番号を選ぶ。読み込みが済んでいない番号は無視する */
+/** 番号を選ぶ。読めなかった番号は無視する */
 export function jumpTo(state: SequenceState, target: number, order: Order, timing: Timing): SequenceState {
-  if (!order.available.includes(target)) return state
+  if (order.broken.includes(target)) return state
   const marked = markedOf(state, timing)
   if (target === marked) return state
-  return startFrom(state, target, timing)
+  return startFrom(state, target, order, timing)
 }
 
-/** 進行状態を描画用の3値にする。phase は線形（イージングは頂点シェーダ側で掛かる）。次が未定なら今の1枚を静止で描く */
+/** 進行状態を描画用の3値にする。phase は線形（イージングは頂点シェーダ側で掛かる） */
 export function frameOf({from, to, elapsed}: SequenceState, timing: Timing): Frame {
   const cycle = cycleOf(timing)
   const dwell = cycle * clamp01(timing.dwellRatio)
   const morph = cycle - dwell
   return {
     from,
-    to: to ?? from,
+    to,
     phase: morph > 0 ? clamp01((elapsed - dwell) / morph) : elapsed >= dwell ? 1 : 0
   }
 }
@@ -155,8 +181,14 @@ export function pause(state: SequenceState, timing: Timing): SequenceState {
  *
  * 番号のクリックは静止帯の終わりに時計を合わせるので、止めたままでもその遷移は完走する。
  */
-export function settle(state: SequenceState, seconds: number, timing: Timing): SequenceState {
+export function settle(
+  state: SequenceState,
+  seconds: number,
+  timing: Timing,
+  ready: (photo: number) => boolean
+): SequenceState {
   const cycle = cycleOf(timing)
-  if (state.elapsed < cycle * clamp01(timing.dwellRatio) || state.elapsed >= cycle) return state
+  const dwell = cycle * clamp01(timing.dwellRatio)
+  if (state.elapsed < dwell || state.elapsed >= cycle || blocked(state.to, state.elapsed, dwell, ready)) return state
   return {...state, elapsed: Math.min(state.elapsed + seconds, cycle)}
 }

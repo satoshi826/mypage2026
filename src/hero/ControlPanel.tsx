@@ -11,18 +11,19 @@ import {layoutVars, type Layout, type Tone} from './layout'
  */
 export function ControlPanel({
   count,
-  available,
+  broken,
   seen,
   index,
   layout,
   tone,
   width,
-  onSelect
+  onSelect,
+  onIntent
 }: {
   /** 写真の枚数。カレンダーの番号はこの数だけ並ぶ */
   count: number
-  /** 読み込みが済んだ番号。それ以外は薄く出し、押せない */
-  available: readonly number[]
+  /** 読めなかった番号。薄く出し、押せない */
+  broken: readonly number[]
   /** この巡で表示した番号。まだの番号より明るく出す */
   seen: readonly number[]
   index: number
@@ -32,10 +33,12 @@ export function ControlPanel({
   /** パネルの幅 px。カレンダーはこの幅を列数で等分する */
   width: number
   onSelect: (index: number) => void
+  /** 番号にカーソルを乗せた、指で触れた、フォーカスした。押される前に写真を読み込んでおく */
+  onIntent: (index: number) => void
 }) {
   const listRef = useRef<HTMLOListElement>(null)
   const markerRef = useRef<HTMLDivElement>(null)
-  const loaded = new Set(available)
+  const unusable = new Set(broken)
 
   // 丸を選択中のマスへ移動させる。マスは幅で決まるので、大きさも位置も実測する
   useLayoutEffect(() => {
@@ -75,12 +78,15 @@ export function ControlPanel({
               <button
                 type="button"
                 onClick={() => onSelect(i)}
+                onPointerEnter={() => onIntent(i)}
+                onPointerDown={() => onIntent(i)}
+                onFocus={() => onIntent(i)}
                 aria-current={i === index}
-                disabled={!loaded.has(i)}
+                disabled={unusable.has(i)}
                 className={`glow-text flex size-full items-center justify-center tracking-[0.1em] transition-[opacity,text-shadow] duration-300 text-(length:--number-size) [translate:0.05em_-0.08em] enabled:cursor-pointer enabled:hover:opacity-100 enabled:focus-visible:opacity-100 enabled:hover:[--glow:var(--glow-hover)]! enabled:focus-visible:[--glow:var(--glow-hover)]! aria-[current=true]:[--glow:var(--glow-selected)] ${
                   i === index
                     ? '[opacity:var(--active-opacity)]'
-                    : !loaded.has(i)
+                    : unusable.has(i)
                       ? '[opacity:calc(var(--idle-opacity)*0.3)]'
                       : seen.includes(i)
                         ? '[opacity:var(--seen-opacity)]'

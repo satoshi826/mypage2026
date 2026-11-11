@@ -39,34 +39,45 @@ import {
   type Tuning
 } from './tuning'
 import {usePointer} from './pointer'
+import {createLibrary} from './library'
 import type {HeroCommand, Rect} from './scene'
 import type {SceneCommand} from '../scene/worker'
 
 const timingOf = ({cycleSeconds, dwellRatio}: Tuning): Timing => ({cycleSeconds, dwellRatio})
 
 /**
- * @param photos hero 用の派生画像の URL。空では呼ばない
- * @param available 読み込みが済んだ写真の番号。抽選はこの中から
+ * @param photos hero 用の派生画像の URL。空では呼ばない。写真は要るときに読み込み、舞台のアトラスに置く（library.ts）
  * @param stage トップの舞台。スクロールすると、粒子を光の位置（画面の中央からスクロールで上がる。Light が書く）へ集める
  * @param post 舞台の canvas（src/scene/worker.ts）へ指示を送る。粒子は舞台の canvas に、写真の枠（frame）の位置へ描かれる
  */
 export function Hero({
   photos: PHOTOS,
-  available,
   stage,
   post
 }: {
   photos: string[]
-  available: number[]
   stage: {current: Stage}
-  post: (command: SceneCommand) => void
+  post: (command: SceneCommand, transfer?: Transferable[]) => void
 }) {
   const sectionRef = useRef<HTMLElement | null>(null)
   const frameRef = useRef<HTMLDivElement>(null)
-  const stateRef = useRef<SequenceState>(initialState())
+  // 読めなかった写真の番号。選ばない
+  const [broken, setBroken] = useState<readonly number[]>([])
+  // 写真の粒子の表を、要るときに読み込んで舞台のアトラスへ上げる
+  const [library] = useState(() =>
+    createLibrary(PHOTOS, (slot, table) => post({hero: {upload: {slot, table}}}, [table.buffer]), setBroken)
+  )
+  useEffect(() => () => library.dispose(), [library])
+  const [initial] = useState(() => initialState({count: PHOTOS.length, seen: [0], broken: []}))
+  const stateRef = useRef<SequenceState>(initial)
   const timingRef = useRef<Timing>(timingOf(DEFAULT_TUNING))
   const interactionRef = useRef<Interaction>(DEFAULT_INTERACTION)
+  // 最後に送った組（アトラスの枠の番号）と、その両端の写真の番号。送った組の写真は、次の組を送るまで枠から外させない
+  // （番号を押したときの位置の打ち消しが、前の組を読むため）
   const lastFrame = useRef<Frame>({from: -1, to: -1, phase: -1})
+  const lastPhotos = useRef<number[]>([])
+  // カーソルを乗せた（指で触れた）番号。押される前に読み込んでおく
+  const intent = useRef<number | null>(null)
   const lastTime = useRef(0)
   const lastScrolled = useRef(0)
   const calendarRef = useRef<HTMLDivElement>(null)
@@ -99,7 +110,7 @@ export function Hero({
       }),
     [index, PHOTOS.length]
   )
-  const order = useMemo<Order>(() => ({available, seen}), [available, seen])
+  const order = useMemo<Order>(() => ({count: PHOTOS.length, seen, broken}), [PHOTOS.length, seen, broken])
   // 並べ方は画面の形で決める。写真が大きくなるほうを選ぶ
   const viewport = useViewport()
   const direction = chooseDirection(viewport.width, viewport.height, PHOTOS.length)
@@ -179,14 +190,27 @@ export function Hero({
       }
 
       const timing = timingRef.current
+      // 行き先を読み終えるまでは遷移を始めない
+      const ready = (photo: number) => library.slotOf(photo) !== null
       if (shown) {
         // 集まり始めたら次の写真へは進めない。自動再生を切ったときと同じく、進行中の遷移は完走させる
         if (autoplay && gather === 0) {
-          stateRef.current = advance(stateRef.current, delta, order, timing)
+          stateRef.current = advance(stateRef.current, delta, order, timing, ready)
         } else {
-          stateRef.current = settle(stateRef.current, delta, timing)
+          stateRef.current = settle(stateRef.current, delta, timing, ready)
         }
       }
+      // 要る写真を要る順に渡す。今の組、送った組、その次の 1 枚、カーソルを乗せた番号
+      const state = stateRef.current
+      library.want([
+        ...new Set([
+          state.from,
+          state.to,
+          ...lastPhotos.current,
+          state.after,
+          ...(intent.current === null ? [] : [intent.current])
+        ])
+      ])
 
       const {attack, release, returnSeconds, stopBelow} = interactionRef.current
 
@@ -194,13 +218,20 @@ export function Hero({
       // 動きを減らす設定では中点で切り替えるだけにして、粒子の移動を見せない
       const phase = reduced ? (linear < 0.5 ? 0 : 1) : linear
 
-      const previous = lastFrame.current
-      if (from !== previous.from || to !== previous.to || phase !== previous.phase) {
-        lastFrame.current = {from, to, phase}
-        command.render = {from, to, phase}
-        // 丸は遷移の開始で動かす。粒子が飛んでいるあいだに次の番号へ移る
-        setIndex(phase > 0 ? to : from)
+      // 組は枠の番号で送る。最初の写真を読み終えるまでは送らない。行き先を読み終えていないあいだは遷移が始まらない
+      // （phase 0）ので、今の写真だけで組を作る
+      const fromSlot = library.slotOf(from)
+      if (fromSlot !== null) {
+        const toSlot = library.slotOf(to) ?? fromSlot
+        const previous = lastFrame.current
+        if (fromSlot !== previous.from || toSlot !== previous.to || phase !== previous.phase) {
+          lastFrame.current = {from: fromSlot, to: toSlot, phase}
+          lastPhotos.current = toSlot === fromSlot ? [from] : [from, to]
+          command.render = lastFrame.current
+        }
       }
+      // 丸は遷移の開始で動かす。粒子が飛んでいるあいだに次の番号へ移る。番号を押したときは、すぐ移す
+      setIndex(stateRef.current.chosen || phase > 0 ? to : from)
 
       // 行き先が変わったフレームは、基準位置の飛びを worker 側でズレに振り替える。
       // そのズレが戻りきるまで更新を回す必要があるので、残り時間も入れ直す
@@ -253,7 +284,7 @@ export function Hero({
         bar.style.setProperty('--progress', String(progress))
         bar.style.setProperty('--morph', `${morph * 100}%`)
       }
-    }, [autoplay, order, reduced, send, stage, takePointer])
+    }, [autoplay, library, order, reduced, send, stage, takePointer])
   )
 
   // 行き先が変わったフレームは worker 側で位置の飛びを打ち消す（番号のクリック）
@@ -364,13 +395,14 @@ export function Hero({
       <div ref={calendarRef} className={`relative -z-10 shrink-0 ${visible ? 'pointer-events-auto' : ''}`}>
         <ControlPanel
           count={PHOTOS.length}
-          available={available}
+          broken={broken}
           seen={seen}
           index={index}
           layout={layout}
           tone={tone}
           width={panel}
           onSelect={(target) => go(jumpTo(stateRef.current, target, order, timingRef.current))}
+          onIntent={(target) => (intent.current = target)}
         />
       </div>
       {import.meta.env.DEV && (

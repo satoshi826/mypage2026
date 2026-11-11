@@ -5,49 +5,24 @@ export const SOURCE_H = 800
 
 /**
  * 粒子グリッド。粒子の数、写真をサンプリングする解像度、アトラス上の1ブロックの
- * 寸法を兼ねる。起動時に決まり、配信解像度が上限になる（配信物より細かくはできない）。
+ * 寸法を兼ねる。配信解像度が上限になる（配信物より細かくはできない）。
  */
 export type Grid = {width: number; height: number; count: number}
 
 /** 縦横比。全写真をこれで扱う */
 export const ASPECT = SOURCE_W / SOURCE_H
-/** これ以下に落とすと写真として成立しないという下限 */
-const MIN_HEIGHT = 256
-/**
- * アトラス全体のバイト数の上限。枚数が増えると自動的にグリッドが下がる。
- * 31 枚（カレンダーの上限）でも配信解像度（1200 × 800）のまま持てる大きさにしてある（約 114MB）。
- * 実際の確保量は矩形に敷き詰めた分だけ数%上振れする（layoutFor 参照）。
- */
-const VRAM_BUDGET = 120 * 1024 * 1024
-
-const gridOf = (height: number): Grid => {
-  const width = Math.round(height * ASPECT)
-  return {width, height, count: width * height}
-}
-
-/** その高さのブロックが、テクスチャ上限の中に count 枚ぶん並ぶか */
-const fitsInTexture = (height: number, limit: number, count: number) => {
-  const {width} = gridOf(height)
-  return Math.floor(limit / width) * Math.floor(limit / height) >= count
-}
 
 /**
- * 起動時に粒子グリッドを決める。既定は配信解像度そのままで、
- * VRAM予算とテクスチャ上限に収まらないときだけ落とす。
- *
- * 画面サイズは見ない。小さい画面に合わせて落とすと、ウィンドウを広げたときに
- * 粗いままになり、直すには作り直しが要る。作り直しは数百msの停止を伴うので、
- * 常に配信解像度で持つほうが単純で体験も良いという判断。
+ * 粒子グリッドは配信解像度そのまま。アトラスに置く写真は SLOTS 枚に限るので、写真の枚数が増えても落とさない。
+ * 画面サイズも見ない。小さい画面に合わせて落とすと、ウィンドウを広げたときに粗いままになる
  */
-export function chooseGrid({textureLimit, count}: {textureLimit: number; count: number}): Grid {
-  const byBudget = Math.floor(Math.sqrt(VRAM_BUDGET / (4 * count * ASPECT)))
-  let height = Math.max(MIN_HEIGHT, Math.min(SOURCE_H, byBudget))
-  while (height > MIN_HEIGHT && !fitsInTexture(height, textureLimit, count)) height -= 8
-  if (!fitsInTexture(height, textureLimit, count)) {
-    throw new Error(`写真がテクスチャに収まらない: ${count}枚 / 上限 ${textureLimit}px`)
-  }
-  return gridOf(height)
-}
+export const GRID: Grid = {width: SOURCE_W, height: SOURCE_H, count: SOURCE_W * SOURCE_H}
+
+/**
+ * アトラスに同時に置く写真の枚数。描いている組（2 枚）と、行き先と 1 枚先（番号を押した直後は、描いている組のほかに
+ * 2 枚）と、カーソルを乗せた番号の先読み（1 枚）が収まる数（hero/library.ts）
+ */
+export const SLOTS = 5
 
 const LEVELS = 256
 

@@ -133,11 +133,11 @@ async function inlineStyles(html) {
 }
 
 /**
- * 先読みのヒント。トップは「JS の起動 → hero チャンク → worker」と
+ * 先読みのヒント。トップは「JS の起動 → hero チャンク → worker（描画と写真の読み込み）」と
  * 直列に待ってから写真を取りに行くので、HTML の時点で後ろの段を取り始めさせる。
  * 写真の一覧は、トップと Photos では Worker が HTML に埋め込むので、ここでは先読みしない（worker/index.ts）。
  * hero は lazy import なので、チャンク名はビルドの対応表から引く。
- * worker のチャンクは対応表に出ないので、dist/assets の名前で探す。
+ * worker のチャンク（舞台の worker と、写真の読み込み用の loader）は対応表に出ないので、dist/assets の名前で探す。
  * worker のスクリプトは別コンテキストが読むので preload では「使われない」扱いになり
  * 警告が出る。HTTP キャッシュを温めるだけの prefetch にする。
  * 写真そのものは一覧（R2）次第なので、ここでは出せない。Worker が応答ヘッダで足す（worker/index.ts）。
@@ -145,11 +145,19 @@ async function inlineStyles(html) {
 async function preloadHints() {
   const manifest = JSON.parse(await readFile(join(dist, '.vite', 'manifest.json'), 'utf8'))
   const hero = manifest['src/scene/Scene.tsx']?.file
-  const worker = (await readdir(join(dist, 'assets'))).find((name) => /^worker-.*\.js$/.test(name))
-  if (!hero || !worker) throw new Error('hero のチャンクが見つからない。vite.config の build.manifest を確認する')
+  const assets = await readdir(join(dist, 'assets'))
+  const workers = ['worker', 'loader'].map((name) =>
+    assets.find((file) => file.startsWith(`${name}-`) && file.endsWith('.js'))
+  )
+  if (!hero || workers.includes(undefined)) {
+    throw new Error('hero のチャンクが見つからない。vite.config の build.manifest を確認する')
+  }
 
   return (path) =>
     path === '/'
-      ? [`<link rel="prefetch" href="/assets/${worker}" as="script">`, `<link rel="modulepreload" href="/${hero}">`]
+      ? [
+          ...workers.map((file) => `<link rel="prefetch" href="/assets/${file}" as="script">`),
+          `<link rel="modulepreload" href="/${hero}">`
+        ]
       : []
 }
