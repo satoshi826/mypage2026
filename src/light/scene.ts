@@ -18,8 +18,8 @@ import {halfFloatFormat} from '../scene/halfFloat'
 //
 // 速さのための作り:
 // - ロゴは長方形 7 つ（logo.ts）なので、光線との交わりを式で直接求める。少しずつ進めて当たりを探さない
-// - 光線の経路は 2 段で描く。まず頂点 1 つが光線 1 本の経路をたどり、線分の両端（ENDS 個）をバッファに書き出す
-//   （transform feedback）。次にそのバッファをそのまま線として描く。線を描く頂点ごとに経路をたどり直すと、同じ経路を
+// - 光線の経路は 2 段で描く。まず頂点 1 つが光線 1 本の経路をたどり、たどった点（POINTS 個）をバッファに書き出す
+//   （transform feedback）。次にその点を 2 つずつ結んで線として描く。線を描く頂点ごとに経路をたどり直すと、同じ経路を
 //   何度も計算することになる
 // - 光線の向きは全周を等分した区画の中で毎フレームずらし、前のフレームの結果と混ぜて、光線のすき間をならす。
 //   スクロールで上の光が動いたときは、前のフレームの結果を光が動いたぶんずらしてから混ぜる（跡を引かない）。
@@ -40,11 +40,14 @@ const GRABBED_KEEP = 0.5
 /** 1 本の光線が描く線分の数の上限（光源からの 1 本 + 跳ね返り 8 回）。tuning.ts の跳ね返りの上限と合わせる */
 const MAX_SEGMENTS = 9
 
-/** 1 本の光線の経路に書き出す頂点の数。線分ごとに始点と終点 */
-const ENDS = MAX_SEGMENTS * 2
+/**
+ * 1 本の光線の経路に書き出す点の数。光源と、線分ごとの終点。頂点シェーダの出力の数でもあり、WebGL2 が保証する
+ * 16 個（64 成分）に収める（線分ごとに始点と終点を書くと 18 個になり、リンクできない端末がある）
+ */
+const POINTS = MAX_SEGMENTS + 1
 
-/** 線分の端 1 つのバイト数。位置と、その線分の明るさ（float 3 つ） */
-const END_BYTES = 12
+/** 経路の点 1 つのバイト数。位置と、その点で終わる線分の明るさ（float 3 つ） */
+const POINT_BYTES = 12
 
 /**
  * 光をためる層の、CSS px あたりの画素数の上限。これより細かい画面（3 倍のスマホなど）でも、層はこの細かさで持つ。
@@ -72,8 +75,8 @@ export function createLightScene(core: Core, pixelRatio: number) {
   const frameLayer = layer()
   const acc = [layer(), layer()]
 
-  // 光線 1 本の経路をたどり、線分の両端を v_end0〜（ENDS 個）に書き出す。描かない（RASTERIZER_DISCARD）
-  const outputs = Array.from({length: ENDS}, (_, i) => `v_end${i}`)
+  // 光線 1 本の経路をたどり、たどった点を v_point0〜（POINTS 個）に書き出す。描かない（RASTERIZER_DISCARD）
+  const outputs = Array.from({length: POINTS}, (_, i) => `v_point${i}`)
   const trace = new Program(core, {
     id: 'trace',
     attributeTypes: {},
@@ -218,9 +221,10 @@ export function createLightScene(core: Core, pixelRatio: number) {
           float falloff = cos(across * TAU * 0.25);
           energy = u_upperPower * mix(1.0, falloff * falloff, u_focus) / (pointRays * mix(1.0, 0.5, u_focus));
         }
-        // 線分 s の始点と終点。z にその線分の明るさを持つ。光線が終わったあとの線分は明るさ 0 のまま
-        vec3 ends[${ENDS}];
-        for (int i = 0; i < ${ENDS}; i++) ends[i] = vec3(0.0);
+        // たどった点。点 s + 1 が線分 s の終点で、z にその線分の明るさを持つ（光源の点 0 の z は使わない）
+        vec3 points[${POINTS}];
+        points[0] = vec3(pos, 0.0);
+        int reached = 0;
         int segments = int(u_bounces) + 1;
         // 光線がガラスのロゴの中にいるか
         bool inside = false;
@@ -233,8 +237,8 @@ export function createLightScene(core: Core, pixelRatio: number) {
           vec2 d = next - pos;
           float extent = max(abs(d.x), abs(d.y));
           float lit = energy * (extent > 0.0 ? length(d) / extent : 1.0);
-          ends[2 * s] = vec3(pos, lit);
-          ends[2 * s + 1] = vec3(next, lit);
+          points[s + 1] = vec3(next, lit);
+          reached = s + 1;
           // ガラスの中から出る面に着いた。屈折して外へ出るか、中へ返る。normal は外向き
           if (inside) {
             vec2 leave = refract(dir, -normal, u_ior);
@@ -276,7 +280,9 @@ export function createLightScene(core: Core, pixelRatio: number) {
           energy *= u_albedo;
           pos = next + normal * 0.01;
         }
-        ${outputs.map((name, i) => `${name} = ends[${i}];`).join('\n        ')}
+        // 光線が終わったあとの点は最後の点に重ね、明るさ 0 の長さのない線分にする（何も描かれない）
+        for (int i = 0; i < ${POINTS}; i++) if (i > reached) points[i] = vec3(points[reached].xy, 0.0);
+        ${outputs.map((name, i) => `${name} = points[${i}];`).join('\n        ')}
       }`,
     frag: /* glsl */ `
       out vec4 o_color;
@@ -284,7 +290,7 @@ export function createLightScene(core: Core, pixelRatio: number) {
         o_color = vec4(0.0);
       }`
   })
-  // glaku は書き出しを出力ごとに別のバッファへ分ける形でしかリンクせず、4 つまでしか書き出せない。線分の端を 1 つのバッファへ
+  // glaku は書き出しを出力ごとに別のバッファへ分ける形でしかリンクせず、4 つまでしか書き出せない。経路の点を 1 つのバッファへ
   // 並べて書き出すよう、リンクし直す（シェーダは付いたままなので、もう一度リンクできる）
   {
     const linked = core.program[trace.id]
@@ -293,9 +299,12 @@ export function createLightScene(core: Core, pixelRatio: number) {
     if (!gl.getProgramParameter(linked, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(linked) ?? 'link error')
     core.setUniLoc(trace.id, Object.keys(trace.uniforms) as `u_${string}`[])
   }
-  // 光線の経路の線分の両端。光線の数の上限ぶん持ち、tune で大きさを決める
+  // 光線の経路の点。光線の数の上限ぶん持ち、tune で大きさを決める
   const paths = gl.createBuffer()
-  let pathBytes = 0
+  // 線分ごとに、始点と終点の点の番号を並べた表。光線の数の上限ぶん持つ
+  const pairs = gl.createBuffer()
+  /** 経路の点のバッファと線分の表を、何本の光線ぶん持っているか */
+  let maxRays = 0
   const capture = gl.createTransformFeedback()
   gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, capture)
   gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, paths)
@@ -304,22 +313,22 @@ export function createLightScene(core: Core, pixelRatio: number) {
   // 経路をたどる段は頂点の属性を読まない。属性のない VAO で描く
   const noAttributes = gl.createVertexArray()
 
-  // 書き出した線分の両端を、そのまま線として描く
+  // 書き出した経路の点を、表のとおりに 2 つずつ結んで線として描く
   const lines = new Program(core, {
     id: 'lines',
-    attributeTypes: {a_end: 'vec3'},
+    attributeTypes: {a_point: 'vec3'},
     uniformTypes: {u_size: 'vec2', u_scale: 'float'},
     vert: /* glsl */ `
-      out float v_energy;
+      flat out float v_energy;
       void main() {
         // 線の幅は層の 1 画素なので、層の画素が細かいほど（画面の密度や解像度が高いほど）1 画素あたりの明るさが薄まる。
-        // 1 CSS px あたりの層の画素数（u_scale）を掛け、画面によらず同じ明るさにする
-        v_energy = a_end.z * u_scale;
-        // 明るさ 0 の線分（光線が終わったあと）は、画面の外へ置いて描かない。両端とも明るさ 0 なので線ごと外れる
-        gl_Position = a_end.z > 0.0 ? vec4(a_end.x / u_size.x * 2.0 - 1.0, 1.0 - a_end.y / u_size.y * 2.0, 0.0, 1.0) : vec4(2.0, 2.0, 0.0, 1.0);
+        // 1 CSS px あたりの層の画素数（u_scale）を掛け、画面によらず同じ明るさにする。
+        // 線の明るさは、線の終点（flat の値を決める頂点）が持つ、その点で終わる線分の明るさ
+        v_energy = a_point.z * u_scale;
+        gl_Position = vec4(a_point.x / u_size.x * 2.0 - 1.0, 1.0 - a_point.y / u_size.y * 2.0, 0.0, 1.0);
       }`,
     frag: /* glsl */ `
-      in float v_energy;
+      flat in float v_energy;
       out vec4 o_color;
       void main() {
         o_color = vec4(vec3(v_energy), 1.0);
@@ -328,8 +337,9 @@ export function createLightScene(core: Core, pixelRatio: number) {
   const segments = gl.createVertexArray()
   gl.bindVertexArray(segments)
   gl.bindBuffer(gl.ARRAY_BUFFER, paths)
-  gl.enableVertexAttribArray(core.attLoc.a_end)
-  gl.vertexAttribPointer(core.attLoc.a_end, 3, gl.FLOAT, false, END_BYTES, 0)
+  gl.enableVertexAttribArray(core.attLoc.a_point)
+  gl.vertexAttribPointer(core.attLoc.a_point, 3, gl.FLOAT, false, POINT_BYTES, 0)
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, pairs)
   gl.bindVertexArray(null)
   gl.bindBuffer(gl.ARRAY_BUFFER, null)
   /**
@@ -411,13 +421,24 @@ export function createLightScene(core: Core, pixelRatio: number) {
       u_underCone: (tuning.underCone * Math.PI) / 180,
       u_upperCone: (tuning.upperCone * Math.PI) / 180
     })
-    // 線分の端のバッファは光線の数の上限で決まるので、変わったら取り直す。光線の数が変わっても取り直さない
-    const bytes = tuning.maxRays * ENDS * END_BYTES
-    if (bytes !== pathBytes) {
-      pathBytes = bytes
+    // 経路の点のバッファと線分の表は光線の数の上限で決まるので、変わったら作り直す。光線の数が変わっても作り直さない
+    if (tuning.maxRays !== maxRays) {
+      maxRays = tuning.maxRays
       gl.bindBuffer(gl.ARRAY_BUFFER, paths)
-      gl.bufferData(gl.ARRAY_BUFFER, bytes, gl.DYNAMIC_COPY)
+      gl.bufferData(gl.ARRAY_BUFFER, maxRays * POINTS * POINT_BYTES, gl.DYNAMIC_COPY)
       gl.bindBuffer(gl.ARRAY_BUFFER, null)
+      // 光線 r の線分 s は、点 r * POINTS + s から次の点まで。表は VAO（segments）に結んであるので、VAO を結んで書く
+      const table = new Uint32Array(maxRays * MAX_SEGMENTS * 2)
+      for (let r = 0; r < maxRays; r++) {
+        for (let s = 0; s < MAX_SEGMENTS; s++) {
+          table[(r * MAX_SEGMENTS + s) * 2] = r * POINTS + s
+          table[(r * MAX_SEGMENTS + s) * 2 + 1] = r * POINTS + s + 1
+        }
+      }
+      gl.bindVertexArray(segments)
+      core.currentVao = null
+      gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, table, gl.STATIC_DRAW)
+      gl.bindVertexArray(null)
     }
     layout()
   }
@@ -472,7 +493,7 @@ export function createLightScene(core: Core, pixelRatio: number) {
     })
 
     frameLayer.clear()
-    // 経路をたどって線分の両端を書き出す
+    // 経路をたどって点を書き出す
     gl.bindVertexArray(noAttributes)
     core.currentVao = null
     bind(trace)
@@ -487,7 +508,7 @@ export function createLightScene(core: Core, pixelRatio: number) {
     core.blend('ADDITIVE')
     gl.bindVertexArray(segments)
     bind(lines)
-    gl.drawArrays(gl.LINES, 0, count * ENDS)
+    gl.drawElements(gl.LINES, count * MAX_SEGMENTS * 2, gl.UNSIGNED_INT, 0)
     gl.bindVertexArray(null)
     gl.disable(gl.BLEND)
 

@@ -177,6 +177,10 @@ gl.linkProgram(linked)
 core.setUniLoc(program.id, Object.keys(program.uniforms))
 ```
 
+書き出す値は頂点シェーダの出力（`out`）なので、出力の数の上限にも縛られる。WebGL2 が保証するのは 64 成分で、
+`vec3` も 1 つで 1 行（4 成分）ぶんを取るため、**出力は 16 個まで**。17 個以上だと、上限が保証値どおりの端末
+（Android の Mali など）でだけリンクに失敗する（手元の Mac では通る）。
+
 描くのは自分で（`gl.drawArrays`）。glaku は今結んでいる VAO・プログラムを覚えていて、同じなら結び直さない。
 自分で `gl.bindVertexArray` したら `core.currentVao = null` にして、glaku が次に結び直すようにする。
 プログラムと uniform は `core.useProgram(program.id)` と `core.setUniforms(program.uniforms)` で glaku に結ばせる。
