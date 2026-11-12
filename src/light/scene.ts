@@ -339,7 +339,7 @@ export function createLightScene(core: Core, pixelRatio: number) {
   /** 動いている度合い（0〜1）。動くと上がり、止まるとなめらかに 0 へ戻る */
   let moving = 0
   /** 前のフレームの光の向きと素材。回しているあいだと切り替えているあいだも動いているものとする */
-  let lastTurn = ''
+  let lastTurn = {upper: 0, under: 0, glass: 0, metal: 0}
 
   const layout = () => {
     const {width, height} = size
@@ -397,17 +397,26 @@ export function createLightScene(core: Core, pixelRatio: number) {
     const top = Math.round(logo.y - (LOGO_HEIGHT * unit) / 2)
     const {width, height} = size
     blend.setUniform({u_shift: [-(upper.base.x - lastBase.x) / width, (upper.base.y - lastBase.y) / height]})
+    // 光の向きが変わったぶんは、ロゴのところで光が横へずれる量（px）に直して、位置の動きと同じに数える。
+    // 向きはロゴを追ってなめらかに寄せるので、光源がわずかに揺れるだけでも毎フレーム小さく変わる（スマホでスクロールの
+    // 値が揺れるときなど）。少しでも変われば動いているとみなすと、止まっていても前の結果を残す割合が上がらない
+    const center = {x: left + (LOGO_WIDTH * unit) / 2, y: top + (LOGO_HEIGHT * unit) / 2}
+    const swing = (lamp: Lamp, was: number) =>
+      Math.abs(Math.atan2(Math.sin(lamp.angle - was), Math.cos(lamp.angle - was))) *
+      Math.hypot(center.x - lamp.x, center.y - lamp.y)
     const moved =
       Math.hypot(upper.x - lastLamps.upper.x, upper.y - lastLamps.upper.y) +
       Math.hypot(under.x - lastLamps.under.x, under.y - lastLamps.under.y) +
       Math.hypot(left - lastLogo.x, top - lastLogo.y) +
-      Math.abs(unit - lastLogo.unit) * LOGO_WIDTH
-    const turn = [upper.angle, under.angle, material.glass, material.metal].join()
-    moving = Math.max(Math.min(1, moved / MOVING_PX), turn === lastTurn ? 0 : 1, moving * SETTLE_RATE)
+      Math.abs(unit - lastLogo.unit) * LOGO_WIDTH +
+      swing(upper, lastTurn.upper) +
+      swing(under, lastTurn.under)
+    const switching = material.glass !== lastTurn.glass || material.metal !== lastTurn.metal
+    moving = Math.max(Math.min(1, moved / MOVING_PX), switching ? 1 : 0, moving * SETTLE_RATE)
     lastBase = upper.base
     lastLamps = {upper: {x: upper.x, y: upper.y}, under: {x: under.x, y: under.y}}
     lastLogo = {x: left, y: top, unit}
-    lastTurn = turn
+    lastTurn = {upper: upper.angle, under: under.angle, glass: material.glass, metal: material.metal}
     seed = (seed + 1) % 1_000_000
     logoShape = {
       rects: LOGO_RECTS.flatMap(([l, t, r, b]) => [left + l * unit, top + t * unit, left + r * unit, top + b * unit]),
