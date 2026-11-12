@@ -21,7 +21,7 @@ export const ROUTES: RouteDef[] = [
   {
     path: '/',
     label: null,
-    title: `${NAME} (mu) — Photographer`,
+    title: `mu / ${NAME} — Photographer`,
     description: 'mu / Satoshi Hata / 端 智士。東京・神奈川を拠点に street / architecture を撮る写真家。'
   },
   // Photos はカテゴリ別の URL（/photos/:category）。ナビの Photos は street を指し、ほかはフッターの
