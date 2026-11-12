@@ -155,12 +155,12 @@ export function Light({
     setMaterialState(next)
   }, [])
   // ロゴの形の動き。選んだ時刻からループし、選んだときの形から MOTION_BLEND_SECONDS かけて移る（Still に戻すときも）。
-  // random のあいだは、流している動き（playing）が 1 周したら次の動きへ、そのときの形から同じように移る
+  // cycle のあいだは、流している動き（playing）が 1 周したら次の動きへ、そのときの形から同じように移る
   const [motion, setMotionState] = useState<Motion>('still')
   const shape = useRef<Shape>(LOGO_SHAPE)
   const playing = useRef<{loop: Loop | 'still'; at: number; from: Shape}>({loop: 'still', at: 0, from: LOGO_SHAPE})
   const setMotion = useCallback((next: Motion) => {
-    const loop = next === 'random' ? nextLoop(null) : next
+    const loop = next === 'cycle' ? nextLoop(null) : next
     playing.current = {loop, at: performance.now(), from: shape.current}
     setMotionState(next)
   }, [])
@@ -372,7 +372,7 @@ export function Light({
     const from = change.from
     mix.current = {glass: from.glass + (to.glass - from.glass) * r, metal: from.metal + (to.metal - from.metal) * r}
     const current = playing.current
-    if (motion === 'random' && current.loop !== 'still' && (now - current.at) / 1000 >= PERIOD[current.loop])
+    if (motion === 'cycle' && current.loop !== 'still' && (now - current.at) / 1000 >= PERIOD[current.loop])
       playing.current = {loop: nextLoop(current.loop), at: now, from: shape.current}
     const {loop, from: start} = playing.current
     const since = (now - playing.current.at) / 1000

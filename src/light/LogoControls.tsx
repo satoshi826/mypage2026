@@ -14,17 +14,18 @@ const MOTION_LABELS: Record<Motion, string> = {
   open: 'Open',
   wave: 'Wave',
   line: 'Line',
-  flip: 'Flip',
-  bounce: 'Bounce',
-  level: 'Level',
-  scan: 'Scan',
   swap: 'Swap',
   spin: 'Spin',
   twist: 'Twist',
   swing: 'Swing',
   orbit: 'Orbit',
   fan: 'Fan',
-  random: 'Random'
+  dots: 'Dots',
+  ring: 'Ring',
+  flower: 'Flower',
+  cradle: 'Cradle',
+  orb: 'Orb',
+  cycle: 'Cycle'
 }
 const LAMP_LABELS: Record<LampKey, string> = {upper: 'Top', under: 'Bottom'}
 
@@ -179,7 +180,7 @@ function LogoSettings({controls, focusable}: {controls: Controls; focusable: boo
         ))}
       </div>
       <span className={SECTION}>Motion</span>
-      {/* 選んだ動きをループする。Random はループする動きをランダムな順に次々流す。Still でロゴに戻る。
+      {/* 選んだ動きをループする。Cycle はループする動きを順に次々流す。Still でロゴに戻る。
           数が多いので、入れ物の幅で折り返し、1 行の高さはほかの欄と同じにする */}
       <div className="col-span-3 flex max-w-80 flex-wrap gap-x-6 *:h-10 max-sm:max-w-60 max-sm:gap-x-3">
         {MOTIONS.map((m) => (

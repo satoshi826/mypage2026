@@ -2,6 +2,7 @@ import {Core, Program, Renderer, Vao, plane2D} from 'glaku'
 import {applyHero, createHeroScene, type HeroCommand} from '../hero/scene'
 import {createLightScene, type LightCommand} from '../light/scene'
 import {LOGO_RECTS} from '../light/logo'
+import {DOTS} from '../light/motion'
 import {DEFAULT_LIGHT} from '../light/tuning'
 
 // トップの舞台の canvas。写真の粒子（hero）と、光がロゴを照らす層（light）を 1 枚の canvas に描く。
@@ -60,7 +61,8 @@ function createStage(canvas: OffscreenCanvas, pixelRatio: number) {
       u_logo: 'float',
       u_logoColor: 'float',
       u_logoRects: `vec4[${LOGO_RECTS.length}]`,
-      u_logoTurns: `vec2[${LOGO_RECTS.length}]`
+      u_logoTurns: `vec2[${LOGO_RECTS.length}]`,
+      u_logoDots: `vec3[${DOTS}]`
     },
     texture: {t_light: empty, t_photo: empty},
     vert: /* glsl */ `
@@ -86,6 +88,11 @@ function createStage(canvas: OffscreenCanvas, pixelRatio: number) {
           vec2 q = vec2(turn.x * v.x + turn.y * v.y, turn.x * v.y - turn.y * v.x);
           vec2 overlap = clamp((min(q + h, reach) - max(q - h, -reach)) / (2.0 * h), 0.0, 1.0);
           cover += overlap.x * overlap.y;
+        }
+        // 円（中心と半径）。縁から画素 1 つぶんでなめらかに覆う
+        for (int i = 0; i < ${DOTS}; i++) {
+          vec3 c = u_logoDots[i];
+          if (c.z > 0.0) cover += clamp((c.z - distance(p, c.xy)) / (2.0 * h.x) + 0.5, 0.0, 1.0);
         }
         float body = u_logo * min(cover, 1.0);
         float c = u_lit * (1.0 - exp(-texture(t_light, v_uv).r));
@@ -116,7 +123,12 @@ function createStage(canvas: OffscreenCanvas, pixelRatio: number) {
     }
     const logo = light.logo()
     if (logo)
-      compose.setUniform({u_logoRects: logo.rects, u_logoTurns: logo.turns, u_logoColor: tuning.logoColor / 255})
+      compose.setUniform({
+        u_logoRects: logo.rects,
+        u_logoTurns: logo.turns,
+        u_logoDots: logo.dots,
+        u_logoColor: tuning.logoColor / 255
+      })
     compose.setUniform({
       u_lit: glow ? 1 : 0,
       u_photo: photo ? 1 : 0,

@@ -1,6 +1,6 @@
 import {type Core, Program, Renderer, Vao, plane2D} from 'glaku'
 import {LOGO_HEIGHT, LOGO_RECTS, LOGO_WIDTH} from './logo'
-import {turnBetween, type Shape} from './motion'
+import {DOTS, turnBetween, type Shape} from './motion'
 import {DEFAULT_LIGHT, type LightTuning} from './tuning'
 import {halfFloatFormat} from '../scene/halfFloat'
 
@@ -99,7 +99,8 @@ export function createLightScene(core: Core, pixelRatio: number) {
       u_underSize: 'float',
       u_underCone: 'float',
       u_rects: `vec4[${LOGO_RECTS.length}]`,
-      u_turns: `vec2[${LOGO_RECTS.length}]`
+      u_turns: `vec2[${LOGO_RECTS.length}]`,
+      u_dots: `vec3[${DOTS}]`
     },
     vert: /* glsl */ `
       out float v_energy;
@@ -147,6 +148,26 @@ export function createLightScene(core: Core, pixelRatio: number) {
         }
       }
 
+      // 円 c（中心と半径）を光線 ro + rd t が通る区間 [入る t, 出る t]。通らない（半径 0 も）なら入る t > 出る t
+      vec2 crossDot(vec2 ro, vec2 rd, vec3 c) {
+        vec2 oc = ro - c.xy;
+        float b = dot(oc, rd);
+        float disc = b * b - dot(oc, oc) + c.z * c.z;
+        if (c.z <= 0.0 || disc <= 0.0) return vec2(1.0, 0.0);
+        float s = sqrt(disc);
+        return vec2(-b - s, -b + s);
+      }
+
+      // 円 c に、今の best より手前で当たれば、best と面の向きを書き換える
+      void hitDot(vec2 ro, vec2 rd, vec3 c, inout float best, inout vec2 normal, inout bool solid) {
+        vec2 span = crossDot(ro, rd, c);
+        if (span.x < span.y && span.x > 1e-3 && span.x < best) {
+          best = span.x;
+          solid = true;
+          normal = normalize(ro + rd * span.x - c.xy);
+        }
+      }
+
       // 光線 ro + rd t が最初にロゴに当たるところまでの距離と、当たった面の向き（normal）。当たれば solid。
       // 当たらなければ遠くまで伸ばす（画面の外は描かれない）
       float trace(vec2 ro, vec2 rd, out vec2 normal, out bool solid) {
@@ -154,16 +175,17 @@ export function createLightScene(core: Core, pixelRatio: number) {
         normal = vec2(0.0);
         solid = false;
         for (int i = 0; i < ${LOGO_RECTS.length}; i++) hitRect(ro, rd, u_rects[i], u_turns[i], best, normal, solid);
+        for (int i = 0; i < ${DOTS}; i++) hitDot(ro, rd, u_dots[i], best, normal, solid);
         return best;
       }
 
       // ガラスのロゴの中（ro）から rd へ進んだ光線が、ロゴの外へ出るところまでの距離と、出る面の外向きの向き（normal）。
-      // 長方形どうしは辺を接している（動かしているあいだは重なることもある）ので、出た先がほかの長方形の中なら、そのまま
-      // 通り抜けて先を探す
+      // 長方形どうしは辺を接している（動かしているあいだは長方形や円が重なることもある）ので、出た先がほかの長方形か円の
+      // 中なら、そのまま通り抜けて先を探す
       float traceInside(vec2 ro, vec2 rd, out vec2 normal) {
         float t = 0.0;
         normal = rd;
-        for (int k = 0; k < ${LOGO_RECTS.length}; k++) {
+        for (int k = 0; k < ${LOGO_RECTS.length + DOTS}; k++) {
           vec2 p = ro + rd * (t + 1e-3);
           int found = -1;
           for (int i = 0; i < ${LOGO_RECTS.length}; i++) {
@@ -171,16 +193,27 @@ export function createLightScene(core: Core, pixelRatio: number) {
             vec2 q = toLocal(p - (r.xy + r.zw) * 0.5, u_turns[i]);
             if (all(lessThanEqual(abs(q), (r.zw - r.xy) * 0.5))) found = i;
           }
-          if (found < 0) break;
-          vec4 r = u_rects[found];
-          vec2 turn = u_turns[found];
-          vec2 reach = (r.zw - r.xy) * 0.5;
-          vec2 o = toLocal(ro - (r.xy + r.zw) * 0.5, turn);
-          vec2 d = toLocal(rd, turn);
-          vec2 inv = reciprocal(d);
-          vec2 far = max((-reach - o) * inv, (reach - o) * inv);
-          t = min(far.x, far.y);
-          normal = toWorld(far.x < far.y ? vec2(sign(d.x), 0.0) : vec2(0.0, sign(d.y)), turn);
+          int dot = -1;
+          for (int i = 0; i < ${DOTS}; i++) {
+            vec3 c = u_dots[i];
+            if (c.z > 0.0 && distance(p, c.xy) <= c.z) dot = i;
+          }
+          if (found < 0 && dot < 0) break;
+          if (found >= 0) {
+            vec4 r = u_rects[found];
+            vec2 turn = u_turns[found];
+            vec2 reach = (r.zw - r.xy) * 0.5;
+            vec2 o = toLocal(ro - (r.xy + r.zw) * 0.5, turn);
+            vec2 d = toLocal(rd, turn);
+            vec2 inv = reciprocal(d);
+            vec2 far = max((-reach - o) * inv, (reach - o) * inv);
+            t = min(far.x, far.y);
+            normal = toWorld(far.x < far.y ? vec2(sign(d.x), 0.0) : vec2(0.0, sign(d.y)), turn);
+          } else {
+            vec3 c = u_dots[dot];
+            t = crossDot(ro, rd, c).y;
+            normal = normalize(ro + rd * t - c.xy);
+          }
         }
         return t;
       }
@@ -359,7 +392,7 @@ export function createLightScene(core: Core, pixelRatio: number) {
   /** 前のフレームのロゴの位置と大きさ（左上と 1 マス） */
   let lastLogo: {x: number; y: number; unit: number; shape: Shape | null} = {x: 0, y: 0, unit: 0, shape: null}
   /** 今のロゴの長方形（canvas の左上からの px で [左, 上, 右, 下]）と、見え具合 */
-  let logoShape = {rects: [] as number[], turns: [] as number[], shown: 0}
+  let logoShape = {rects: [] as number[], turns: [] as number[], dots: [] as number[], shown: 0}
   /** 動いている度合い（0〜1）。動くと上がり、止まるとなめらかに 0 へ戻る */
   let moving = 0
   /** 前のフレームの光の向きと素材。回しているあいだと切り替えているあいだも動いているものとする */
@@ -445,8 +478,14 @@ export function createLightScene(core: Core, pixelRatio: number) {
     lastTurn = {upper: upper.angle, under: under.angle, glass: material.glass, metal: material.metal}
     seed = (seed + 1) % 1_000_000
     logoShape = {
-      rects: logo.shape.flatMap(([l, t, r, b]) => [left + l * unit, top + t * unit, left + r * unit, top + b * unit]),
-      turns: logo.shape.flatMap(([, , , , angle]) => [Math.cos(angle), Math.sin(angle)]),
+      rects: logo.shape.rects.flatMap(([l, t, r, b]) => [
+        left + l * unit,
+        top + t * unit,
+        left + r * unit,
+        top + b * unit
+      ]),
+      turns: logo.shape.rects.flatMap(([, , , , angle]) => [Math.cos(angle), Math.sin(angle)]),
+      dots: logo.shape.dots.flatMap(([x, y, radius]) => [left + x * unit, top + y * unit, radius * unit]),
       shown: logo.shown
     }
     rays.setUniform({
@@ -464,7 +503,8 @@ export function createLightScene(core: Core, pixelRatio: number) {
       u_underRays: Math.round((count * under.power) / Math.max(upper.power + under.power, 1e-6)),
       u_underPower: under.power,
       u_rects: logoShape.rects,
-      u_turns: logoShape.turns
+      u_turns: logoShape.turns,
+      u_dots: logoShape.dots
     })
 
     frameLayer.clear()
@@ -543,17 +583,21 @@ export type LightFrame = {
 }
 
 /**
- * 2 つの形で、長方形が一番大きく動いた量（格子の単位）。辺の動きと、傾きの変化で長方形の端が動いた量（長さの半分 × 角度）の
- * 大きいほう。前の形がなければ 0
+ * 2 つの形で、一番大きく動いた量（格子の単位）。長方形は辺の動きと、傾きの変化で端が動いた量（長さの半分 × 角度）、円は
+ * 中心と半径の動き。前の形がなければ 0
  */
 function shapeMoved(shape: Shape, last: Shape | null) {
   if (!last) return 0
   let most = 0
-  shape.forEach(([left, top, right, bottom, angle], i) => {
-    const [l, t, r, b, was] = last[i]
+  shape.rects.forEach(([left, top, right, bottom, angle], i) => {
+    const [l, t, r, b, was] = last.rects[i]
     const edges = Math.max(Math.abs(left - l), Math.abs(top - t), Math.abs(right - r), Math.abs(bottom - b))
     const reach = Math.hypot(right - left, bottom - top) / 2
     most = Math.max(most, edges, Math.abs(turnBetween(was, angle)) * reach)
+  })
+  shape.dots.forEach(([x, y, radius], i) => {
+    const [bx, by, br] = last.dots[i]
+    most = Math.max(most, Math.hypot(x - bx, y - by) + Math.abs(radius - br))
   })
   return most
 }
