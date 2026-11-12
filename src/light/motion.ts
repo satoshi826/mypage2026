@@ -37,6 +37,8 @@ export const LOOPS = [
   'line',
   'swap',
   'bars',
+  'part',
+  'shuffle',
   'spin',
   'twist',
   'swing',
@@ -44,13 +46,17 @@ export const LOOPS = [
   'fan',
   'tumble',
   'star',
+  'vortex',
+  'dice',
   'dots',
   'ring',
   'flower',
   'cradle',
   'orb',
   'spiral',
-  'atom'
+  'atom',
+  'ripple',
+  'morse'
 ] as const
 export type Loop = (typeof LOOPS)[number]
 
@@ -79,7 +85,13 @@ export const PERIOD: Record<Loop, number> = {
   tumble: 3.6,
   star: 4.4,
   spiral: 5,
-  atom: 5
+  atom: 5,
+  part: 3.6,
+  shuffle: 4.4,
+  vortex: 4.4,
+  dice: 4.8,
+  ripple: 4.4,
+  morse: 4.8
 }
 
 /**
@@ -105,7 +117,13 @@ const CYCLE: readonly Loop[] = [
   'spiral',
   'tumble',
   'atom',
-  'star'
+  'star',
+  'part',
+  'ripple',
+  'vortex',
+  'shuffle',
+  'morse',
+  'dice'
 ]
 
 /** cycle で、今の動きの次に流す動き。最初は CYCLE の先頭 */
@@ -196,41 +214,47 @@ function morphed(i: number, spot: Spot, w: number): {rect: Rect; dot: Dot} {
   }
 }
 
+/** 長方形の置き場所。中心と幅と高さと傾き */
+type Slot = {x: number; y: number; width: number; height: number; angle: number}
+
+/** 面 1 つの行き先。円（spot）か、長方形（slot） */
+type Target = ({round: true} & Spot) | ({round: false} & Slot)
+
+/** 長方形 i を、w（0〜1）だけ slot の長方形へ変える。形を保ったまま、位置と大きさと傾きを移す */
+function reshaped(i: number, slot: Slot, w: number): Rect {
+  const rect = LOGO_SHAPE.rects[i]
+  const [left, top, right, bottom] = rect
+  const from = centerOf(rect)
+  const mix = (a: number, b: number) => a + (b - a) * w
+  const x = mix(from.x, slot.x)
+  const y = mix(from.y, slot.y)
+  const width = mix(right - left, slot.width) / 2
+  const height = mix(bottom - top, slot.height) / 2
+  return [x - width, y - height, x + width, y + height, turnBetween(0, slot.angle) * w]
+}
+
 /**
- * 7 つの面を円に変えて spotOf(i) に並べ、ロゴに戻す 1 周。0.05〜0.3 で円になって並び、0.7〜0.95 でロゴに戻る。
- * 円は面 1 つにつき 1 つ（その面の置き場所の 1 つ目）を使う。並んでいるあいだの動きは spotOf が phase で決める
+ * 7 つの面を targetOf(i) の円か長方形に変えて並べ、ロゴに戻す 1 周。0.05〜0.3 で並び、0.7〜0.95 でロゴに戻る。
+ * 円は面 1 つにつき 1 つ（その面の置き場所の 1 つ目）を使う。並んでいるあいだの動きは targetOf が phase で決める
  */
-function formation(phase: number, spotOf: (i: number) => Spot): Shape {
+function arranged(phase: number, targetOf: (i: number) => Target): Shape {
   const w = phase < 0.5 ? ease((phase - 0.05) / 0.25) : 1 - ease((phase - 0.7) / 0.25)
-  const pieces = LOGO_SHAPE.rects.map((_, i) => morphed(i, spotOf(i), w))
+  const pieces = LOGO_SHAPE.rects.map((_, i) => {
+    const target = targetOf(i)
+    return target.round ? morphed(i, target, w) : {rect: reshaped(i, target, w), dot: DOT_ANCHORS[i * 2]}
+  })
   return {
     rects: pieces.map(({rect}) => rect),
     dots: DOT_ANCHORS.map((anchor, k) => (k % 2 === 0 ? pieces[k / 2].dot : anchor))
   }
 }
 
-/** 長方形の置き場所。中心と幅と高さと傾き */
-type Slot = {x: number; y: number; width: number; height: number; angle: number}
+/** 7 つの面を円に変えて spotOf(i) に並べる */
+const formation = (phase: number, spotOf: (i: number) => Spot) => arranged(phase, (i) => ({round: true, ...spotOf(i)}))
 
-/**
- * 7 つの面を、形を保ったまま（円にせず）slotOf(i) の長方形に変えて並べ、ロゴに戻す 1 周。並び方と戻り方は formation と同じ
- */
-function rectFormation(phase: number, slotOf: (i: number) => Slot): Shape {
-  const w = ease(phase < 0.5 ? (phase - 0.05) / 0.25 : 1 - (phase - 0.7) / 0.25)
-  return rectsOnly(
-    LOGO_SHAPE.rects.map((rect, i) => {
-      const [left, top, right, bottom] = rect
-      const slot = slotOf(i)
-      const from = centerOf(rect)
-      const mix = (a: number, b: number) => a + (b - a) * w
-      const x = mix(from.x, slot.x)
-      const y = mix(from.y, slot.y)
-      const width = mix(right - left, slot.width) / 2
-      const height = mix(bottom - top, slot.height) / 2
-      return [x - width, y - height, x + width, y + height, turnBetween(0, slot.angle) * w]
-    })
-  )
-}
+/** 7 つの面を、形を保ったまま slotOf(i) の長方形に変えて並べる */
+const rectFormation = (phase: number, slotOf: (i: number) => Slot) =>
+  arranged(phase, (i) => ({round: false, ...slotOf(i)}))
 
 /** 動き始めてから seconds 秒の形 */
 export function shapeAt(motion: Loop | 'still', seconds: number): Shape {
@@ -410,6 +434,84 @@ export function shapeAt(motion: Loop | 'still', seconds: number): Shape {
         const angle = (k / 3) * Math.PI * 2 + (inner ? turn : -turn) + (inner ? 0 : Math.PI / 3)
         const radius = inner ? 6.5 : 11
         return {x: CENTER.x + radius * Math.cos(angle), y: CENTER.y + radius * Math.sin(angle), size: 3}
+      })
+    }
+    // ロゴが m の右の柱の手前で左右に分かれ、左（m の 2 本の柱と上の横棒）は左上へ、右（u）は右下へずれてから閉じる
+    case 'part': {
+      const a = pulse(phase)
+      return rectsOnly(rects.map((rect, i) => shifted(rect, Math.sign(i - 3.5) * 3 * a, Math.sign(i - 3.5) * 1.5 * a)))
+    }
+    // 外側の柱どうしと内側の柱どうしが、弧を描いて互いの場所へ入れ替わり、もう一度入れ替わって戻る
+    case 'shuffle': {
+      const pairs: Record<number, number> = {0: 6, 6: 0, 2: 4, 4: 2}
+      return rectsOnly(
+        rects.map((rect, i) => {
+          const other = pairs[i]
+          if (other === undefined) return rect
+          const delay = i === 0 || i === 6 ? 0 : 0.06
+          const swap = ease((phase - 0.1 - delay) / 0.3) + ease((phase - 0.55 - delay) / 0.3)
+          const mid = {x: (centerOf(rect).x + centerOf(rects[other]).x) / 2, y: CENTER.y}
+          const [left, top, right, bottom] = turnedAbout(rect, Math.PI * swap, mid)
+          return [left, top, right, bottom, 0]
+        })
+      )
+    }
+    // 面が回りながら中心へ吸い込まれて小さく集まり、逆に回りながら広がって戻る
+    case 'vortex': {
+      const a = pulse(phase)
+      return rectsOnly(
+        rects.map((rect) => turnedAbout(shrunkToward(rect, 1 - 0.75 * a, CENTER), Math.PI * 2 * a, CENTER))
+      )
+    }
+    // 7 つの円がさいころの目（2 列 3 つと真ん中 1 つ）に並び、90° ずつ 4 回転がってから戻る
+    case 'dice': {
+      const roll = [0, 1, 2, 3].reduce((sum, k) => sum + ease((phase - 0.3 - k * 0.1) / 0.07), 0) * (Math.PI / 2)
+      const pips = [
+        [-1, -1],
+        [-1, 0],
+        [-1, 1],
+        [0, 0],
+        [1, -1],
+        [1, 0],
+        [1, 1]
+      ]
+      return formation(phase, (i) => {
+        const [col, row] = pips[i]
+        const x = col * 5.5
+        const y = row * 6
+        const cos = Math.cos(roll)
+        const sin = Math.sin(roll)
+        return {x: CENTER.x + x * cos - y * sin, y: CENTER.y + x * sin + y * cos, size: 3.8}
+      })
+    }
+    // 7 つの円が輪に並び、輪の上を波が伝わるように、1 つずつ外へふくらんでは戻る
+    case 'ripple': {
+      const swell = Math.sin(Math.PI * clamp01((phase - 0.25) / 0.5))
+      return formation(phase, (i) => {
+        const angle = -Math.PI / 2 + (i / rects.length) * Math.PI * 2 + phase * Math.PI
+        const radius = 8 + 2.5 * swell * Math.sin(Math.PI * 6 * phase - (i / rects.length) * Math.PI * 2)
+        return {x: CENTER.x + radius * Math.cos(angle), y: CENTER.y + radius * Math.sin(angle), size: 3.6}
+      })
+    }
+    // モールス信号の mu（— — · · —）になる。長い符号は面 2 つを重ねて、短い符号は面を円にして作り、左から順に打つように弾む
+    case 'morse': {
+      // 符号ごとの、左端からの中心の位置と、長いか。面 0〜6 をこの順に割り当てる（長い符号は 2 つの面で作る）
+      const codes = [
+        {at: 2.5, long: true},
+        {at: 2.5, long: true},
+        {at: 8.9, long: true},
+        {at: 8.9, long: true},
+        {at: 15.5, long: false},
+        {at: 19.1, long: false},
+        {at: 24.2, long: true}
+      ]
+      const start = CENTER.x - 26.7 / 2
+      return arranged(phase, (i) => {
+        const {at, long} = codes[i]
+        const beat = Math.sin(Math.PI * clamp01((phase - 0.35 - (at / 26.7) * 0.25) / 0.1))
+        const x = start + at
+        const y = CENTER.y - 1.2 * beat
+        return long ? {round: false, x, y, width: 5, height: 1.8, angle: 0} : {round: true, x, y, size: 2.2}
       })
     }
   }
