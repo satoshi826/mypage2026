@@ -29,7 +29,6 @@ export type SceneCommand = {
 
 function createStage(canvas: OffscreenCanvas, pixelRatio: number) {
   const core = new Core({canvas, pixelRatio})
-  core.gl.getExtension('EXT_color_buffer_float')
 
   const screen = new Renderer(core, {id: 'canvas', backgroundColor: [0, 0, 0, 0]})
   const plane = new Vao(core, plane2D())

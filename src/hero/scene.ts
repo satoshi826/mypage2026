@@ -3,6 +3,7 @@ import {GRID, SLOTS, blockOrigin, layoutFor} from './table'
 import type {Frame} from './sequence'
 import {GATHER_STAGGER} from '../app/stage'
 import {createMultisample} from '../scene/multisample'
+import {halfFloatFormat} from '../scene/halfFloat'
 import {DEFAULT_INTERACTION, DEFAULT_TUNING, MASS_RANGE, type Interaction, type Tuning} from './tuning'
 
 /** 写真の枠。canvas の左上からの px */
@@ -62,6 +63,8 @@ export function createHeroScene(core: Core, pixelRatio: number) {
   // 番号を押して行き先を変えたときに、粒子の基準位置が飛ぶぶん（押した瞬間の見た目の位置 − 新しい組の始まりの位置）を
   // 粒子1つにつき1テクセルで持つ。新しい組の進みに合わせて行き過ぎずに 0 へ寄せる（positionOf）。干渉のばねに預けると、
   // しなって揺れる（続けて押すと大きく揺れる）。押すたびに今の値を読んで次を書くので、2枚を交互に使う
+  // 2 チャンネルあればよいので、描ければ RG16F にする。glaku の型にない形式なので型を外す
+  const carryFormat = halfFloatFormat(core.gl, 2)
   const carry = [0, 1].map((i) => {
     const buffer = new Renderer(core, {
       id: `carry${i}`,
@@ -69,7 +72,7 @@ export function createHeroScene(core: Core, pixelRatio: number) {
       height: grid.height,
       screenFit: false,
       backgroundColor: [0, 0, 0, 0],
-      frameBuffer: [['RG16F', 'RG', 'HALF_FLOAT', 'NEAREST', 'CLAMP_TO_EDGE']] as never
+      frameBuffer: [[...carryFormat, 'HALF_FLOAT', 'NEAREST', 'CLAMP_TO_EDGE']] as never
     })
     buffer.resize({width: grid.width, height: grid.height, pixelRatio: 1})
     buffer.clear()

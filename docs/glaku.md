@@ -88,6 +88,14 @@ core.createTexture({array: atlas, width, height, filter: 'NEAREST'})
 
 なお `{image}` 経路は既定で mipmap を生成する。
 
+## 16bit 浮動小数の層は R16F・RG16F が描けない端末がある
+
+`frameBuffer` に 16bit 浮動小数の形式を渡すには、描く前に拡張を有効にしておく（`core.gl.getExtension`）。
+`EXT_color_buffer_float` があれば R16F・RG16F・RGBA16F のどれにも描けるが、それがなく
+`EXT_color_buffer_half_float` だけの端末で必ず描けるのは **RGBA16F だけ**。R16F・RG16F は端末によって
+描けず、エラーも出ずに層が空のままになる。チャンネルを減らしたいときは、描けるかを確かめてから選ぶ
+（`src/scene/halfFloat.ts`）。R16F・RG16F は glaku の型にないので、型を外して渡す。
+
 ## ブレンド
 
 **0.5.2 に `core.blend(mode)` がある。** `NORMAL` / `ADDITIVE` / `MULTIPLY` / `SCREEN` /

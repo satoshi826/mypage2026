@@ -1,6 +1,7 @@
 import {type Core, Program, Renderer, type Uniforms, Vao, plane2D} from 'glaku'
 import {LOGO_HEIGHT, LOGO_RECTS, LOGO_WIDTH} from './logo'
 import {DEFAULT_LIGHT, type LightTuning} from './tuning'
+import {halfFloatFormat} from '../scene/halfFloat'
 
 // 光源から出た光線が mu のロゴに当たって跳ね返る様子を、光線の通った線を重ねて描く（2D の光の経路追跡）。
 // 光そのものは描かず、光線の線の重なりの明るさで光を見せる。ロゴに遮られたところは影になる。
@@ -24,7 +25,7 @@ import {DEFAULT_LIGHT, type LightTuning} from './tuning'
 //   スクロールで上の光が動いたときは、前のフレームの結果を光が動いたぶんずらしてから混ぜる（跡を引かない）。
 //   訪問者が光源を動かしたぶんではずらさない（層全体がずれて、止まっているロゴの光と影までぶれるので）。ロゴや光が動いているあいだは
 //   前の結果を残す割合を弱め（keepMoving）、跡を引かないようにする。止まるとなめらかに元の割合（keep）へ戻す
-// - 光をためる層は明るさ 1 つだけを持つ（R16F）。画面より粗い解像度（resolution）で持ち、画面の画素の細かさは MAX_LAYER_RATIO までにして、
+// - 光をためる層は明るさ 1 つだけを持つ（R16F。描けない端末では RGBA16F）。画面より粗い解像度（resolution）で持ち、画面の画素の細かさは MAX_LAYER_RATIO までにして、
 //   画面へはなめらかに拡大する
 
 /** 動いているとみなす、1 フレームでのロゴと光の動き px。これ以上動いたら、残す割合を動いているときの値にする */
@@ -51,17 +52,17 @@ const END_BYTES = 12
  */
 const MAX_LAYER_RATIO = 2
 
-/** 光をためる層の画素。明るさだけを持つ。glaku の型にない形式なので、呼ぶ側で型を外す */
-const BRIGHTNESS = [['R16F', 'RED', 'HALF_FLOAT', 'LINEAR', 'CLAMP_TO_EDGE']] as const
-
 /**
  * 光がロゴを照らす場面。舞台の canvas（src/scene/worker.ts）の中で、写真の粒子と一緒に描く。光は層（texture）にためて、
  * 舞台がそれを明るさに直して重ねる。光がついているあいだだけ描く（lit）
  */
 export function createLightScene(core: Core, pixelRatio: number) {
+  const {gl} = core
+  // 光をためる層。明るさだけを持てばよいので、描ければ 1 チャンネル（R16F）にする。glaku の型にない形式なので型を外す
+  const [internalFormat, format] = halfFloatFormat(gl, 1)
   const layer = () =>
     new Renderer(core, {
-      frameBuffer: BRIGHTNESS.map((args) => [...args]) as never,
+      frameBuffer: [[internalFormat, format, 'HALF_FLOAT', 'LINEAR', 'CLAMP_TO_EDGE']] as never,
       screenFit: false,
       backgroundColor: [0, 0, 0, 0],
       width: 1,
@@ -71,7 +72,6 @@ export function createLightScene(core: Core, pixelRatio: number) {
   const frameLayer = layer()
   const acc = [layer(), layer()]
 
-  const {gl} = core
   // 光線 1 本の経路をたどり、線分の両端を v_end0〜（ENDS 個）に書き出す。描かない（RASTERIZER_DISCARD）
   const outputs = Array.from({length: ENDS}, (_, i) => `v_end${i}`)
   const trace = new Program(core, {
