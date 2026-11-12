@@ -569,7 +569,7 @@ export type LightFrame = {
   upper: Lamp & {focus: number; base: {x: number; y: number}}
   /** ロゴの下に置く下の光 */
   under: Lamp
-  /** 速く動いているか。訪問者が光源をつかんでいるか、ロゴの形を動かしている（Motion が Still 以外）とき */
+  /** 速く動いているか。訪問者が光源をつかんでいるか、ロゴの形を動かしている（Motion が On）とき */
   fast: boolean
   /**
    * ロゴの中心と、大きさの倍率（tuning の cell に掛ける）と、面の見え具合（0〜1。粒子が光に着くにつれて現れる）と、

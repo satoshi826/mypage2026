@@ -1,7 +1,7 @@
 import {ease} from '../app/stage'
 import {LOGO_HEIGHT, LOGO_RECTS, LOGO_WIDTH} from './logo'
 
-// ロゴの形を動かす遊び（Logo の入れ物の Motion）。どの動きもループする。
+// ロゴの形を動かす遊び（Logo の入れ物の Motion）。動かすあいだは、ループする動きを順に 1 周ずつ流す。
 // 形は、ロゴの長方形 7 つ（位置と大きさと傾き）と、円 DOTS 個（中心と半径。ふだんは半径 0 で見えない）でできている。
 // どちらも光線との当たりを式で一発で求められる（scene.ts）。長方形の並びは左から、柱 4 本（0, 2, 4, 6 番）と、
 // そのあいだで切り込みの上や下に残る部分 3 つ（1, 3, 5 番。1 と 3 は下から、5 は上からの切り込み）。値は格子の単位
@@ -29,39 +29,38 @@ export const LOGO_SHAPE: Shape = {
   dots: DOT_ANCHORS
 }
 
-/** ループする動き。入れ物にはこの順に、似た動きをまとめて並べる */
+/**
+ * ループする動き。動かすあいだは、この順に 1 周ずつ次々流す。似た動きが続かないよう、長方形のまま形を変える動き・
+ * 円になる動き・回る動きを順に混ぜる
+ */
 export const LOOPS = [
   'cut',
-  'open',
-  'wave',
-  'line',
-  'swap',
-  'bars',
-  'part',
-  'shuffle',
-  'spin',
-  'twist',
-  'swing',
-  'orbit',
-  'fan',
-  'tumble',
-  'star',
-  'vortex',
-  'dice',
-  'dots',
   'ring',
+  'spin',
+  'open',
+  'dots',
+  'twist',
+  'wave',
   'flower',
+  'swing',
+  'line',
   'cradle',
+  'orbit',
+  'swap',
   'orb',
+  'fan',
+  'bars',
   'spiral',
+  'tumble',
   'atom',
-  'ripple'
+  'star',
+  'part',
+  'ripple',
+  'vortex',
+  'shuffle',
+  'dice'
 ] as const
 export type Loop = (typeof LOOPS)[number]
-
-/** 選べる動き。still は動かさず、cycle はループする動きを 1 周ずつ、CYCLE の順に次々流す */
-export const MOTIONS = ['still', ...LOOPS, 'cycle'] as const
-export type Motion = (typeof MOTIONS)[number]
 
 /** 動きの 1 周の秒数 */
 export const PERIOD: Record<Loop, number> = {
@@ -92,40 +91,9 @@ export const PERIOD: Record<Loop, number> = {
   ripple: 4.4
 }
 
-/**
- * cycle で流す順。似た動きが続かないよう、長方形のまま形を変える動き・円になる動き・回る動きを順に混ぜる
- */
-const CYCLE: readonly Loop[] = [
-  'cut',
-  'ring',
-  'spin',
-  'open',
-  'dots',
-  'twist',
-  'wave',
-  'flower',
-  'swing',
-  'line',
-  'cradle',
-  'orbit',
-  'swap',
-  'orb',
-  'fan',
-  'bars',
-  'spiral',
-  'tumble',
-  'atom',
-  'star',
-  'part',
-  'ripple',
-  'vortex',
-  'shuffle',
-  'dice'
-]
-
-/** cycle で、今の動きの次に流す動き。最初は CYCLE の先頭 */
+/** 今の動きの次に流す動き。最初は LOOPS の先頭 */
 export const nextLoop = (current: Loop | null): Loop =>
-  current === null ? CYCLE[0] : CYCLE[(CYCLE.indexOf(current) + 1) % CYCLE.length]
+  current === null ? LOOPS[0] : LOOPS[(LOOPS.indexOf(current) + 1) % LOOPS.length]
 
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v))
 /** 入り始めが速く、奥でゆっくり止まる */

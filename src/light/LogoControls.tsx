@@ -4,39 +4,9 @@ import {GLOW_HOVER} from '../app/glow'
 import {POPOVER} from '../app/popover'
 import {useExternal} from '../app/useExternal'
 import {MAX_POWER, MAX_SCALE, MAX_TILT, MIN_SCALE, type LampKey} from './arrangement'
-import {MOTIONS, type Motion} from './motion'
 import {MATERIALS, useLogoControls, type LampControl, type LogoControls as Controls, type Material} from './controls'
 
 const MATERIAL_LABELS: Record<Material, string> = {matte: 'Matte', glass: 'Glass', metal: 'Metal'}
-const MOTION_LABELS: Record<Motion, string> = {
-  still: 'Still',
-  cut: 'Cut',
-  open: 'Open',
-  wave: 'Wave',
-  line: 'Line',
-  swap: 'Swap',
-  spin: 'Spin',
-  twist: 'Twist',
-  swing: 'Swing',
-  orbit: 'Orbit',
-  fan: 'Fan',
-  dots: 'Dots',
-  ring: 'Ring',
-  flower: 'Flower',
-  cradle: 'Cradle',
-  orb: 'Orb',
-  bars: 'Bars',
-  tumble: 'Tumble',
-  star: 'Star',
-  spiral: 'Spiral',
-  atom: 'Atom',
-  part: 'Part',
-  shuffle: 'Shuffle',
-  vortex: 'Vortex',
-  dice: 'Dice',
-  ripple: 'Ripple',
-  cycle: 'Cycle'
-}
 const LAMP_LABELS: Record<LampKey, string> = {upper: 'Top', under: 'Bottom'}
 
 // before は指の当たり判定。配置を変えずに 44px を確保する。開いているあいだは選んでいる状態として 90% にし、一段下の光を置く
@@ -171,7 +141,7 @@ const POWER_ICON = (
 
 /** ロゴの設定。素材と、形の動きと、大きさ */
 function LogoSettings({controls, focusable}: {controls: Controls; focusable: boolean}) {
-  const {material, setMaterial, motion, setMotion, scale, setScale} = controls
+  const {material, setMaterial, animated, setAnimated, scale, setScale} = controls
   return (
     <>
       <span className={SECTION}>Material</span>
@@ -190,19 +160,18 @@ function LogoSettings({controls, focusable}: {controls: Controls; focusable: boo
         ))}
       </div>
       <span className={SECTION}>Motion</span>
-      {/* 選んだ動きをループする。Cycle はループする動きを順に次々流す。Still でロゴに戻る。
-          数が多いので、入れ物の幅で折り返し、1 行の高さはほかの欄と同じにする */}
-      <div className="col-span-3 flex max-w-80 flex-wrap gap-x-6 *:h-10 max-sm:max-w-60 max-sm:gap-x-3">
-        {MOTIONS.map((m) => (
+      {/* On のあいだ、ロゴの形をいろいろな動きで順に変え続ける。Off でロゴに戻る */}
+      <div className="col-span-3 flex gap-6 max-sm:gap-4">
+        {[false, true].map((on) => (
           <button
-            key={m}
+            key={String(on)}
             type="button"
-            onClick={() => setMotion(m)}
-            aria-pressed={motion === m}
+            onClick={() => setAnimated(on)}
+            aria-pressed={animated === on}
             tabIndex={focusable ? 0 : -1}
             className={OPTION}
           >
-            <span className="glow-text transition-[text-shadow] duration-800">{MOTION_LABELS[m]}</span>
+            <span className="glow-text transition-[text-shadow] duration-800">{on ? 'On' : 'Off'}</span>
           </button>
         ))}
       </div>
@@ -357,7 +326,7 @@ function Menu({
             aria-label={label}
             aria-hidden={!open}
             style={{left: `${at.left}px`, bottom: `${at.bottom}px`}}
-            className={`fixed z-20 grid auto-rows-[minmax(2.5rem,auto)] grid-cols-[repeat(4,auto)] items-center gap-x-6 ${POPOVER} px-4 py-1 text-sm tracking-[0.12em] transition-[opacity,translate] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] max-sm:gap-x-4 max-sm:text-xs ${open ? '' : 'pointer-events-none translate-y-1 opacity-0'}`}
+            className={`fixed z-20 grid auto-rows-[2.5rem] grid-cols-[repeat(4,auto)] items-center gap-x-6 ${POPOVER} px-4 py-1 text-sm tracking-[0.12em] transition-[opacity,translate] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] max-sm:gap-x-4 max-sm:text-xs ${open ? '' : 'pointer-events-none translate-y-1 opacity-0'}`}
           >
             {children(open)}
           </div>,

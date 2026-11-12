@@ -22,7 +22,7 @@ import {
 import {setLogoControls, type LampControl, type Material} from './controls'
 import {createRayBudget, type RayBudget} from './rayBudget'
 import {LOGO_HEIGHT, LOGO_WIDTH} from './logo'
-import {LOGO_SHAPE, PERIOD, between, nextLoop, shapeAt, type Loop, type Motion, type Shape} from './motion'
+import {LOGO_SHAPE, PERIOD, between, nextLoop, shapeAt, type Loop, type Shape} from './motion'
 import {DEFAULT_LIGHT, LIGHT_PARAMS, type LightTuning} from './tuning'
 
 /** 動かしたロゴと回した光を、フッターの操作で既定へ戻すのにかける秒数 */
@@ -154,29 +154,28 @@ export function Light({
     switched.current = {at: performance.now(), from: {...mix.current}}
     setMaterialState(next)
   }, [])
-  // ロゴの形の動き。選んだ時刻からループし、選んだときの形から MOTION_BLEND_SECONDS かけて移る（Still に戻すときも）。
-  // cycle のあいだは、流している動き（playing）が 1 周したら次の動きへ、そのときの形から同じように移る
-  const [motion, setMotionState] = useState<Motion>('still')
+  // ロゴの形の動き。動かすあいだは、流している動き（playing）が 1 周したら次の動きへ移る。動かし始めと止めたとき、
+  // 次の動きへ移るときは、そのときの形から MOTION_BLEND_SECONDS かけて移る
+  const [animated, setAnimatedState] = useState(false)
   const shape = useRef<Shape>(LOGO_SHAPE)
   const playing = useRef<{loop: Loop | 'still'; at: number; from: Shape}>({loop: 'still', at: 0, from: LOGO_SHAPE})
-  const setMotion = useCallback((next: Motion) => {
-    const loop = next === 'cycle' ? nextLoop(null) : next
-    playing.current = {loop, at: performance.now(), from: shape.current}
-    setMotionState(next)
+  const setAnimated = useCallback((next: boolean) => {
+    playing.current = {loop: next ? nextLoop(null) : 'still', at: performance.now(), from: shape.current}
+    setAnimatedState(next)
   }, [])
   // 置き方と素材を既定へ戻す
   const reset = useCallback(() => {
     returning.current = {at: performance.now(), from: arrangement.current}
     setMaterial('matte')
-    setMotion('still')
-  }, [setMaterial, setMotion])
+    setAnimated(false)
+  }, [setMaterial, setAnimated])
   const publish = (next: Shown) => {
     shown.current = next
-    setLogoControls({...next, reset, material, setMaterial, motion, setMotion, setScale, setLamp})
+    setLogoControls({...next, reset, material, setMaterial, animated, setAnimated, setScale, setLamp})
   }
   useEffect(() => {
-    setLogoControls({...shown.current, reset, material, setMaterial, motion, setMotion, setScale, setLamp})
-  }, [reset, material, setMaterial, motion, setMotion, setScale, setLamp])
+    setLogoControls({...shown.current, reset, material, setMaterial, animated, setAnimated, setScale, setLamp})
+  }, [reset, material, setMaterial, animated, setAnimated, setScale, setLamp])
   useEffect(() => () => setLogoControls(null), [])
 
   // ロゴのつかみ場所と、光源のつかみ場所。位置は毎フレーム書く
@@ -372,7 +371,7 @@ export function Light({
     const from = change.from
     mix.current = {glass: from.glass + (to.glass - from.glass) * r, metal: from.metal + (to.metal - from.metal) * r}
     const current = playing.current
-    if (motion === 'cycle' && current.loop !== 'still' && (now - current.at) / 1000 >= PERIOD[current.loop])
+    if (current.loop !== 'still' && (now - current.at) / 1000 >= PERIOD[current.loop])
       playing.current = {loop: nextLoop(current.loop), at: now, from: shape.current}
     const {loop, from: start} = playing.current
     const since = (now - playing.current.at) / 1000
@@ -427,7 +426,7 @@ export function Light({
         frame: {
           upper: {...at.upper, base: upperBase, angle: facing.current.upper, power: power.upper * brightness, focus},
           under: {...at.under, angle: facing.current.under, power: power.under * underBrightness},
-          fast: dragging.current !== null || motion !== 'still',
+          fast: dragging.current !== null || animated,
           logo: {...logo, shown: arrived, shape: shape.current},
           material: mix.current
         }
@@ -447,7 +446,7 @@ export function Light({
     }
     const next: Shown = {
       available: atBottom.current,
-      changed: !isDefault(arrangement.current) || material !== 'matte' || motion !== 'still',
+      changed: !isDefault(arrangement.current) || material !== 'matte' || animated,
       scale: Math.round(scale * 100) / 100,
       lamps: {upper: control('upper'), under: control('under')}
     }
