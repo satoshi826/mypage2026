@@ -17,12 +17,15 @@ export const NAME = 'Satoshi Hata'
  */
 export const ORIGIN = 'https://mu826.com'
 
+/** 説明文での名乗り。作家名（mu）を先に置く */
+const SIGNED = `mu / ${NAME}`
+
 export const ROUTES: RouteDef[] = [
   {
     path: '/',
     label: null,
-    title: `mu / ${NAME} — Photographer`,
-    description: 'mu / Satoshi Hata / 端 智士。東京・神奈川を拠点に street / architecture を撮る写真家。'
+    title: `${SIGNED} — Photographer`,
+    description: `${SIGNED} (端 智士) is a photographer based in Tokyo and Kanagawa, Japan, photographing streets and people. 東京・神奈川を拠点に、街や人を撮る写真家。`
   },
   // Photos はカテゴリ別の URL（/photos/:category）。ナビの Photos は street を指し、ほかはフッターの
   // 切り替えから辿る。/photos は street へ転送する（worker/index.ts と App.tsx）
@@ -30,38 +33,38 @@ export const ROUTES: RouteDef[] = [
     path: '/photos/street',
     label: 'Photos',
     title: `Street — ${NAME}`,
-    description: `${NAME} の写真作品（Street）。`
+    description: `Street photographs by ${SIGNED}. 街で撮った写真。`
   },
   {
     path: '/photos/abstract',
     label: null,
     title: `Abstract — ${NAME}`,
-    description: `${NAME} の写真作品（Abstract）。`
+    description: `Abstract photographs by ${SIGNED}. 抽象の写真。`
   },
   {
     path: '/photos/color',
     label: null,
     title: `Color — ${NAME}`,
-    description: `${NAME} の写真作品（Color）。`
+    description: `Color photographs by ${SIGNED}. カラーの写真。`
   },
   {
     path: '/works',
     label: 'Works',
     title: `Works — ${NAME}`,
-    description: `${NAME} の撮影実績。`
+    description: `Commissioned photography by ${SIGNED}. 依頼を受けて撮った写真。`
   },
   {
     path: '/about',
     label: 'About',
     title: `About — ${NAME}`,
-    description: `${NAME} のプロフィールとステートメント。`
+    description: `${SIGNED}（端 智士）のステートメントとプロフィール。受賞・展示・掲載。`
   },
   // About と Contact の英語版（lang.ts）。ナビには出さず、フッターの JA / EN で行き来する
   {
     path: '/en/about',
     label: null,
     title: `About — ${NAME}`,
-    description: `Profile and statement of ${NAME} (mu), a street photographer based in Tokyo and Kanagawa, Japan.`
+    description: `Statement and profile of ${SIGNED}, a photographer based in Tokyo and Kanagawa, Japan, photographing streets and people. Awards, exhibitions, and publications.`
   },
   {
     path: '/contact',
@@ -73,7 +76,7 @@ export const ROUTES: RouteDef[] = [
     path: '/en/contact',
     label: null,
     title: `Contact — ${NAME}`,
-    description: `Commissions, exhibitions and publications, workshops, and more — contact ${NAME}.`
+    description: `Commissions, exhibitions and publications, workshops, and more — contact ${SIGNED}.`
   },
   // 編集のログインの入口（pages/Login.tsx）。Cloudflare Access で保護する。ナビには出さない
   {
