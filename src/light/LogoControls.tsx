@@ -17,6 +17,12 @@ const OPTION = `flex cursor-pointer items-center opacity-75 transition-opacity d
 /** 欄の名前。添える文字なので 55% */
 const LABEL = 'opacity-55'
 
+/**
+ * 1 列目の欄の名前（Material、Top など）。右の項目と分けるため、列のあいだ（gap-x）の中央に縦の線を置く。線は欄の行の高さに
+ * 合わせ、上下を少し空けて欄ごとに切る（太さと濃さはフッターの仕切りと同じ）
+ */
+const SECTION = `${LABEL} relative flex items-center self-stretch after:absolute after:inset-y-2 after:-right-3 after:w-[0.5px] after:bg-ink after:opacity-60 max-sm:after:-right-2`
+
 /** input[type=range] のつまみの幅（styles.css の [data-slider]）。溝の両端はこの半分ずつ内側になる */
 const THUMB = 16
 
@@ -101,7 +107,7 @@ function LogoSettings({controls, focusable}: {controls: Controls; focusable: boo
   const {material, setMaterial, scale, setScale} = controls
   return (
     <>
-      <span className={LABEL}>Material</span>
+      <span className={SECTION}>Material</span>
       <div className="col-span-3 flex gap-6 max-sm:gap-4">
         {MATERIALS.map((m) => (
           <button
@@ -116,7 +122,7 @@ function LogoSettings({controls, focusable}: {controls: Controls; focusable: boo
           </button>
         ))}
       </div>
-      <span className={LABEL}>Size</span>
+      <span className={SECTION}>Size</span>
       <Slider
         label="Size"
         value={scale}
@@ -145,7 +151,7 @@ function LightSettings({controls, focusable}: {controls: Controls; focusable: bo
         const degrees = Math.round((facing * 180) / Math.PI)
         return (
           <div key={key} className="contents">
-            <span className={`${LABEL} row-span-2`}>{LAMP_LABELS[key]}</span>
+            <span className={`${SECTION} row-span-2`}>{LAMP_LABELS[key]}</span>
             <span className={LABEL}>Angle</span>
             {/* 外すと今照らしている向きのまま止める。向きが跳ばないように */}
             <button
