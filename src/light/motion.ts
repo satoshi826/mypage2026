@@ -11,18 +11,31 @@ export type Shape = readonly Rect[]
 
 export const LOGO_SHAPE: Shape = LOGO_RECTS
 
-/** 動きの種類。still は動かさない */
-export const MOTIONS = ['still', 'cut', 'open', 'wave', 'burst', 'line'] as const
+/** ループする動き */
+export const LOOPS = ['cut', 'open', 'wave', 'line'] as const
+export type Loop = (typeof LOOPS)[number]
+
+/** 選べる動き。still は動かさず、random はループする動きを 1 周ずつ、ランダムな順に次々流す */
+export const MOTIONS = ['still', ...LOOPS, 'random'] as const
 export type Motion = (typeof MOTIONS)[number]
 
 /** 動きの 1 周の秒数 */
-const PERIOD: Record<Exclude<Motion, 'still'>, number> = {cut: 3.6, open: 3.2, wave: 2.4, burst: 3.2, line: 3.4}
+export const PERIOD: Record<Loop, number> = {cut: 3.6, open: 3.2, wave: 2.4, line: 3.4}
+
+/** random で、今の動きの次に流す動き。続けて同じ動きにしない */
+export function nextLoop(current: Loop | null): Loop {
+  const candidates = LOOPS.filter((loop) => loop !== current)
+  return candidates[Math.floor(Math.random() * candidates.length)]
+}
 
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v))
 /** 入り始めが速く、奥でゆっくり止まる */
 const settle = (v: number) => 1 - (1 - clamp01(v)) ** 4
 
-/** 1 周のうち、ロゴから形が変わって戻る山。0.1〜0.4 で 0 → 1 へ移り、0.6〜0.9 で 1 → 0 へ戻る。あいだは止まる */
+/**
+ * 1 周のうち、ロゴから形が変わって戻る山。0.1〜0.4 で 0 → 1 へ移り、0.6〜0.9 で 1 → 0 へ戻る。あいだは止まる。
+ * 周の始めと終わりはロゴなので、ループしても、次の動きへ移っても形が跳ばない
+ */
 const pulse = (phase: number) => (phase < 0.5 ? ease((phase - 0.1) / 0.3) : 1 - ease((phase - 0.6) / 0.3))
 
 const CUT_BANDS = [1, 3, 5]
@@ -46,7 +59,7 @@ const shifted = ([left, top, right, bottom]: Rect, x: number, y: number): Rect =
 const centerOf = ([left, top, right, bottom]: Rect) => ({x: (left + right) / 2, y: (top + bottom) / 2})
 
 /** 動き始めてから seconds 秒の形 */
-export function shapeAt(motion: Motion, seconds: number): Shape {
+export function shapeAt(motion: Loop | 'still', seconds: number): Shape {
   if (motion === 'still') return LOGO_SHAPE
   const period = PERIOD[motion]
   const time = seconds % period
@@ -71,21 +84,10 @@ export function shapeAt(motion: Motion, seconds: number): Shape {
     case 'wave': {
       return LOGO_SHAPE.map((rect) => shifted(rect, 0, Math.sin(phase * Math.PI * 2 - centerOf(rect).x * 0.35) * 2.5))
     }
-    // 7 つの面が中心から外へ離れ、すき間を開けてから組み直す
-    case 'burst': {
-      const e = pulse(phase) * 3.5
-      return LOGO_SHAPE.map((rect) => {
-        const {x, y} = centerOf(rect)
-        const dx = x - 12
-        const dy = y - 11
-        const length = Math.hypot(dx, dy) || 1
-        return shifted(rect, (dx / length) * e, (dy / length) * e)
-      })
-    }
-    // 面が左から順に細い線へ痩せ、また面に戻る
+    // 面が左から順に細い線へ痩せ、また面に戻る。ずらす量は、最後の面が周の終わり（0.9 + ずれ < 1）までに戻りきる大きさ
     case 'line': {
       return LOGO_SHAPE.map(([left, top, right, bottom], i) => {
-        const thin = pulse(phase - i * 0.03)
+        const thin = pulse(phase - i * 0.015)
         const {x} = centerOf([left, top, right, bottom])
         const half = ((right - left) / 2) * (1 - thin) + 0.25 * thin
         return [x - half, top, x + half, bottom]

@@ -13,8 +13,8 @@ const MOTION_LABELS: Record<Motion, string> = {
   cut: 'Cut',
   open: 'Open',
   wave: 'Wave',
-  burst: 'Burst',
-  line: 'Line'
+  line: 'Line',
+  random: 'Random'
 }
 const LAMP_LABELS: Record<LampKey, string> = {upper: 'Top', under: 'Bottom'}
 
@@ -169,7 +169,7 @@ function LogoSettings({controls, focusable}: {controls: Controls; focusable: boo
         ))}
       </div>
       <span className={SECTION}>Motion</span>
-      {/* 選んだ動きをループする。Still でロゴに戻る */}
+      {/* 選んだ動きをループする。Random はループする動きをランダムな順に次々流す。Still でロゴに戻る */}
       <div className="col-span-3 flex gap-6 max-sm:gap-3">
         {MOTIONS.map((m) => (
           <button

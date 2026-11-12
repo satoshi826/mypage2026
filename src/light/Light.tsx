@@ -22,7 +22,7 @@ import {
 import {setLogoControls, type LampControl, type Material} from './controls'
 import {createRayBudget, type RayBudget} from './rayBudget'
 import {LOGO_HEIGHT, LOGO_WIDTH} from './logo'
-import {LOGO_SHAPE, between, shapeAt, type Motion, type Shape} from './motion'
+import {LOGO_SHAPE, PERIOD, between, nextLoop, shapeAt, type Loop, type Motion, type Shape} from './motion'
 import {DEFAULT_LIGHT, LIGHT_PARAMS, type LightTuning} from './tuning'
 
 /** 動かしたロゴと回した光を、フッターの操作で既定へ戻すのにかける秒数 */
@@ -154,12 +154,14 @@ export function Light({
     switched.current = {at: performance.now(), from: {...mix.current}}
     setMaterialState(next)
   }, [])
-  // ロゴの形の動き。選んだ時刻からループし、選んだときの形から MOTION_BLEND_SECONDS かけて移る（Still に戻すときも）
+  // ロゴの形の動き。選んだ時刻からループし、選んだときの形から MOTION_BLEND_SECONDS かけて移る（Still に戻すときも）。
+  // random のあいだは、流している動き（playing）が 1 周したら次の動きへ、そのときの形から同じように移る
   const [motion, setMotionState] = useState<Motion>('still')
   const shape = useRef<Shape>(LOGO_SHAPE)
-  const motionStart = useRef({at: 0, from: LOGO_SHAPE})
+  const playing = useRef<{loop: Loop | 'still'; at: number; from: Shape}>({loop: 'still', at: 0, from: LOGO_SHAPE})
   const setMotion = useCallback((next: Motion) => {
-    motionStart.current = {at: performance.now(), from: shape.current}
+    const loop = next === 'random' ? nextLoop(null) : next
+    playing.current = {loop, at: performance.now(), from: shape.current}
     setMotionState(next)
   }, [])
   // 置き方と素材を既定へ戻す
@@ -369,8 +371,12 @@ export function Light({
     const to = {glass: material === 'glass' ? 1 : 0, metal: material === 'metal' ? 1 : 0}
     const from = change.from
     mix.current = {glass: from.glass + (to.glass - from.glass) * r, metal: from.metal + (to.metal - from.metal) * r}
-    const since = (now - motionStart.current.at) / 1000
-    shape.current = between(motionStart.current.from, shapeAt(motion, since), ease(since / MOTION_BLEND_SECONDS))
+    const current = playing.current
+    if (motion === 'random' && current.loop !== 'still' && (now - current.at) / 1000 >= PERIOD[current.loop])
+      playing.current = {loop: nextLoop(current.loop), at: now, from: shape.current}
+    const {loop, from: start} = playing.current
+    const since = (now - playing.current.at) / 1000
+    shape.current = between(start, shapeAt(loop, since), ease(since / MOTION_BLEND_SECONDS))
     place(grip.current, logo.x - logoWidth / 2, logo.y - logoHeight / 2, logoWidth, logoHeight)
     // 光は、ロゴの上端（もとの位置からロゴの高さの半分上）が画面の下端に届くところで最大になる
     const logoTop = home.y - (LOGO_HEIGHT * cell) / 4
