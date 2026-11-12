@@ -25,6 +25,11 @@ const MOTION_LABELS: Record<Motion, string> = {
   flower: 'Flower',
   cradle: 'Cradle',
   orb: 'Orb',
+  bars: 'Bars',
+  tumble: 'Tumble',
+  star: 'Star',
+  spiral: 'Spiral',
+  atom: 'Atom',
   cycle: 'Cycle'
 }
 const LAMP_LABELS: Record<LampKey, string> = {upper: 'Top', under: 'Bottom'}

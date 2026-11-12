@@ -36,16 +36,21 @@ export const LOOPS = [
   'wave',
   'line',
   'swap',
+  'bars',
   'spin',
   'twist',
   'swing',
   'orbit',
   'fan',
+  'tumble',
+  'star',
   'dots',
   'ring',
   'flower',
   'cradle',
-  'orb'
+  'orb',
+  'spiral',
+  'atom'
 ] as const
 export type Loop = (typeof LOOPS)[number]
 
@@ -69,7 +74,12 @@ export const PERIOD: Record<Loop, number> = {
   ring: 5,
   flower: 5,
   cradle: 4.4,
-  orb: 3.6
+  orb: 3.6,
+  bars: 4,
+  tumble: 3.6,
+  star: 4.4,
+  spiral: 5,
+  atom: 5
 }
 
 /**
@@ -90,7 +100,12 @@ const CYCLE: readonly Loop[] = [
   'orbit',
   'swap',
   'orb',
-  'fan'
+  'fan',
+  'bars',
+  'spiral',
+  'tumble',
+  'atom',
+  'star'
 ]
 
 /** cycle で、今の動きの次に流す動き。最初は CYCLE の先頭 */
@@ -192,6 +207,29 @@ function formation(phase: number, spotOf: (i: number) => Spot): Shape {
     rects: pieces.map(({rect}) => rect),
     dots: DOT_ANCHORS.map((anchor, k) => (k % 2 === 0 ? pieces[k / 2].dot : anchor))
   }
+}
+
+/** 長方形の置き場所。中心と幅と高さと傾き */
+type Slot = {x: number; y: number; width: number; height: number; angle: number}
+
+/**
+ * 7 つの面を、形を保ったまま（円にせず）slotOf(i) の長方形に変えて並べ、ロゴに戻す 1 周。並び方と戻り方は formation と同じ
+ */
+function rectFormation(phase: number, slotOf: (i: number) => Slot): Shape {
+  const w = ease(phase < 0.5 ? (phase - 0.05) / 0.25 : 1 - (phase - 0.7) / 0.25)
+  return rectsOnly(
+    LOGO_SHAPE.rects.map((rect, i) => {
+      const [left, top, right, bottom] = rect
+      const slot = slotOf(i)
+      const from = centerOf(rect)
+      const mix = (a: number, b: number) => a + (b - a) * w
+      const x = mix(from.x, slot.x)
+      const y = mix(from.y, slot.y)
+      const width = mix(right - left, slot.width) / 2
+      const height = mix(bottom - top, slot.height) / 2
+      return [x - width, y - height, x + width, y + height, turnBetween(0, slot.angle) * w]
+    })
+  )
 }
 
 /** 動き始めてから seconds 秒の形 */
@@ -319,6 +357,61 @@ export function shapeAt(motion: Loop | 'still', seconds: number): Shape {
     // 7 つの面が円になって中心に重なり、1 つの大きな丸になってからロゴに戻る
     case 'orb':
       return formation(phase, () => ({x: CENTER.x, y: CENTER.y, size: 18}))
+    // 7 つの面が同じ太さの横棒になって縦に積み重なり、1 本おきに左右へずれてから戻る
+    case 'bars': {
+      const slide = Math.sin(Math.PI * clamp01((phase - 0.3) / 0.4))
+      return rectFormation(phase, (i) => ({
+        x: CENTER.x + (i % 2 === 0 ? -1 : 1) * 3 * slide,
+        y: CENTER.y + (i - 3) * 3,
+        width: 18,
+        height: 1.8,
+        angle: 0
+      }))
+    }
+    // 面が左から順に、右下の角を軸にドミノのように右へ倒れ、右から順に起き上がる
+    case 'tumble':
+      return rectsOnly(
+        LOGO_SHAPE.rects.map((rect, i) => {
+          const fall =
+            phase < 0.5 ? ease((phase - 0.08 - i * 0.04) / 0.18) : 1 - ease((phase - 0.6 - (6 - i) * 0.04) / 0.18)
+          return turnedAbout(rect, 0.55 * fall, {x: rect[2], y: rect[3]})
+        })
+      )
+    // 7 つの面が同じ細い棒になって中心から放射状に並び、星の形のまま 1 回転してから戻る
+    case 'star': {
+      const turn = Math.PI * 2 * ease((phase - 0.3) / 0.4)
+      return rectFormation(phase, (i) => {
+        const angle = -Math.PI / 2 + (i / LOGO_SHAPE.rects.length) * Math.PI * 2 + turn
+        return {
+          x: CENTER.x + 6 * Math.cos(angle),
+          y: CENTER.y + 6 * Math.sin(angle),
+          width: 1.8,
+          height: 8,
+          angle: angle - Math.PI / 2
+        }
+      })
+    }
+    // 7 つの円が中心から外へ渦を巻いて並び、渦ごと 1 回転してから戻る
+    case 'spiral': {
+      const turn = Math.PI * 2 * ease((phase - 0.3) / 0.4)
+      return formation(phase, (i) => {
+        const angle = i * 1.1 + turn
+        const radius = 1.5 + i * 1.6
+        return {x: CENTER.x + radius * Math.cos(angle), y: CENTER.y + radius * Math.sin(angle), size: 2.4 + i * 0.35}
+      })
+    }
+    // 真ん中の大きな円のまわりを、内と外の 2 つの軌道で 3 つずつの円が逆向きに回る
+    case 'atom': {
+      const turn = Math.PI * 2 * ease((phase - 0.3) / 0.4)
+      return formation(phase, (i) => {
+        if (i === 3) return {x: CENTER.x, y: CENTER.y, size: 6}
+        const inner = i < 3
+        const k = inner ? i : i - 4
+        const angle = (k / 3) * Math.PI * 2 + (inner ? turn : -turn) + (inner ? 0 : Math.PI / 3)
+        const radius = inner ? 6.5 : 11
+        return {x: CENTER.x + radius * Math.cos(angle), y: CENTER.y + radius * Math.sin(angle), size: 3}
+      })
+    }
   }
 }
 
