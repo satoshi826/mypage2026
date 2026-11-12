@@ -17,14 +17,14 @@ export const NAME = 'Satoshi Hata'
  */
 export const ORIGIN = 'https://mu826.com'
 
-/** 説明文での名乗り。作家名（mu）を先に置く */
+/** トップの題名と説明文での名乗り。作家名（mu）を先に置く */
 const SIGNED = `mu / ${NAME}`
 
 export const ROUTES: RouteDef[] = [
   {
     path: '/',
     label: null,
-    title: `${SIGNED} — Photographer`,
+    title: SIGNED,
     description: `${SIGNED} (端 智士) is a photographer based in Tokyo and Kanagawa, Japan, photographing streets and people. 東京・神奈川を拠点に、街や人を撮る写真家。`
   },
   // Photos はカテゴリ別の URL（/photos/:category）。ナビの Photos は street を指し、ほかはフッターの
