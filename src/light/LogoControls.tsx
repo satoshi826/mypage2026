@@ -14,6 +14,11 @@ const MOTION_LABELS: Record<Motion, string> = {
   open: 'Open',
   wave: 'Wave',
   line: 'Line',
+  flip: 'Flip',
+  bounce: 'Bounce',
+  level: 'Level',
+  scan: 'Scan',
+  swap: 'Swap',
   random: 'Random'
 }
 const LAMP_LABELS: Record<LampKey, string> = {upper: 'Top', under: 'Bottom'}
@@ -169,8 +174,9 @@ function LogoSettings({controls, focusable}: {controls: Controls; focusable: boo
         ))}
       </div>
       <span className={SECTION}>Motion</span>
-      {/* 選んだ動きをループする。Random はループする動きをランダムな順に次々流す。Still でロゴに戻る */}
-      <div className="col-span-3 flex gap-6 max-sm:gap-3">
+      {/* 選んだ動きをループする。Random はループする動きをランダムな順に次々流す。Still でロゴに戻る。
+          数が多いので、入れ物の幅で折り返し、1 行の高さはほかの欄と同じにする */}
+      <div className="col-span-3 flex max-w-80 flex-wrap gap-x-6 *:h-10 max-sm:max-w-60 max-sm:gap-x-3">
         {MOTIONS.map((m) => (
           <button
             key={m}
@@ -335,7 +341,7 @@ function Menu({
             aria-label={label}
             aria-hidden={!open}
             style={{left: `${at.left}px`, bottom: `${at.bottom}px`}}
-            className={`fixed z-20 grid auto-rows-[2.5rem] grid-cols-[repeat(4,auto)] items-center gap-x-6 ${POPOVER} px-4 py-1 text-sm tracking-[0.12em] transition-[opacity,translate] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] max-sm:gap-x-4 max-sm:text-xs ${open ? '' : 'pointer-events-none translate-y-1 opacity-0'}`}
+            className={`fixed z-20 grid auto-rows-[minmax(2.5rem,auto)] grid-cols-[repeat(4,auto)] items-center gap-x-6 ${POPOVER} px-4 py-1 text-sm tracking-[0.12em] transition-[opacity,translate] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] max-sm:gap-x-4 max-sm:text-xs ${open ? '' : 'pointer-events-none translate-y-1 opacity-0'}`}
           >
             {children(open)}
           </div>,

@@ -12,7 +12,7 @@ export type Shape = readonly Rect[]
 export const LOGO_SHAPE: Shape = LOGO_RECTS
 
 /** ループする動き */
-export const LOOPS = ['cut', 'open', 'wave', 'line'] as const
+export const LOOPS = ['cut', 'open', 'wave', 'line', 'flip', 'bounce', 'level', 'scan', 'swap'] as const
 export type Loop = (typeof LOOPS)[number]
 
 /** 選べる動き。still は動かさず、random はループする動きを 1 周ずつ、ランダムな順に次々流す */
@@ -20,7 +20,17 @@ export const MOTIONS = ['still', ...LOOPS, 'random'] as const
 export type Motion = (typeof MOTIONS)[number]
 
 /** 動きの 1 周の秒数 */
-export const PERIOD: Record<Loop, number> = {cut: 3.6, open: 3.2, wave: 2.4, line: 3.4}
+export const PERIOD: Record<Loop, number> = {
+  cut: 3.6,
+  open: 3.2,
+  wave: 2.4,
+  line: 3.4,
+  flip: 3.2,
+  bounce: 1.8,
+  level: 2.6,
+  scan: 3,
+  swap: 3.2
+}
 
 /** random で、今の動きの次に流す動き。続けて同じ動きにしない */
 export function nextLoop(current: Loop | null): Loop {
@@ -56,6 +66,18 @@ const shifted = ([left, top, right, bottom]: Rect, x: number, y: number): Rect =
   right + x,
   bottom + y
 ]
+/** 横を、x = center を軸に s 倍する。負なら左右が反転する */
+const scaledX = ([left, top, right, bottom]: Rect, s: number, center: number): Rect => {
+  const a = center + (left - center) * s
+  const b = center + (right - center) * s
+  return [Math.min(a, b), top, Math.max(a, b), bottom]
+}
+/** 縦を、lo〜hi の範囲だけ残す。範囲の外に出た長方形は高さ 0 になり、光線は当たらない（scene.ts の hitRect） */
+const clippedY = ([left, top, right, bottom]: Rect, lo: number, hi: number): Rect => {
+  const t = Math.min(Math.max(top, lo), hi)
+  const b = Math.min(Math.max(bottom, lo), hi)
+  return [left, t, right, Math.max(t, b)]
+}
 const centerOf = ([left, top, right, bottom]: Rect) => ({x: (left + right) / 2, y: (top + bottom) / 2})
 
 /** 動き始めてから seconds 秒の形 */
@@ -91,6 +113,48 @@ export function shapeAt(motion: Loop | 'still', seconds: number): Shape {
         const {x} = centerOf([left, top, right, bottom])
         const half = ((right - left) / 2) * (1 - thin) + 0.25 * thin
         return [x - half, top, x + half, bottom]
+      })
+    }
+    // カードを裏返すように横に縮んで左右が反転し、また裏返って戻る
+    case 'flip': {
+      const s = Math.cos(Math.PI * pulse(phase))
+      return LOGO_SHAPE.map((rect) => scaledX(rect, s, 12))
+    }
+    // 沈んで跳ね、着地でつぶれて戻る。つぶれるときは下端を軸に縦に縮み、横に広がる
+    case 'bounce': {
+      const squash =
+        0.2 * Math.sin(Math.PI * clamp01(phase / 0.2)) + 0.2 * Math.sin(Math.PI * clamp01((phase - 0.8) / 0.2))
+      const lift = 5 * Math.sin(Math.PI * clamp01((phase - 0.2) / 0.6))
+      return LOGO_SHAPE.map(([left, top, right, bottom]) => {
+        const [l, , r] = scaledX([left, top, right, bottom], 1 + squash * 0.6, 12)
+        const y = (v: number) => LOGO_HEIGHT + (v - LOGO_HEIGHT) * (1 - squash) - lift
+        return [l, y(top), r, y(bottom)]
+      })
+    }
+    // 音量の目盛りのように、柱の上端がそれぞれの速さで上下する。上に残る部分は両隣の柱の真ん中に付いていく
+    case 'level': {
+      const rates = [1, 3, 2, 3]
+      const drop = (j: number) => 9 * Math.sin(Math.PI * phase) * (0.5 - 0.5 * Math.cos(Math.PI * 2 * rates[j] * phase))
+      return LOGO_SHAPE.map((rect, i) => {
+        if (i % 2 === 0) return [rect[0], rect[1] + drop(i / 2), rect[2], rect[3]]
+        if (i === 5) return rect
+        const y = (drop((i - 1) / 2) + drop((i + 1) / 2)) / 2
+        return shifted(rect, 0, y)
+      })
+    }
+    // 上から下へ走査線が通って消え、上から下へもう一度描かれる
+    case 'scan': {
+      const hidden = LOGO_HEIGHT * ease((phase - 0.1) / 0.35)
+      const shown = LOGO_HEIGHT * ease((phase - 0.55) / 0.35)
+      return LOGO_SHAPE.map((rect) => (phase < 0.5 ? clippedY(rect, hidden, LOGO_HEIGHT) : clippedY(rect, 0, shown)))
+    }
+    // 切り込みの上や下に残る部分が反対の端へ滑り、上下を返した形になってから戻る
+    case 'swap': {
+      const a = pulse(phase)
+      return LOGO_SHAPE.map((rect, i) => {
+        if (i % 2 === 0) return rect
+        const travel = LOGO_HEIGHT - (rect[3] - rect[1])
+        return shifted(rect, 0, (rect[1] === 0 ? travel : -travel) * a)
       })
     }
   }
