@@ -143,18 +143,24 @@ const LINKS = [
 ]
 
 /**
- * 舞台の state。hero と光の段が毎フレーム読む。進み具合（スクロール量を画面の高さで割った値）はスクロールのたびに書き、
- * 粒子が集まった割合は時間で進める
+ * 舞台の state。hero と光の段が毎フレーム読む。進み具合はスクロールのたびに書き、粒子が集まった割合は時間で進める。
+ *
+ * 進み具合は、スクロールできる長さに対する今の位置の割合に SCENE_SCREENS を掛けた値で、一番下でちょうど SCENE_SCREENS になる。
+ * 画面の高さで割ると、下に URL バーのあるブラウザでは一番下でも SCENE_SCREENS に届かない。ページの長さは小さい画面の
+ * 高さ（100svh）で組んであるが、下へスクロールするとバーが引っ込んで画面の高さが伸び、そのぶんスクロールできる長さが
+ * 縮むため（光の絞りや粒子の集まりが最後まで進まない）。バーのないブラウザでは、画面の高さで割った値と同じになる
  */
 function useStage() {
   const state = useRef<Stage>({progress: 0, gather: 0, light: {x: 0, y: 0}})
   useEffect(() => {
     const current = state.current
     const measure = () => {
-      current.progress = scrollY / innerHeight
+      const scrollable = document.documentElement.scrollHeight - innerHeight
+      current.progress = scrollable > 0 ? (scrollY / scrollable) * SCENE_SCREENS : 0
     }
     measure()
     const stop = onScrollFrame(measure)
+    addEventListener('resize', measure)
     let last = performance.now()
     let frame = requestAnimationFrame(function tick(now) {
       advanceGather(current, Math.min((now - last) / 1000, 0.1))
@@ -163,6 +169,7 @@ function useStage() {
     })
     return () => {
       stop()
+      removeEventListener('resize', measure)
       cancelAnimationFrame(frame)
     }
   }, [])
