@@ -161,6 +161,22 @@ JS 配列は無駄なのでこちらを使う。
 描画頂点数は attribute の要素数 ÷ stride で決まる。`gl_VertexID` だけ使いたい場合でも、
 頂点数を決めるためのダミー attribute が1つ要る。
 
+## transform feedback は端末によって何も書き出さない
+
+光の場面で、光線の経路を頂点 1 つにつき 1 回だけたどって transform feedback でバッファに書き出し、
+そのバッファを線として描く形を試した（`RASTERIZER_DISCARD`、出力は 1 つのバッファへ並べる `INTERLEAVED_ATTRIBS`）。
+手元の Mac の Chrome では速くなったが、**Pixel 7a（Mali-G710）の Chrome では光が何も出なかった**。
+エラーは出ず、リンクも通り、ほかの描画（写真の粒子、ロゴの面）はふつうに出る。手元で Chrome の描き方を
+Vulkan（SwiftShader）にしたり、transform feedback の代替の経路を強制したりしても再現しなかった。
+
+元の描き方（線を描く頂点ごとに経路をたどり直す）に戻したら出たので、transform feedback をやめた。
+また使うなら、その端末で書き出した中身を読み直して確かめ、だめなら別の描き方に切り替える備えが要る。
+
+なお glaku の `core.setProgram(id, vert, frag, varyings)` は `SEPARATE_ATTRIBS`（4 出力まで）でしかリンクしないので、
+多くの値を 1 つのバッファへ並べて書き出すには、`Program` を作ったあと自分で `gl.transformFeedbackVaryings` と
+`gl.linkProgram` をやり直し、`core.setUniLoc` で uniform の場所を取り直す。書き出す値は頂点シェーダの出力なので、
+WebGL2 が保証する 16 個（64 成分）までに収める。
+
 ## Worker で使うときの注意
 
 **`Loop` は `interval` を渡さないと `requestAnimationFrame` を使う。** Worker には rAF が
