@@ -3,6 +3,7 @@ import {createPortal, type CSSProperties} from 'preact'
 import {COUNTS, MAX_COLUMNS, useGalleryControls, type Count} from './controls'
 import {DEFAULT_SLIDER, SLIDER_PARAMS, type SliderLook} from './tuning'
 import {DevPanel} from '../app/DevPanel'
+import {GLOW_HOVER} from '../app/glow'
 import {useExternal} from '../app/useExternal'
 
 const subscribe = () => () => {}
@@ -73,15 +74,15 @@ export function GalleryTools() {
         className="max-sm:hidden"
         style={{marginRight: `${look.dividerGap - 24 - THUMB / 2}px`}}
       />
-      {/* 狭い画面で開くボタン。バーの高さいっぱいを押せる細い線のアイコンで、濃さはタブと同じ 90%、ホバーで 100%。
-          枠の幅は SNS のアイコンと同じ（Footer.tsx） */}
+      {/* 狭い画面で開くボタン。バーの高さいっぱいを押せる細い線のアイコン。枠の幅と濃さと光は SNS のアイコンと同じ
+          （Footer.tsx）で、開いているあいだは選んでいる状態として 90% にし、一段下の光を置く */}
       <button
         ref={button}
         type="button"
         aria-label="列数"
         aria-expanded={open}
         onClick={() => setOpen(!open)}
-        className="flex w-10 cursor-pointer items-center justify-center opacity-90 transition-opacity duration-300 hover:opacity-100 max-sm:w-8 sm:hidden"
+        className={`glow-mark flex w-10 cursor-pointer items-center justify-center opacity-55 transition-[opacity,filter] duration-300 hover:opacity-100! focus-visible:opacity-100! aria-expanded:opacity-90 aria-expanded:[--glow:var(--glow-selected)] ${GLOW_HOVER} max-sm:w-8 sm:hidden`}
       >
         <svg
           viewBox="0 0 24 24"

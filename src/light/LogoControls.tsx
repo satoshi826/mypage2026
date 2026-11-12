@@ -8,8 +8,8 @@ import {MATERIALS, useLogoControls, type LampControl, type LogoControls as Contr
 const MATERIAL_LABELS: Record<Material, string> = {matte: 'Matte', glass: 'Glass', metal: 'Metal'}
 const LAMP_LABELS: Record<LampKey, string> = {upper: 'Top', under: 'Bottom'}
 
-// before は指の当たり判定。配置を変えずに 44px を確保する
-const ICON_BUTTON = `glow-mark relative flex cursor-pointer opacity-55 transition-[opacity,filter] duration-700 before:absolute before:top-1/2 before:left-1/2 before:size-11 before:-translate-x-1/2 before:-translate-y-1/2 before:content-[''] hover:opacity-100 aria-expanded:opacity-100 ${GLOW_HOVER}`
+// before は指の当たり判定。配置を変えずに 44px を確保する。開いているあいだは選んでいる状態として 90% にし、一段下の光を置く
+const ICON_BUTTON = `glow-mark relative flex cursor-pointer opacity-55 transition-[opacity,filter] duration-700 before:absolute before:top-1/2 before:left-1/2 before:size-11 before:-translate-x-1/2 before:-translate-y-1/2 before:content-[''] hover:opacity-100! aria-expanded:opacity-90 aria-expanded:[--glow:var(--glow-selected)] ${GLOW_HOVER}`
 
 /** 開いた入れ物の中で選ぶ文字。見た目はフッターのタブ（Tabs.tsx）と同じで、選んでいるものの文字を光らせる */
 const OPTION = `flex cursor-pointer items-center opacity-75 transition-opacity duration-300 hover:opacity-100! focus-visible:opacity-100! ${GLOW_HOVER} aria-pressed:opacity-90 aria-pressed:[--glow:var(--glow-selected)]`
