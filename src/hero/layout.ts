@@ -58,12 +58,12 @@ export const STACKED_LAYOUT: Layout = {
 export const SIDE_LAYOUT: Layout = {
   padding: 52,
   photoGap: 32,
-  cell: 28,
-  fontSize: 12,
-  gapX: 16,
+  cell: 25,
+  fontSize: 11.4,
+  gapX: 17,
   gapY: 32,
   columns: 7,
-  markerGrow: 18,
+  markerGrow: 16,
   markerBorder: 1,
   markerDuration: 1000
 }
