@@ -34,8 +34,11 @@ const MOVING_PX = 2
 /** 止まってから、残す割合が元へ戻る速さ。1 フレームごとに、動いている度合いをこの割合に減らす */
 const SETTLE_RATE = 0.9
 
-/** 訪問者が光源をつかんで動かしているあいだの、前の結果を残す割合の上限。光源は速く動くので、動いているときの値では跡が点々と残る */
-const GRABBED_KEEP = 0.5
+/**
+ * 光源やロゴが速く動いているあいだ（訪問者が光源をつかんでいるとき、ロゴの形を動かしているとき）の、前の結果を残す割合の上限。
+ * 動いているときの値では、跡が点々と残る
+ */
+const FAST_KEEP = 0.5
 
 /** 1 本の光線が描く線分の数の上限（光源からの 1 本 + 跳ね返り 8 回）。tuning.ts の跳ね返りの上限と合わせる */
 const MAX_SEGMENTS = 9
@@ -449,7 +452,7 @@ export function createLightScene(core: Core, pixelRatio: number) {
 
     // 大きさが変わった直後は前の結果が無いので、このフレームだけで描く
     const settled = (tuning.keep + (tuning.keepMoving - tuning.keep) * moving) / 100
-    const keep = frame.grabbed ? Math.min(GRABBED_KEEP, settled) : settled
+    const keep = frame.fast ? Math.min(FAST_KEEP, settled) : settled
     blend.setUniform({u_keep: fresh ? 0 : keep})
     blend.setTexture({t_prev: acc[0].renderTexture[0]})
     acc[1].render(plane, blend)
@@ -504,8 +507,8 @@ export type LightFrame = {
   upper: Lamp & {focus: number; base: {x: number; y: number}}
   /** ロゴの下に置く下の光 */
   under: Lamp
-  /** 訪問者が光源をつかんで動かしているか */
-  grabbed: boolean
+  /** 速く動いているか。訪問者が光源をつかんでいるか、ロゴの形を動かしている（Motion が Still 以外）とき */
+  fast: boolean
   /**
    * ロゴの中心と、大きさの倍率（tuning の cell に掛ける）と、面の見え具合（0〜1。粒子が光に着くにつれて現れる）と、
    * 形（長方形 7 つ。格子の単位。motion.ts）

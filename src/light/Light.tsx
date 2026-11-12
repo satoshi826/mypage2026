@@ -421,7 +421,7 @@ export function Light({
         frame: {
           upper: {...at.upper, base: upperBase, angle: facing.current.upper, power: power.upper * brightness, focus},
           under: {...at.under, angle: facing.current.under, power: power.under * underBrightness},
-          grabbed: dragging.current !== null,
+          fast: dragging.current !== null || motion !== 'still',
           logo: {...logo, shown: arrived, shape: shape.current},
           material: mix.current
         }
