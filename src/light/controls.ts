@@ -1,5 +1,6 @@
 import {useExternal} from '../app/useExternal'
 import type {LampKey, LampSetting} from './arrangement'
+import type {Motion} from './motion'
 
 // フッターに出すロゴとライトの操作（ロゴの素材と大きさ、光の向きと明るさ、変えた置き方を戻す操作）の受け渡し。状態と操作は Light が持ち、
 // マウント中だけここへ出す。フッターはここを読んで描く。光の層のチャンク（worker・シェーダ）は読み込まない。
@@ -23,7 +24,7 @@ export type LampControl = {
 export type LogoControls = {
   /** フッターにロゴとライトの操作を出すか。光がつききって、一番下にいるあいだだけ出す */
   available: boolean
-  /** ロゴか光の置き方、ロゴの素材を既定から変えたか。操作を出していて、変えてあるあいだだけ戻す操作を出す */
+  /** ロゴか光の置き方、ロゴの素材と形の動きを既定から変えたか。操作を出していて、変えてあるあいだだけ戻す操作を出す */
   changed: boolean
   /** ロゴと光の置き方と、ロゴの素材を既定へ戻す */
   reset: () => void
@@ -31,6 +32,9 @@ export type LogoControls = {
   material: Material
   /** ロゴの素材を切り替える */
   setMaterial: (material: Material) => void
+  /** ロゴの形の動き（motion.ts）。still 以外はループする */
+  motion: Motion
+  setMotion: (motion: Motion) => void
   /** ロゴの大きさの倍率。0.01 に丸めたもの */
   scale: number
   setScale: (scale: number) => void

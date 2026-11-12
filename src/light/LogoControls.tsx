@@ -4,9 +4,18 @@ import {GLOW_HOVER} from '../app/glow'
 import {POPOVER} from '../app/popover'
 import {useExternal} from '../app/useExternal'
 import {MAX_POWER, MAX_SCALE, MAX_TILT, MIN_SCALE, type LampKey} from './arrangement'
+import {MOTIONS, type Motion} from './motion'
 import {MATERIALS, useLogoControls, type LampControl, type LogoControls as Controls, type Material} from './controls'
 
 const MATERIAL_LABELS: Record<Material, string> = {matte: 'Matte', glass: 'Glass', metal: 'Metal'}
+const MOTION_LABELS: Record<Motion, string> = {
+  still: 'Still',
+  cut: 'Cut',
+  open: 'Open',
+  wave: 'Wave',
+  burst: 'Burst',
+  line: 'Line'
+}
 const LAMP_LABELS: Record<LampKey, string> = {upper: 'Top', under: 'Bottom'}
 
 // before は指の当たり判定。配置を変えずに 44px を確保する。開いているあいだは選んでいる状態として 90% にし、一段下の光を置く
@@ -139,9 +148,9 @@ const POWER_ICON = (
   </svg>
 )
 
-/** ロゴの設定。素材と大きさ */
+/** ロゴの設定。素材と、形の動きと、大きさ */
 function LogoSettings({controls, focusable}: {controls: Controls; focusable: boolean}) {
-  const {material, setMaterial, scale, setScale} = controls
+  const {material, setMaterial, motion, setMotion, scale, setScale} = controls
   return (
     <>
       <span className={SECTION}>Material</span>
@@ -156,6 +165,22 @@ function LogoSettings({controls, focusable}: {controls: Controls; focusable: boo
             className={OPTION}
           >
             <span className="glow-text transition-[text-shadow] duration-800">{MATERIAL_LABELS[m]}</span>
+          </button>
+        ))}
+      </div>
+      <span className={SECTION}>Motion</span>
+      {/* 選んだ動きをループする。Still でロゴに戻る */}
+      <div className="col-span-3 flex gap-6 max-sm:gap-3">
+        {MOTIONS.map((m) => (
+          <button
+            key={m}
+            type="button"
+            onClick={() => setMotion(m)}
+            aria-pressed={motion === m}
+            tabIndex={focusable ? 0 : -1}
+            className={OPTION}
+          >
+            <span className="glow-text transition-[text-shadow] duration-800">{MOTION_LABELS[m]}</span>
           </button>
         ))}
       </div>

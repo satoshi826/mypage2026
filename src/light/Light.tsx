@@ -22,6 +22,7 @@ import {
 import {setLogoControls, type LampControl, type Material} from './controls'
 import {createRayBudget, type RayBudget} from './rayBudget'
 import {LOGO_HEIGHT, LOGO_WIDTH} from './logo'
+import {LOGO_SHAPE, between, shapeAt, type Motion, type Shape} from './motion'
 import {DEFAULT_LIGHT, LIGHT_PARAMS, type LightTuning} from './tuning'
 
 /** 動かしたロゴと回した光を、フッターの操作で既定へ戻すのにかける秒数 */
@@ -53,6 +54,9 @@ const FOCUS_AFTER_SCREENS = 0.5
  * あいだを空けて、一番下のわずかな揺れで出たり消えたりしないようにする
  */
 const CONTROLS_AT = {show: 0.02, hide: 0.1}
+
+/** 動きを切り替えたとき（Still に戻すときも）、今の形から次の動きへ移る秒数 */
+const MOTION_BLEND_SECONDS = 0.6
 
 /** 幅の狭い画面（スマホ）でのロゴの大きさ。tuning の 1 マスに掛ける。訪問者が変える大きさ（arrangement の scale）とは別 */
 const NARROW_LOGO = 0.85
@@ -150,18 +154,27 @@ export function Light({
     switched.current = {at: performance.now(), from: {...mix.current}}
     setMaterialState(next)
   }, [])
+  // ロゴの形の動き。選んだ時刻からループし、選んだときの形から MOTION_BLEND_SECONDS かけて移る（Still に戻すときも）
+  const [motion, setMotionState] = useState<Motion>('still')
+  const shape = useRef<Shape>(LOGO_SHAPE)
+  const motionStart = useRef({at: 0, from: LOGO_SHAPE})
+  const setMotion = useCallback((next: Motion) => {
+    motionStart.current = {at: performance.now(), from: shape.current}
+    setMotionState(next)
+  }, [])
   // 置き方と素材を既定へ戻す
   const reset = useCallback(() => {
     returning.current = {at: performance.now(), from: arrangement.current}
     setMaterial('matte')
-  }, [setMaterial])
+    setMotion('still')
+  }, [setMaterial, setMotion])
   const publish = (next: Shown) => {
     shown.current = next
-    setLogoControls({...next, reset, material, setMaterial, setScale, setLamp})
+    setLogoControls({...next, reset, material, setMaterial, motion, setMotion, setScale, setLamp})
   }
   useEffect(() => {
-    setLogoControls({...shown.current, reset, material, setMaterial, setScale, setLamp})
-  }, [reset, material, setMaterial, setScale, setLamp])
+    setLogoControls({...shown.current, reset, material, setMaterial, motion, setMotion, setScale, setLamp})
+  }, [reset, material, setMaterial, motion, setMotion, setScale, setLamp])
   useEffect(() => () => setLogoControls(null), [])
 
   // ロゴのつかみ場所と、光源のつかみ場所。位置は毎フレーム書く
@@ -356,6 +369,8 @@ export function Light({
     const to = {glass: material === 'glass' ? 1 : 0, metal: material === 'metal' ? 1 : 0}
     const from = change.from
     mix.current = {glass: from.glass + (to.glass - from.glass) * r, metal: from.metal + (to.metal - from.metal) * r}
+    const since = (now - motionStart.current.at) / 1000
+    shape.current = between(motionStart.current.from, shapeAt(motion, since), ease(since / MOTION_BLEND_SECONDS))
     place(grip.current, logo.x - logoWidth / 2, logo.y - logoHeight / 2, logoWidth, logoHeight)
     // 光は、ロゴの上端（もとの位置からロゴの高さの半分上）が画面の下端に届くところで最大になる
     const logoTop = home.y - (LOGO_HEIGHT * cell) / 4
@@ -407,7 +422,7 @@ export function Light({
           upper: {...at.upper, base: upperBase, angle: facing.current.upper, power: power.upper * brightness, focus},
           under: {...at.under, angle: facing.current.under, power: power.under * underBrightness},
           grabbed: dragging.current !== null,
-          logo: {...logo, shown: arrived},
+          logo: {...logo, shown: arrived, shape: shape.current},
           material: mix.current
         }
       })
@@ -426,7 +441,7 @@ export function Light({
     }
     const next: Shown = {
       available: atBottom.current,
-      changed: !isDefault(arrangement.current) || material !== 'matte',
+      changed: !isDefault(arrangement.current) || material !== 'matte' || motion !== 'still',
       scale: Math.round(scale * 100) / 100,
       lamps: {upper: control('upper'), under: control('under')}
     }

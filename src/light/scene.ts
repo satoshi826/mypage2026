@@ -1,5 +1,6 @@
 import {type Core, Program, Renderer, Vao, plane2D} from 'glaku'
 import {LOGO_HEIGHT, LOGO_RECTS, LOGO_WIDTH} from './logo'
+import type {Shape} from './motion'
 import {DEFAULT_LIGHT, type LightTuning} from './tuning'
 import {halfFloatFormat} from '../scene/halfFloat'
 
@@ -333,7 +334,7 @@ export function createLightScene(core: Core, pixelRatio: number) {
   /** 前のフレームの 2 つの光源の位置。動いているかを見る */
   let lastLamps = {upper: {x: 0, y: 0}, under: {x: 0, y: 0}}
   /** 前のフレームのロゴの位置と大きさ（左上と 1 マス） */
-  let lastLogo = {x: 0, y: 0, unit: 0}
+  let lastLogo: {x: number; y: number; unit: number; shape: Shape | null} = {x: 0, y: 0, unit: 0, shape: null}
   /** 今のロゴの長方形（canvas の左上からの px で [左, 上, 右, 下]）と、見え具合 */
   let logoShape = {rects: [] as number[], shown: 0}
   /** 動いている度合い（0〜1）。動くと上がり、止まるとなめらかに 0 へ戻る */
@@ -409,17 +410,19 @@ export function createLightScene(core: Core, pixelRatio: number) {
       Math.hypot(under.x - lastLamps.under.x, under.y - lastLamps.under.y) +
       Math.hypot(left - lastLogo.x, top - lastLogo.y) +
       Math.abs(unit - lastLogo.unit) * LOGO_WIDTH +
+      // 形が動いたぶん（長方形の辺が一番大きく動いた px）
+      shapeMoved(logo.shape, lastLogo.shape) * unit +
       swing(upper, lastTurn.upper) +
       swing(under, lastTurn.under)
     const switching = material.glass !== lastTurn.glass || material.metal !== lastTurn.metal
     moving = Math.max(Math.min(1, moved / MOVING_PX), switching ? 1 : 0, moving * SETTLE_RATE)
     lastBase = upper.base
     lastLamps = {upper: {x: upper.x, y: upper.y}, under: {x: under.x, y: under.y}}
-    lastLogo = {x: left, y: top, unit}
+    lastLogo = {x: left, y: top, unit, shape: logo.shape}
     lastTurn = {upper: upper.angle, under: under.angle, glass: material.glass, metal: material.metal}
     seed = (seed + 1) % 1_000_000
     logoShape = {
-      rects: LOGO_RECTS.flatMap(([l, t, r, b]) => [left + l * unit, top + t * unit, left + r * unit, top + b * unit]),
+      rects: logo.shape.flatMap(([l, t, r, b]) => [left + l * unit, top + t * unit, left + r * unit, top + b * unit]),
       shown: logo.shown
     }
     rays.setUniform({
@@ -503,10 +506,21 @@ export type LightFrame = {
   under: Lamp
   /** 訪問者が光源をつかんで動かしているか */
   grabbed: boolean
-  /** ロゴの中心と、大きさの倍率（tuning の cell に掛ける）と、面の見え具合（0〜1。粒子が光に着くにつれて現れる） */
-  logo: {x: number; y: number; scale: number; shown: number}
+  /**
+   * ロゴの中心と、大きさの倍率（tuning の cell に掛ける）と、面の見え具合（0〜1。粒子が光に着くにつれて現れる）と、
+   * 形（長方形 7 つ。格子の単位。motion.ts）
+   */
+  logo: {x: number; y: number; scale: number; shown: number; shape: Shape}
   /**
    * ロゴの素材の割合。どちらも 0 で白い面、glass が 1 でガラス、metal が 1 で金属。切り替えるあいだはあいだを通る
    */
   material: {glass: number; metal: number}
+}
+
+/** 2 つの形で、長方形の辺が一番大きく動いた量（格子の単位）。前の形がなければ 0 */
+function shapeMoved(shape: Shape, last: Shape | null) {
+  if (!last) return 0
+  let most = 0
+  shape.forEach((rect, i) => rect.forEach((v, k) => (most = Math.max(most, Math.abs(v - last[i][k])))))
+  return most
 }
