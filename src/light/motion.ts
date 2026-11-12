@@ -29,7 +29,7 @@ export const LOGO_SHAPE: Shape = {
   dots: DOT_ANCHORS
 }
 
-/** ループする動き。cycle はこの順に流す */
+/** ループする動き。入れ物にはこの順に、似た動きをまとめて並べる */
 export const LOOPS = [
   'cut',
   'open',
@@ -49,7 +49,7 @@ export const LOOPS = [
 ] as const
 export type Loop = (typeof LOOPS)[number]
 
-/** 選べる動き。still は動かさず、cycle はループする動きを 1 周ずつ、LOOPS の順に次々流す */
+/** 選べる動き。still は動かさず、cycle はループする動きを 1 周ずつ、CYCLE の順に次々流す */
 export const MOTIONS = ['still', ...LOOPS, 'cycle'] as const
 export type Motion = (typeof MOTIONS)[number]
 
@@ -72,9 +72,30 @@ export const PERIOD: Record<Loop, number> = {
   orb: 3.6
 }
 
-/** cycle で、今の動きの次に流す動き。最初は LOOPS の先頭 */
+/**
+ * cycle で流す順。似た動きが続かないよう、長方形のまま形を変える動き・円になる動き・回る動きを順に混ぜる
+ */
+const CYCLE: readonly Loop[] = [
+  'cut',
+  'ring',
+  'spin',
+  'open',
+  'dots',
+  'twist',
+  'wave',
+  'flower',
+  'swing',
+  'line',
+  'cradle',
+  'orbit',
+  'swap',
+  'orb',
+  'fan'
+]
+
+/** cycle で、今の動きの次に流す動き。最初は CYCLE の先頭 */
 export const nextLoop = (current: Loop | null): Loop =>
-  current === null ? LOOPS[0] : LOOPS[(LOOPS.indexOf(current) + 1) % LOOPS.length]
+  current === null ? CYCLE[0] : CYCLE[(CYCLE.indexOf(current) + 1) % CYCLE.length]
 
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v))
 /** 入り始めが速く、奥でゆっくり止まる */
@@ -283,7 +304,7 @@ export function shapeAt(motion: Loop | 'still', seconds: number): Shape {
         const degrees = petals[i]
         if (degrees === null) return {x: CENTER.x, y: CENTER.y, size: 5.4}
         const angle = (degrees / 180) * Math.PI + turn
-        return {x: CENTER.x + 7.5 * Math.cos(angle), y: CENTER.y + 7.5 * Math.sin(angle), size: 5.4}
+        return {x: CENTER.x + 10 * Math.cos(angle), y: CENTER.y + 10 * Math.sin(angle), size: 5.4}
       })
     }
     // 7 つの円が横一列に並び、左から右へ流れる波に乗って弾んでからロゴに戻る
