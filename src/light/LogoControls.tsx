@@ -1,6 +1,7 @@
 import {useEffect, useLayoutEffect, useRef, useState} from 'preact/hooks'
 import {createPortal, type ComponentChildren} from 'preact'
 import {GLOW_HOVER} from '../app/glow'
+import {POPOVER} from '../app/popover'
 import {useExternal} from '../app/useExternal'
 import {MAX_POWER, MAX_SCALE, MAX_TILT, MIN_SCALE, type LampKey} from './arrangement'
 import {MATERIALS, useLogoControls, type LampControl, type LogoControls as Controls, type Material} from './controls'
@@ -18,10 +19,10 @@ const OPTION = `flex cursor-pointer items-center opacity-75 transition-opacity d
 const LABEL = 'opacity-55'
 
 /**
- * 1 列目の欄の名前（Material、Top など）。右の項目と分けるため、列のあいだ（gap-x）の中央に縦の線を置く。線は欄の行の高さに
- * 合わせ、上下を少し空けて欄ごとに切る（太さと濃さはフッターの仕切りと同じ）
+ * 1 列目の欄の名前（Material、Top など）。右の項目と分けるため、縦の線を置く。線の左右は列のあいだ（gap-x）より広く空け
+ * （右の余白を足し、線をその真ん中に置く）、上下も少し空けて欄ごとに切る。濃さは文字の 55% にさらに掛けて約 20%
  */
-const SECTION = `${LABEL} relative flex items-center self-stretch after:absolute after:inset-y-2 after:-right-3 after:w-[0.5px] after:bg-ink after:opacity-60 max-sm:after:-right-2`
+const SECTION = `${LABEL} relative mr-4 flex items-center self-stretch after:absolute after:inset-y-2 after:-right-5 after:w-[0.5px] after:bg-ink after:opacity-35 max-sm:mr-2 max-sm:after:-right-3`
 
 /** input[type=range] のつまみの幅（styles.css の [data-slider]）。溝の両端はこの半分ずつ内側になる */
 const THUMB = 16
@@ -269,7 +270,7 @@ function Menu({
             aria-label={label}
             aria-hidden={!open}
             style={{left: `${at.left}px`, bottom: `${at.bottom}px`}}
-            className={`fixed z-20 grid auto-rows-[2.5rem] grid-cols-[repeat(4,auto)] items-center gap-x-6 border border-white/10 bg-black/70 px-4 py-1 text-sm tracking-[0.12em] backdrop-blur-[20px] transition-[opacity,translate] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] max-sm:gap-x-4 max-sm:text-xs ${open ? '' : 'pointer-events-none translate-y-1 opacity-0'}`}
+            className={`fixed z-20 grid auto-rows-[2.5rem] grid-cols-[repeat(4,auto)] items-center gap-x-6 ${POPOVER} px-4 py-1 text-sm tracking-[0.12em] transition-[opacity,translate] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] max-sm:gap-x-4 max-sm:text-xs ${open ? '' : 'pointer-events-none translate-y-1 opacity-0'}`}
           >
             {children(open)}
           </div>,

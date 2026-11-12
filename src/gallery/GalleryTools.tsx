@@ -4,6 +4,7 @@ import {COUNTS, MAX_COLUMNS, useGalleryControls, type Count} from './controls'
 import {DEFAULT_SLIDER, SLIDER_PARAMS, type SliderLook} from './tuning'
 import {DevPanel} from '../app/DevPanel'
 import {GLOW_HOVER} from '../app/glow'
+import {POPOVER} from '../app/popover'
 import {useExternal} from '../app/useExternal'
 
 const subscribe = () => () => {}
@@ -104,7 +105,7 @@ export function GalleryTools() {
             ref={menu}
             aria-hidden={!open}
             style={{right: `${at.right}px`, bottom: `${at.bottom}px`}}
-            className={`fixed z-20 border border-white/10 bg-black/70 px-3 backdrop-blur-[20px] transition-[opacity,translate] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] sm:hidden ${open ? '' : 'pointer-events-none translate-y-1 opacity-0'}`}
+            className={`fixed z-20 ${POPOVER} px-3 transition-[opacity,translate] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] sm:hidden ${open ? '' : 'pointer-events-none translate-y-1 opacity-0'}`}
           >
             <ColumnSlider max={MAX_COLUMNS.narrow} look={look} focusable={open} className="h-12" />
           </div>,
