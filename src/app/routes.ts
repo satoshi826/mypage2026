@@ -22,7 +22,7 @@ export const ROUTES: RouteDef[] = [
     path: '/',
     label: null,
     title: `${NAME} (mu) — Photographer`,
-    description: '端 智士（mu / Satoshi Hata）。東京・神奈川を拠点に street / architecture を撮る写真家。'
+    description: 'mu / Satoshi Hata / 端 智士。東京・神奈川を拠点に street / architecture を撮る写真家。'
   },
   // Photos はカテゴリ別の URL（/photos/:category）。ナビの Photos は street を指し、ほかはフッターの
   // 切り替えから辿る。/photos は street へ転送する（worker/index.ts と App.tsx）
