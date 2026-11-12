@@ -20,9 +20,9 @@ const LABEL = 'opacity-55'
 
 /**
  * 1 列目の欄の名前（Material、Top など）。右の項目と分けるため、縦の線を置く。線の左右は列のあいだ（gap-x）より広く空け
- * （右の余白を足し、線をその真ん中に置く）、上下も少し空けて欄ごとに切る。濃さは文字の 55% にさらに掛けて約 20%
+ * （右の余白を足し、線をその真ん中に置く。左右 30px、狭い画面で 18px）、上下も少し空けて欄ごとに切る。濃さは文字の 55% にさらに掛けて約 20%
  */
-const SECTION = `${LABEL} relative mr-4 flex items-center self-stretch after:absolute after:inset-y-2 after:-right-5 after:w-[0.5px] after:bg-ink after:opacity-35 max-sm:mr-2 max-sm:after:-right-3`
+const SECTION = `${LABEL} relative mr-9 flex items-center self-stretch after:absolute after:inset-y-2 after:-right-[30px] after:w-[0.5px] after:bg-ink after:opacity-35 max-sm:mr-5 max-sm:after:-right-[18px]`
 
 /** input[type=range] のつまみの幅（styles.css の [data-slider]）。溝の両端はこの半分ずつ内側になる */
 const THUMB = 16
@@ -103,6 +103,42 @@ const LIGHT_ICON = (
   </svg>
 )
 
+/** 項目の名前をアイコンで示す欄。濃さは欄の名前と同じ 55% */
+const ITEM = `${LABEL} flex items-center`
+
+/** 向きの項目のアイコン。頂点から出る 2 本の線と、そのあいだの角度の弧 */
+const ANGLE_ICON = (
+  <svg
+    viewBox="0 0 24 24"
+    aria-hidden
+    className="size-4"
+    fill="none"
+    stroke="currentColor"
+    stroke-width={1.5}
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  >
+    <path d="M20 19H4L16 5" />
+    <path d="M10.5 19a6.5 6.5 0 0 0-2.3-4.9" />
+  </svg>
+)
+
+/** 明るさの項目のアイコン。右へ高くなる 3 本の棒（量の目盛り） */
+const POWER_ICON = (
+  <svg
+    viewBox="0 0 24 24"
+    aria-hidden
+    className="size-4"
+    fill="none"
+    stroke="currentColor"
+    stroke-width={1.5}
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  >
+    <path d="M6 19v-4M12 19v-8M18 19V7" />
+  </svg>
+)
+
 /** ロゴの設定。素材と大きさ */
 function LogoSettings({controls, focusable}: {controls: Controls; focusable: boolean}) {
   const {material, setMaterial, scale, setScale} = controls
@@ -153,7 +189,9 @@ function LightSettings({controls, focusable}: {controls: Controls; focusable: bo
         return (
           <div key={key} className="contents">
             <span className={`${SECTION} row-span-2`}>{LAMP_LABELS[key]}</span>
-            <span className={LABEL}>Angle</span>
+            <span className={ITEM} role="img" aria-label="Angle" title="Angle">
+              {ANGLE_ICON}
+            </span>
             {/* 外すと今照らしている向きのまま止める。向きが跳ばないように */}
             <button
               type="button"
@@ -177,7 +215,9 @@ function LightSettings({controls, focusable}: {controls: Controls; focusable: bo
               focusable={focusable}
               onInput={(value) => setLamp(key, {tilt: (value * Math.PI) / 180})}
             />
-            <span className={LABEL}>Power</span>
+            <span className={ITEM} role="img" aria-label="Power" title="Power">
+              {POWER_ICON}
+            </span>
             <Slider
               label={`${LAMP_LABELS[key]} power`}
               value={power}
