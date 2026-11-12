@@ -170,8 +170,11 @@ export function Light({
   // 今照らしている向き（画面の上の角度）と、それを書いた時刻。光が消えているあいだは null
   const facing = useRef<Record<LampKey, number> | null>(null)
   const lastFrame = useRef(0)
-  /** 一番下までスクロールしたときの部屋の上端と、それを求めた時刻。なめらかに寄せるために前の値を持つ */
-  const finalTop = useRef<{top: number; at: number} | null>(null)
+  /**
+   * 一番下までスクロールしたときの、部屋の上端とロゴの中心の高さ（画面の上からの px）と、それを求めた時刻。
+   * なめらかに寄せるために前の値を持つ
+   */
+  const final = useRef<{top: number; center: number; at: number} | null>(null)
 
   // ロゴをつかんでいる指（マウスは 1 つ）。指が増えたり減ったりしたら、そのときの置き方と指の位置から測り直す。
   // 1 本ならその動きだけロゴを動かし、2 本なら指のあいだの距離の比で大きさを変え、2 本の中点の動きだけ動かす
@@ -274,22 +277,28 @@ export function Light({
     // 2 つの光のもとの位置は、一番下までスクロールしたときのロゴのもとの位置からのずれ（部屋の高さの %）で置く。
     // 上の光はスクロールで画面の中央からそこまで上がり、下の光は部屋と一緒に動く
     const roomHeight = box?.height ?? height
-    // 一番下までスクロールしたときの部屋の上端。今の位置から残りのスクロール量だけ上げたところ。部屋の高さ（100svh）は
-    // 見えている画面の高さと同じとは限らない（下に URL バーがあるブラウザでは、スクロールでバーが引っ込んで画面が伸び、
-    // 部屋は画面の上端より下で止まる）。バーが出入りするあいだは毎フレーム変わり、スマホでは読む値どうしの更新の
-    // ずれで揺れるので、そのまま使わずなめらかに寄せる
-    const measured = box ? box.top - (document.documentElement.scrollHeight - innerHeight - scrollY) : 0
-    const last = finalTop.current
+    // 一番下までスクロールしたときの部屋の上端（今の位置から残りのスクロール量だけ上げたところ）と、ロゴの中心を置く高さ
+    // （見えている画面の中央）。部屋の高さ（100svh）は見えている画面の高さと同じとは限らない（下に URL バーがあるブラウザ
+    // では、スクロールでバーが引っ込んで画面が伸び、部屋は画面の上端より下で止まる）。ロゴを部屋の中央に置くと画面の中央より
+    // 下で止まるので、一番下で画面の中央に来る部屋の中の高さに置く。バーが出入りするあいだは毎フレーム変わり、スマホでは
+    // 読む値どうしの更新のずれで揺れるので、そのまま使わずなめらかに寄せる
+    const measured = {
+      top: box ? box.top - (document.documentElement.scrollHeight - innerHeight - scrollY) : 0,
+      center: innerHeight / 2
+    }
+    const last = final.current
     const settle = last ? 1 - Math.exp(-Math.min(0.1, (now - last.at) / 1000) / SETTLE_SECONDS) : 1
-    const roomTop = last ? last.top + (measured - last.top) * settle : measured
-    finalTop.current = {top: roomTop, at: now}
+    const toward = (from: number, to: number) => (last ? from + (to - from) * settle : to)
+    const finalTop = toward(last?.top ?? 0, measured.top)
+    const finalCenter = toward(last?.center ?? 0, measured.center)
+    final.current = {top: finalTop, center: finalCenter, at: now}
     const shift = (x: number, y: number) => ({x: (x / 100) * roomHeight, y: (y / 100) * roomHeight})
     const upperShift = shift(tuning.upperX, tuning.upperY)
     const underShift = shift(tuning.underX, tuning.underY)
     const upperBase = lightAt(
       stage.current,
       {width, height},
-      {x: width / 2 + tuning.logoShift + upperShift.x, y: roomTop + roomHeight / 2 + upperShift.y}
+      {x: width / 2 + tuning.logoShift + upperShift.x, y: finalCenter + upperShift.y}
     )
     // 上の光は、もとの位置に訪問者が動かした量を足し、画面の中に収める。この位置は粒子が飛び込む先として hero も読む。
     // 動かした光にも粒子が飛び込み、上へ戻るとそこから写真へ戻る
@@ -313,8 +322,9 @@ export function Light({
     const {progress} = stage.current
     // 下向きに絞るのは、光がついてから少しスクロールしたあと
     const focus = ease((progress - GATHER_AT - FOCUS_AFTER_SCREENS) / (SCENE_SCREENS - GATHER_AT - FOCUS_AFTER_SCREENS))
-    // ロゴのもとの位置は部屋の中央から logoShift ずらしたところ。大きさと動かした量は、ロゴが部屋からはみ出さない範囲に収める
-    const home = {x: (box.left + box.right) / 2 + tuning.logoShift, y: (box.top + box.bottom) / 2}
+    // ロゴのもとの位置は、一番下で画面の中央に来る部屋の中の高さで、横は部屋の中央から logoShift ずらしたところ。
+    // 大きさと動かした量は、ロゴが部屋からはみ出さない範囲に収める
+    const home = {x: (box.left + box.right) / 2 + tuning.logoShift, y: box.top + finalCenter - finalTop}
     const size = narrow ? NARROW_LOGO : 1
     const cell = tuning.cell * size
     const homeWidth = (LOGO_WIDTH * cell) / 2
@@ -347,8 +357,8 @@ export function Light({
     const from = change.from
     mix.current = {glass: from.glass + (to.glass - from.glass) * r, metal: from.metal + (to.metal - from.metal) * r}
     place(grip.current, logo.x - logoWidth / 2, logo.y - logoHeight / 2, logoWidth, logoHeight)
-    // 光は、ロゴの上端（部屋の中央からロゴの高さの半分上）が画面の下端に届くところで最大になる
-    const logoTop = (box.top + box.bottom) / 2 - (LOGO_HEIGHT * cell) / 4
+    // 光は、ロゴの上端（もとの位置からロゴの高さの半分上）が画面の下端に届くところで最大になる
+    const logoTop = home.y - (LOGO_HEIGHT * cell) / 4
     const brightness = arrived * (DIM + (1 - DIM) * ease(1 - (logoTop - height) / (height * BRIGHTEN_SCREENS)))
     // 下の光は、部屋の床が画面の下端の半画面下まで来たところから光り始め、下端に着くと最大になる
     const underBrightness = ease(1 - (box.bottom - height) / (height / 2))
