@@ -1,6 +1,6 @@
 import {type Core, Program, Renderer, Vao, plane2D} from 'glaku'
 import {LOGO_HEIGHT, LOGO_RECTS, LOGO_WIDTH} from './logo'
-import type {Shape} from './motion'
+import {turnBetween, type Shape} from './motion'
 import {DEFAULT_LIGHT, type LightTuning} from './tuning'
 import {halfFloatFormat} from '../scene/halfFloat'
 
@@ -98,7 +98,8 @@ export function createLightScene(core: Core, pixelRatio: number) {
       u_underPower: 'float',
       u_underSize: 'float',
       u_underCone: 'float',
-      u_rects: `vec4[${LOGO_RECTS.length}]`
+      u_rects: `vec4[${LOGO_RECTS.length}]`,
+      u_turns: `vec2[${LOGO_RECTS.length}]`
     },
     vert: /* glsl */ `
       out float v_energy;
@@ -115,10 +116,26 @@ export function createLightScene(core: Core, pixelRatio: number) {
         return hash(uint(ray) * 1664525u + uint(k) * 1013904223u + uint(u_seed) * 2654435761u);
       }
 
-      // 長方形 r（左上と右下）に、今の best より手前で当たれば、best と面の向きを書き換える
-      void hitRect(vec2 ro, vec2 rd, vec2 inv, vec4 r, inout float best, inout vec2 normal, inout bool solid) {
-        vec2 a = (r.xy - ro) * inv;
-        vec2 b = (r.zw - ro) * inv;
+      // 長方形は、傾けていない形（左上と右下）と、中心のまわりの傾き turn（cos, sin）で持つ。当たりは、光線を長方形の向きに
+      // 直して（中心を原点に、傾きを戻して）、傾いていない箱として求める
+      vec2 toLocal(vec2 v, vec2 turn) {
+        return vec2(turn.x * v.x + turn.y * v.y, turn.x * v.y - turn.y * v.x);
+      }
+      vec2 toWorld(vec2 v, vec2 turn) {
+        return vec2(turn.x * v.x - turn.y * v.y, turn.y * v.x + turn.x * v.y);
+      }
+      vec2 reciprocal(vec2 d) {
+        return 1.0 / mix(d, vec2(1e-6), lessThan(abs(d), vec2(1e-6)));
+      }
+
+      // 長方形 r（傾き turn）に、今の best より手前で当たれば、best と面の向きを書き換える
+      void hitRect(vec2 ro, vec2 rd, vec4 r, vec2 turn, inout float best, inout vec2 normal, inout bool solid) {
+        vec2 reach = (r.zw - r.xy) * 0.5;
+        vec2 o = toLocal(ro - (r.xy + r.zw) * 0.5, turn);
+        vec2 d = toLocal(rd, turn);
+        vec2 inv = reciprocal(d);
+        vec2 a = (-reach - o) * inv;
+        vec2 b = (reach - o) * inv;
         vec2 near = min(a, b);
         vec2 far = max(a, b);
         float tNear = max(near.x, near.y);
@@ -126,27 +143,24 @@ export function createLightScene(core: Core, pixelRatio: number) {
         if (tNear < tFar && tNear > 1e-3 && tNear < best) {
           best = tNear;
           solid = true;
-          normal = near.x > near.y ? vec2(-sign(rd.x), 0.0) : vec2(0.0, -sign(rd.y));
+          normal = toWorld(near.x > near.y ? vec2(-sign(d.x), 0.0) : vec2(0.0, -sign(d.y)), turn);
         }
       }
 
       // 光線 ro + rd t が最初にロゴに当たるところまでの距離と、当たった面の向き（normal）。当たれば solid。
       // 当たらなければ遠くまで伸ばす（画面の外は描かれない）
       float trace(vec2 ro, vec2 rd, out vec2 normal, out bool solid) {
-        vec2 safe = mix(rd, vec2(1e-6), lessThan(abs(rd), vec2(1e-6)));
-        vec2 inv = 1.0 / safe;
         float best = 1e5;
         normal = vec2(0.0);
         solid = false;
-        for (int i = 0; i < ${LOGO_RECTS.length}; i++) hitRect(ro, rd, inv, u_rects[i], best, normal, solid);
+        for (int i = 0; i < ${LOGO_RECTS.length}; i++) hitRect(ro, rd, u_rects[i], u_turns[i], best, normal, solid);
         return best;
       }
 
       // ガラスのロゴの中（ro）から rd へ進んだ光線が、ロゴの外へ出るところまでの距離と、出る面の外向きの向き（normal）。
-      // 長方形どうしは辺を接しているので、出た先が隣の長方形の中なら、そのまま通り抜けて先を探す
+      // 長方形どうしは辺を接している（動かしているあいだは重なることもある）ので、出た先がほかの長方形の中なら、そのまま
+      // 通り抜けて先を探す
       float traceInside(vec2 ro, vec2 rd, out vec2 normal) {
-        vec2 safe = mix(rd, vec2(1e-6), lessThan(abs(rd), vec2(1e-6)));
-        vec2 inv = 1.0 / safe;
         float t = 0.0;
         normal = rd;
         for (int k = 0; k < ${LOGO_RECTS.length}; k++) {
@@ -154,13 +168,19 @@ export function createLightScene(core: Core, pixelRatio: number) {
           int found = -1;
           for (int i = 0; i < ${LOGO_RECTS.length}; i++) {
             vec4 r = u_rects[i];
-            if (all(greaterThanEqual(p, r.xy)) && all(lessThanEqual(p, r.zw))) found = i;
+            vec2 q = toLocal(p - (r.xy + r.zw) * 0.5, u_turns[i]);
+            if (all(lessThanEqual(abs(q), (r.zw - r.xy) * 0.5))) found = i;
           }
           if (found < 0) break;
           vec4 r = u_rects[found];
-          vec2 far = max((r.xy - ro) * inv, (r.zw - ro) * inv);
+          vec2 turn = u_turns[found];
+          vec2 reach = (r.zw - r.xy) * 0.5;
+          vec2 o = toLocal(ro - (r.xy + r.zw) * 0.5, turn);
+          vec2 d = toLocal(rd, turn);
+          vec2 inv = reciprocal(d);
+          vec2 far = max((-reach - o) * inv, (reach - o) * inv);
           t = min(far.x, far.y);
-          normal = far.x < far.y ? vec2(sign(rd.x), 0.0) : vec2(0.0, sign(rd.y));
+          normal = toWorld(far.x < far.y ? vec2(sign(d.x), 0.0) : vec2(0.0, sign(d.y)), turn);
         }
         return t;
       }
@@ -339,7 +359,7 @@ export function createLightScene(core: Core, pixelRatio: number) {
   /** 前のフレームのロゴの位置と大きさ（左上と 1 マス） */
   let lastLogo: {x: number; y: number; unit: number; shape: Shape | null} = {x: 0, y: 0, unit: 0, shape: null}
   /** 今のロゴの長方形（canvas の左上からの px で [左, 上, 右, 下]）と、見え具合 */
-  let logoShape = {rects: [] as number[], shown: 0}
+  let logoShape = {rects: [] as number[], turns: [] as number[], shown: 0}
   /** 動いている度合い（0〜1）。動くと上がり、止まるとなめらかに 0 へ戻る */
   let moving = 0
   /** 前のフレームの光の向きと素材。回しているあいだと切り替えているあいだも動いているものとする */
@@ -426,6 +446,7 @@ export function createLightScene(core: Core, pixelRatio: number) {
     seed = (seed + 1) % 1_000_000
     logoShape = {
       rects: logo.shape.flatMap(([l, t, r, b]) => [left + l * unit, top + t * unit, left + r * unit, top + b * unit]),
+      turns: logo.shape.flatMap(([, , , , angle]) => [Math.cos(angle), Math.sin(angle)]),
       shown: logo.shown
     }
     rays.setUniform({
@@ -442,7 +463,8 @@ export function createLightScene(core: Core, pixelRatio: number) {
       // 消えている光には回さない
       u_underRays: Math.round((count * under.power) / Math.max(upper.power + under.power, 1e-6)),
       u_underPower: under.power,
-      u_rects: logoShape.rects
+      u_rects: logoShape.rects,
+      u_turns: logoShape.turns
     })
 
     frameLayer.clear()
@@ -520,10 +542,18 @@ export type LightFrame = {
   material: {glass: number; metal: number}
 }
 
-/** 2 つの形で、長方形の辺が一番大きく動いた量（格子の単位）。前の形がなければ 0 */
+/**
+ * 2 つの形で、長方形が一番大きく動いた量（格子の単位）。辺の動きと、傾きの変化で長方形の端が動いた量（長さの半分 × 角度）の
+ * 大きいほう。前の形がなければ 0
+ */
 function shapeMoved(shape: Shape, last: Shape | null) {
   if (!last) return 0
   let most = 0
-  shape.forEach((rect, i) => rect.forEach((v, k) => (most = Math.max(most, Math.abs(v - last[i][k])))))
+  shape.forEach(([left, top, right, bottom, angle], i) => {
+    const [l, t, r, b, was] = last[i]
+    const edges = Math.max(Math.abs(left - l), Math.abs(top - t), Math.abs(right - r), Math.abs(bottom - b))
+    const reach = Math.hypot(right - left, bottom - top) / 2
+    most = Math.max(most, edges, Math.abs(turnBetween(was, angle)) * reach)
+  })
   return most
 }

@@ -1,18 +1,33 @@
 import {ease} from '../app/stage'
-import {LOGO_HEIGHT, LOGO_RECTS} from './logo'
+import {LOGO_HEIGHT, LOGO_RECTS, LOGO_WIDTH} from './logo'
 
-// ロゴの形を動かす遊び（Logo の入れ物の Motion）。どの動きもループし、ロゴの長方形 7 つの位置と大きさだけを動かす。
-// 長方形のままなので、光線との当たりは今までどおり式で求まる（scene.ts）。長方形の並びは左から、柱 4 本（0, 2, 4, 6 番）と、
+// ロゴの形を動かす遊び（Logo の入れ物の Motion）。どの動きもループし、ロゴの長方形 7 つの位置と大きさと傾きだけを動かす。
+// 長方形のままなので、光線との当たりは傾いていても式で求まる（scene.ts）。長方形の並びは左から、柱 4 本（0, 2, 4, 6 番）と、
 // そのあいだで切り込みの上や下に残る部分 3 つ（1, 3, 5 番。1 と 3 は下から、5 は上からの切り込み）。値は格子の単位
 
-/** 長方形 1 つ。[左, 上, 右, 下] */
-export type Rect = readonly [number, number, number, number]
+/** 長方形 1 つ。傾けていない形の [左, 上, 右, 下] と、中心のまわりの傾き（ラジアン、時計回りが正） */
+export type Rect = readonly [number, number, number, number, number]
 export type Shape = readonly Rect[]
 
-export const LOGO_SHAPE: Shape = LOGO_RECTS
+export const LOGO_SHAPE: Shape = LOGO_RECTS.map(([left, top, right, bottom]) => [left, top, right, bottom, 0])
 
 /** ループする動き */
-export const LOOPS = ['cut', 'open', 'wave', 'line', 'flip', 'bounce', 'level', 'scan', 'swap'] as const
+export const LOOPS = [
+  'cut',
+  'open',
+  'wave',
+  'line',
+  'flip',
+  'bounce',
+  'level',
+  'scan',
+  'swap',
+  'spin',
+  'twist',
+  'swing',
+  'orbit',
+  'fan'
+] as const
 export type Loop = (typeof LOOPS)[number]
 
 /** 選べる動き。still は動かさず、random はループする動きを 1 周ずつ、ランダムな順に次々流す */
@@ -29,7 +44,12 @@ export const PERIOD: Record<Loop, number> = {
   bounce: 1.8,
   level: 2.6,
   scan: 3,
-  swap: 3.2
+  swap: 3.2,
+  spin: 3.2,
+  twist: 3.4,
+  swing: 2.8,
+  orbit: 3.6,
+  fan: 3.2
 }
 
 /** random で、今の動きの次に流す動き。続けて同じ動きにしない */
@@ -48,37 +68,59 @@ const settle = (v: number) => 1 - (1 - clamp01(v)) ** 4
  */
 const pulse = (phase: number) => (phase < 0.5 ? ease((phase - 0.1) / 0.3) : 1 - ease((phase - 0.6) / 0.3))
 
+/** ロゴの中心 */
+const CENTER = {x: LOGO_WIDTH / 2, y: LOGO_HEIGHT / 2}
+
 const CUT_BANDS = [1, 3, 5]
 
 /** 切り込みの入り具合（3 本それぞれ 0〜1。0 で白い面、1 でロゴ）の形。切り込みのある列の長方形を、面の高さいっぱいから縮める */
 function cutShape(cuts: readonly number[]): Shape {
-  return LOGO_SHAPE.map(([left, top, right, bottom], i) => {
+  return LOGO_SHAPE.map((rect, i) => {
     const k = CUT_BANDS.indexOf(i)
-    if (k < 0) return [left, top, right, bottom]
+    if (k < 0) return rect
+    const [left, top, right, bottom, angle] = rect
     const p = cuts[k]
-    return [left, top * p, right, LOGO_HEIGHT + (bottom - LOGO_HEIGHT) * p]
+    return [left, top * p, right, LOGO_HEIGHT + (bottom - LOGO_HEIGHT) * p, angle]
   })
 }
 
-const shifted = ([left, top, right, bottom]: Rect, x: number, y: number): Rect => [
+const centerOf = ([left, top, right, bottom]: Rect) => ({x: (left + right) / 2, y: (top + bottom) / 2})
+
+const shifted = ([left, top, right, bottom, angle]: Rect, x: number, y: number): Rect => [
   left + x,
   top + y,
   right + x,
-  bottom + y
+  bottom + y,
+  angle
 ]
+
 /** 横を、x = center を軸に s 倍する。負なら左右が反転する */
-const scaledX = ([left, top, right, bottom]: Rect, s: number, center: number): Rect => {
+const scaledX = ([left, top, right, bottom, angle]: Rect, s: number, center: number): Rect => {
   const a = center + (left - center) * s
   const b = center + (right - center) * s
-  return [Math.min(a, b), top, Math.max(a, b), bottom]
+  return [Math.min(a, b), top, Math.max(a, b), bottom, angle]
 }
+
 /** 縦を、lo〜hi の範囲だけ残す。範囲の外に出た長方形は高さ 0 になり、光線は当たらない（scene.ts の hitRect） */
-const clippedY = ([left, top, right, bottom]: Rect, lo: number, hi: number): Rect => {
+const clippedY = ([left, top, right, bottom, angle]: Rect, lo: number, hi: number): Rect => {
   const t = Math.min(Math.max(top, lo), hi)
   const b = Math.min(Math.max(bottom, lo), hi)
-  return [left, t, right, Math.max(t, b)]
+  return [left, t, right, Math.max(t, b), angle]
 }
-const centerOf = ([left, top, right, bottom]: Rect) => ({x: (left + right) / 2, y: (top + bottom) / 2})
+
+/** 長方形を、点 pivot のまわりに angle だけ回す。中心が弧を描いて動き、長方形も同じだけ傾く */
+const turnedAbout = (rect: Rect, angle: number, pivot: {x: number; y: number}): Rect => {
+  const {x, y} = centerOf(rect)
+  const cos = Math.cos(angle)
+  const sin = Math.sin(angle)
+  const dx = x - pivot.x
+  const dy = y - pivot.y
+  const moved = shifted(rect, pivot.x + dx * cos - dy * sin - x, pivot.y + dx * sin + dy * cos - y)
+  return [moved[0], moved[1], moved[2], moved[3], rect[4] + angle]
+}
+
+/** 長方形を、自分の中心のまわりに angle だけ傾ける */
+const tilted = (rect: Rect, angle: number): Rect => [rect[0], rect[1], rect[2], rect[3], rect[4] + angle]
 
 /** 動き始めてから seconds 秒の形 */
 export function shapeAt(motion: Loop | 'still', seconds: number): Shape {
@@ -108,27 +150,28 @@ export function shapeAt(motion: Loop | 'still', seconds: number): Shape {
     }
     // 面が左から順に細い線へ痩せ、また面に戻る。ずらす量は、最後の面が周の終わり（0.9 + ずれ < 1）までに戻りきる大きさ
     case 'line': {
-      return LOGO_SHAPE.map(([left, top, right, bottom], i) => {
+      return LOGO_SHAPE.map((rect, i) => {
+        const [left, top, right, bottom, angle] = rect
         const thin = pulse(phase - i * 0.015)
-        const {x} = centerOf([left, top, right, bottom])
-        const half = ((right - left) / 2) * (1 - thin) + 0.25 * thin
-        return [x - half, top, x + half, bottom]
+        const {x} = centerOf(rect)
+        const reach = ((right - left) / 2) * (1 - thin) + 0.25 * thin
+        return [x - reach, top, x + reach, bottom, angle]
       })
     }
     // カードを裏返すように横に縮んで左右が反転し、また裏返って戻る
     case 'flip': {
       const s = Math.cos(Math.PI * pulse(phase))
-      return LOGO_SHAPE.map((rect) => scaledX(rect, s, 12))
+      return LOGO_SHAPE.map((rect) => scaledX(rect, s, CENTER.x))
     }
     // 沈んで跳ね、着地でつぶれて戻る。つぶれるときは下端を軸に縦に縮み、横に広がる
     case 'bounce': {
       const squash =
         0.2 * Math.sin(Math.PI * clamp01(phase / 0.2)) + 0.2 * Math.sin(Math.PI * clamp01((phase - 0.8) / 0.2))
       const lift = 5 * Math.sin(Math.PI * clamp01((phase - 0.2) / 0.6))
-      return LOGO_SHAPE.map(([left, top, right, bottom]) => {
-        const [l, , r] = scaledX([left, top, right, bottom], 1 + squash * 0.6, 12)
+      return LOGO_SHAPE.map((rect) => {
+        const [l, top, r, bottom, angle] = scaledX(rect, 1 + squash * 0.6, CENTER.x)
         const y = (v: number) => LOGO_HEIGHT + (v - LOGO_HEIGHT) * (1 - squash) - lift
-        return [l, y(top), r, y(bottom)]
+        return [l, y(top), r, y(bottom), angle]
       })
     }
     // 音量の目盛りのように、柱の上端がそれぞれの速さで上下する。上に残る部分は両隣の柱の真ん中に付いていく
@@ -136,10 +179,9 @@ export function shapeAt(motion: Loop | 'still', seconds: number): Shape {
       const rates = [1, 3, 2, 3]
       const drop = (j: number) => 9 * Math.sin(Math.PI * phase) * (0.5 - 0.5 * Math.cos(Math.PI * 2 * rates[j] * phase))
       return LOGO_SHAPE.map((rect, i) => {
-        if (i % 2 === 0) return [rect[0], rect[1] + drop(i / 2), rect[2], rect[3]]
+        if (i % 2 === 0) return [rect[0], rect[1] + drop(i / 2), rect[2], rect[3], rect[4]]
         if (i === 5) return rect
-        const y = (drop((i - 1) / 2) + drop((i + 1) / 2)) / 2
-        return shifted(rect, 0, y)
+        return shifted(rect, 0, (drop((i - 1) / 2) + drop((i + 1) / 2)) / 2)
       })
     }
     // 上から下へ走査線が通って消え、上から下へもう一度描かれる
@@ -157,10 +199,59 @@ export function shapeAt(motion: Loop | 'still', seconds: number): Shape {
         return shifted(rect, 0, (rect[1] === 0 ? travel : -travel) * a)
       })
     }
+    // ロゴ全体が中心のまわりに 1 回転して止まる。走り出しと止まり際がなめらか
+    case 'spin': {
+      const angle = Math.PI * 2 * ease((phase - 0.1) / 0.75)
+      return LOGO_SHAPE.map((rect) => turnedAbout(rect, angle, CENTER))
+    }
+    // 柱とあいだの部分が、左から順に自分の中心のまわりを半回転する。途中で横倒しになり、元の向きで止まる
+    case 'twist': {
+      return LOGO_SHAPE.map((rect, i) => tilted(rect, Math.PI * ease((phase - 0.08 - i * 0.05) / 0.5)))
+    }
+    // 振り子のように、ロゴの上の点を支点に左右へ揺れる。揺れ幅は周の始めと終わりで 0
+    case 'swing': {
+      const angle = 0.45 * Math.sin(Math.PI * 2 * phase) * Math.sin(Math.PI * phase)
+      return LOGO_SHAPE.map((rect) => turnedAbout(rect, angle, {x: CENTER.x, y: -10}))
+    }
+    // 面がそれぞれ小さな円を描いて回り、元の場所へ戻る。回り始めをずらして渦のように見せる
+    case 'orbit': {
+      const radius = 3 * Math.sin(Math.PI * phase)
+      return LOGO_SHAPE.map((rect, i) => {
+        const start = (i / LOGO_SHAPE.length) * Math.PI * 2
+        const turn = Math.PI * 2 * phase + start
+        return shifted(rect, radius * (Math.cos(turn) - Math.cos(start)), radius * (Math.sin(turn) - Math.sin(start)))
+      })
+    }
+    // 下の点を要に、面が扇のように左右へ開いて閉じる
+    case 'fan': {
+      const a = pulse(phase)
+      return LOGO_SHAPE.map((rect) => {
+        const offset = (centerOf(rect).x - CENTER.x) / CENTER.x
+        return turnedAbout(rect, offset * 0.5 * a, {x: CENTER.x, y: LOGO_HEIGHT + 6})
+      })
+    }
   }
 }
 
-/** 2 つの形のあいだ。w が 0 で a、1 で b */
+/**
+ * 傾きの差を、近いほうの向きに -π/2〜π/2 で返す。長方形は半回転すると同じ形になるので、半回転ぶんの差は無いものとする
+ * （半回転して止まった twist から次の動きへ移るときに、逆向きに半回転して戻らないように）
+ */
+export const turnBetween = (from: number, to: number) => {
+  const d = (to - from) % Math.PI
+  return d > Math.PI / 2 ? d - Math.PI : d < -Math.PI / 2 ? d + Math.PI : d
+}
+
+/** 2 つの形のあいだ。w が 0 で a、1 で b。傾きは近いほうの向きに回る */
 export function between(a: Shape, b: Shape, w: number): Shape {
-  return a.map((rect, i) => rect.map((v, k) => v + (b[i][k] - v) * w) as unknown as Rect)
+  return a.map(([left, top, right, bottom, angle], i) => {
+    const [l, t, r, bt, angleB] = b[i]
+    return [
+      left + (l - left) * w,
+      top + (t - top) * w,
+      right + (r - right) * w,
+      bottom + (bt - bottom) * w,
+      angle + turnBetween(angle, angleB) * w
+    ]
+  })
 }

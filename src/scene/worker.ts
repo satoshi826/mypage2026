@@ -59,7 +59,8 @@ function createStage(canvas: OffscreenCanvas, pixelRatio: number) {
       u_size: 'vec2',
       u_logo: 'float',
       u_logoColor: 'float',
-      u_logoRects: `vec4[${LOGO_RECTS.length}]`
+      u_logoRects: `vec4[${LOGO_RECTS.length}]`,
+      u_logoTurns: `vec2[${LOGO_RECTS.length}]`
     },
     texture: {t_light: empty, t_photo: empty},
     vert: /* glsl */ `
@@ -72,13 +73,18 @@ function createStage(canvas: OffscreenCanvas, pixelRatio: number) {
       in vec2 v_uv;
       out vec4 o_color;
       void main() {
-        // この画素がロゴに覆われる割合。画素の正方形と長方形の重なりを縦横で求めて掛ける（長方形どうしは重ならない）
+        // この画素がロゴに覆われる割合。画素の正方形と長方形の重なりを、長方形の向きに直して縦横で求めて掛ける
+        // （長方形は中心のまわりに u_logoTurns（cos, sin）だけ傾く。傾いているときは画素の正方形も同じだけ傾いたものとみなす）
         vec2 p = vec2(v_uv.x, 1.0 - v_uv.y) * u_size;
         vec2 h = 0.5 * fwidth(p);
         float cover = 0.0;
         for (int i = 0; i < ${LOGO_RECTS.length}; i++) {
           vec4 r = u_logoRects[i];
-          vec2 overlap = clamp((min(p + h, r.zw) - max(p - h, r.xy)) / (2.0 * h), 0.0, 1.0);
+          vec2 turn = u_logoTurns[i];
+          vec2 reach = (r.zw - r.xy) * 0.5;
+          vec2 v = p - (r.xy + r.zw) * 0.5;
+          vec2 q = vec2(turn.x * v.x + turn.y * v.y, turn.x * v.y - turn.y * v.x);
+          vec2 overlap = clamp((min(q + h, reach) - max(q - h, -reach)) / (2.0 * h), 0.0, 1.0);
           cover += overlap.x * overlap.y;
         }
         float body = u_logo * min(cover, 1.0);
@@ -109,7 +115,8 @@ function createStage(canvas: OffscreenCanvas, pixelRatio: number) {
       })
     }
     const logo = light.logo()
-    if (logo) compose.setUniform({u_logoRects: logo.rects, u_logoColor: tuning.logoColor / 255})
+    if (logo)
+      compose.setUniform({u_logoRects: logo.rects, u_logoTurns: logo.turns, u_logoColor: tuning.logoColor / 255})
     compose.setUniform({
       u_lit: glow ? 1 : 0,
       u_photo: photo ? 1 : 0,

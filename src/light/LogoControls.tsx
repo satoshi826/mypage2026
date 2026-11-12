@@ -19,6 +19,11 @@ const MOTION_LABELS: Record<Motion, string> = {
   level: 'Level',
   scan: 'Scan',
   swap: 'Swap',
+  spin: 'Spin',
+  twist: 'Twist',
+  swing: 'Swing',
+  orbit: 'Orbit',
+  fan: 'Fan',
   random: 'Random'
 }
 const LAMP_LABELS: Record<LampKey, string> = {upper: 'Top', under: 'Bottom'}
