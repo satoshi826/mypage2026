@@ -48,6 +48,12 @@ const BRIGHTEN_SCREENS = 0.8
 /** 光がついてから、下向きに絞り始めるまでのスクロールの長さ。画面の高さ単位。それまでは全周に均一な丸い光 */
 const FOCUS_AFTER_SCREENS = 0.5
 
+/**
+ * フッターのロゴとライトの操作を出す、一番下からの距離（画面の高さ単位）。show まで来たら出し、hide より上へ戻ったら隠す。
+ * あいだを空けて、一番下のわずかな揺れで出たり消えたりしないようにする
+ */
+const CONTROLS_AT = {show: 0.02, hide: 0.1}
+
 /** 幅の狭い画面（スマホ）でのロゴの大きさ。tuning の 1 マスに掛ける。訪問者が変える大きさ（arrangement の scale）とは別 */
 const NARROW_LOGO = 0.85
 
@@ -126,7 +132,7 @@ export function Light({
   // 既定へ戻している途中なら、戻し始めた時刻と、そのときの置き方
   const returning = useRef<{at: number; from: Arrangement} | null>(null)
   // フッターに出している状態。変わったときだけ出し直す
-  const shown = useRef<Shown>({lit: false, changed: false, scale: 1, lamps: {upper: STILL, under: STILL}})
+  const shown = useRef<Shown>({available: false, changed: false, scale: 1, lamps: {upper: STILL, under: STILL}})
   const setScale = useCallback((scale: number) => {
     returning.current = null
     arrangement.current = {...arrangement.current, scale}
@@ -243,12 +249,15 @@ export function Light({
 
   // 光の層を描いているか。消えたフレームも 1 回は送り、画面から光を消させる
   const lit = useRef(false)
+  // 光がついていて一番下にいるか。フッターのロゴとライトの操作を出す
+  const atBottom = useRef(false)
   useAnimationFrame(() => {
     const arrived = lightOf(stage.current)
     const box = room.current?.getBoundingClientRect()
-    // フッターのロゴとライトの操作は、光がつききっている（hero の再生操作が隠れている）あいだだけ出す。戻す操作は置き方を
-    // 変えたときだけ
     const nowLit = arrived >= 1
+    // フッターのロゴとライトの操作は、光がつききって一番下まで来たら出し、上へ戻ったら隠す。戻す操作は置き方を変えたときだけ
+    const fromBottom = SCENE_SCREENS - stage.current.progress
+    atBottom.current = nowLit && fromBottom < (atBottom.current ? CONTROLS_AT.hide : CONTROLS_AT.show)
     const width = screen.current?.clientWidth ?? 0
     const height = screen.current?.clientHeight ?? 0
     const now = performance.now()
@@ -297,7 +306,7 @@ export function Light({
       facing.current = null
       for (const el of [grip.current, lampGrips.upper.current, lampGrips.under.current])
         el?.style.setProperty('display', 'none')
-      if (shown.current.lit) publish({...shown.current, lit: false})
+      if (shown.current.available) publish({...shown.current, available: false})
       return
     }
     lit.current = true
@@ -406,7 +415,7 @@ export function Light({
       }
     }
     const next: Shown = {
-      lit: nowLit,
+      available: atBottom.current,
       changed: !isDefault(arrangement.current) || material !== 'matte',
       scale: Math.round(scale * 100) / 100,
       lamps: {upper: control('upper'), under: control('under')}
@@ -461,7 +470,7 @@ export function Light({
 const LAMP_GRIP = 44
 
 /** フッターに出している状態 */
-type Shown = {lit: boolean; changed: boolean; scale: number; lamps: Record<LampKey, LampControl>}
+type Shown = {available: boolean; changed: boolean; scale: number; lamps: Record<LampKey, LampControl>}
 
 /** 光の設定の既定（フッターに出す前の値） */
 const STILL: LampControl = {tilt: null, facing: 0, power: 0, standard: 0}

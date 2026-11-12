@@ -30,25 +30,25 @@ const THUMB = 16
 const subscribe = () => () => {}
 
 /**
- * フッターの左に置くロゴとライトの操作。hero の再生操作と同じ場所に重ね、光がついて hero の再生操作が隠れているあいだだけ
- * 出す。ロゴの設定（素材と大きさ）とライトの設定（上の光と下の光の向きと明るさ）は、それぞれアイコンを押すと上に開く
+ * フッターの左に置くロゴとライトの操作。hero の再生操作と同じ場所に重ねる。光がつききって、一番下にいるあいだだけ出す
+ * （available）。ロゴの設定（素材と大きさ）とライトの設定（上の光と下の光の向きと明るさ）は、それぞれアイコンを押すと上に開く
  * （おまけの操作なので普段は畳んでおく）。変えたロゴと光の置き方と素材を既定へ戻す操作は、変えたあとだけ出す。
  * 状態と操作は Light が controls.ts に出したものを使う
  */
 export function LogoControls() {
   const controls = useLogoControls()
   if (!controls) return null
-  const {lit, changed, reset} = controls
-  const showReset = lit && changed
+  const {available, changed, reset} = controls
+  const showReset = available && changed
   return (
     <div
-      aria-hidden={!lit}
-      className={`flex items-center gap-6 transition-opacity duration-700 max-sm:gap-4 ${lit ? '' : 'pointer-events-none opacity-0'}`}
+      aria-hidden={!available}
+      className={`flex items-center gap-6 transition-opacity duration-700 max-sm:gap-4 ${available ? '' : 'pointer-events-none opacity-0'}`}
     >
-      <Menu lit={lit} label="Logo" icon={LOGO_ICON}>
+      <Menu available={available} label="Logo" icon={LOGO_ICON}>
         {(focusable) => <LogoSettings controls={controls} focusable={focusable} />}
       </Menu>
-      <Menu lit={lit} label="Light" icon={LIGHT_ICON}>
+      <Menu available={available} label="Light" icon={LIGHT_ICON}>
         {(focusable) => <LightSettings controls={controls} focusable={focusable} />}
       </Menu>
       <button
@@ -239,16 +239,16 @@ function LightSettings({controls, focusable}: {controls: Controls; focusable: bo
 
 /**
  * 設定の入れ物を開くアイコン。押すと、アイコンの上に欄を並べた入れ物が開く。中で選んでも閉じない（見比べられるように）。
- * 外を押すか Esc、光が消えると閉じる。開く入れ物は Photos の列数（GalleryTools.tsx）と同じく、フッターの外（body の直下）に
+ * 外を押すか Esc、操作が隠れると閉じる。開く入れ物は Photos の列数（GalleryTools.tsx）と同じく、フッターの外（body の直下）に
  * 描く。中身は 4 列の格子（欄の名前、項目の名前、切り替え、スライダー）に並べる
  */
 function Menu({
-  lit,
+  available,
   label,
   icon,
   children
 }: {
-  lit: boolean
+  available: boolean
   label: string
   icon: ComponentChildren
   /** 中身。閉じているあいだはキーボードで辿れないようにする */
@@ -272,8 +272,8 @@ function Menu({
   }, [open])
 
   useEffect(() => {
-    if (!lit) setOpen(false)
-  }, [lit])
+    if (!available) setOpen(false)
+  }, [available])
   useEffect(() => {
     if (!open) return
     const close = (event: PointerEvent) => {
@@ -296,7 +296,7 @@ function Menu({
         type="button"
         aria-label={label}
         aria-expanded={open}
-        tabIndex={lit ? 0 : -1}
+        tabIndex={available ? 0 : -1}
         onClick={() => setOpen(!open)}
         className={ICON_BUTTON}
       >
