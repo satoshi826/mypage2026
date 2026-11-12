@@ -62,19 +62,37 @@ export function LogoControls() {
   )
 }
 
-/** ロゴの設定のアイコン。光の当たった面として、円の半分を塗る */
+/** ロゴの設定のアイコン。四隅の枠で囲んだ物（大きさと素材を変えるもの） */
 const LOGO_ICON = (
-  <svg viewBox="0 0 24 24" aria-hidden className="size-5" fill="none" stroke="currentColor" stroke-width={1.5}>
-    <circle cx="12" cy="12" r="7.5" />
-    <path d="M12 4.5a7.5 7.5 0 0 1 0 15z" fill="currentColor" stroke="none" />
+  <svg
+    viewBox="0 0 24 24"
+    aria-hidden
+    className="size-5"
+    fill="none"
+    stroke="currentColor"
+    stroke-width={1.5}
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  >
+    <path d="M5 9V5h4M15 5h4v4M19 15v4h-4M9 19H5v-4" />
+    <rect x="9.5" y="9.5" width="5" height="5" fill="currentColor" stroke="none" />
   </svg>
 )
 
-/** ライトの設定のアイコン。上から下へ広がる光 */
+/** ライトの設定のアイコン。光源の点と、まわりへ出る光 */
 const LIGHT_ICON = (
-  <svg viewBox="0 0 24 24" aria-hidden className="size-5" fill="none" stroke="currentColor" stroke-width={1.5}>
-    <circle cx="12" cy="5.5" r="1.5" fill="currentColor" stroke="none" />
-    <path d="M10.5 8.5 6 19.5M13.5 8.5 18 19.5" />
+  <svg
+    viewBox="0 0 24 24"
+    aria-hidden
+    className="size-5"
+    fill="none"
+    stroke="currentColor"
+    stroke-width={1.5}
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  >
+    <circle cx="12" cy="12" r="2" fill="currentColor" stroke="none" />
+    <path d="M12 4v2.5M12 17.5V20M4 12h2.5M17.5 12H20M6.3 6.3l1.8 1.8M15.9 15.9l1.8 1.8M17.7 6.3l-1.8 1.8M8.1 15.9l-1.8 1.8" />
   </svg>
 )
 
