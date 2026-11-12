@@ -1,6 +1,7 @@
 import {useCallback, useEffect, useRef, useState} from 'preact/hooks'
 import {DevPanel, DevReadout} from '../app/DevPanel'
 import {GATHER_AT, SCENE_SCREENS, ease, lightAt, lightOf, type Stage} from '../app/stage'
+import {useNarrow} from '../app/useNarrow'
 import {useAnimationFrame} from '../scene/useCanvas'
 import type {SceneCommand} from '../scene/worker'
 import type {LightCommand} from './scene'
@@ -46,6 +47,9 @@ const BRIGHTEN_SCREENS = 0.8
 
 /** 光がついてから、下向きに絞り始めるまでのスクロールの長さ。画面の高さ単位。それまでは全周に均一な丸い光 */
 const FOCUS_AFTER_SCREENS = 0.5
+
+/** 幅の狭い画面（スマホ）でのロゴの大きさ。tuning の 1 マスに掛ける。訪問者が変える大きさ（arrangement の scale）とは別 */
+const NARROW_LOGO = 0.85
 
 /**
  * トップの舞台で、光が mu のロゴを照らす層。舞台の canvas の、hero の粒子の後ろに描く。ここは毎フレーム光とロゴの位置と
@@ -118,6 +122,7 @@ export function Light({
 
   // 訪問者が変えたロゴと光の置き方
   const arrangement = useRef(DEFAULT_ARRANGEMENT)
+  const narrow = useNarrow()
   // 既定へ戻している途中なら、戻し始めた時刻と、そのときの置き方
   const returning = useRef<{at: number; from: Arrangement} | null>(null)
   // フッターに出している状態。変わったときだけ出し直す
@@ -301,8 +306,10 @@ export function Light({
     const focus = ease((progress - GATHER_AT - FOCUS_AFTER_SCREENS) / (SCENE_SCREENS - GATHER_AT - FOCUS_AFTER_SCREENS))
     // ロゴのもとの位置は部屋の中央から logoShift ずらしたところ。大きさと動かした量は、ロゴが部屋からはみ出さない範囲に収める
     const home = {x: (box.left + box.right) / 2 + tuning.logoShift, y: (box.top + box.bottom) / 2}
-    const homeWidth = (LOGO_WIDTH * tuning.cell) / 2
-    const homeHeight = (LOGO_HEIGHT * tuning.cell) / 2
+    const size = narrow ? NARROW_LOGO : 1
+    const cell = tuning.cell * size
+    const homeWidth = (LOGO_WIDTH * cell) / 2
+    const homeHeight = (LOGO_HEIGHT * cell) / 2
     const {offset, lamps} = arrangement.current
     const scale = clamp(
       arrangement.current.scale,
@@ -319,7 +326,12 @@ export function Light({
       scale,
       lamps
     }
-    const logo = {x: home.x + arrangement.current.offset.x, y: home.y + arrangement.current.offset.y, scale}
+    // 光の場面には、tuning の 1 マスに掛ける倍率として渡す
+    const logo = {
+      x: home.x + arrangement.current.offset.x,
+      y: home.y + arrangement.current.offset.y,
+      scale: scale * size
+    }
     const change = switched.current
     const r = ease((now - change.at) / 1000 / MATERIAL_SECONDS)
     const to = {glass: material === 'glass' ? 1 : 0, metal: material === 'metal' ? 1 : 0}
@@ -327,7 +339,7 @@ export function Light({
     mix.current = {glass: from.glass + (to.glass - from.glass) * r, metal: from.metal + (to.metal - from.metal) * r}
     place(grip.current, logo.x - logoWidth / 2, logo.y - logoHeight / 2, logoWidth, logoHeight)
     // 光は、ロゴの上端（部屋の中央からロゴの高さの半分上）が画面の下端に届くところで最大になる
-    const logoTop = (box.top + box.bottom) / 2 - (LOGO_HEIGHT * tuning.cell) / 4
+    const logoTop = (box.top + box.bottom) / 2 - (LOGO_HEIGHT * cell) / 4
     const brightness = arrived * (DIM + (1 - DIM) * ease(1 - (logoTop - height) / (height * BRIGHTEN_SCREENS)))
     // 下の光は、部屋の床が画面の下端の半画面下まで来たところから光り始め、下端に着くと最大になる
     const underBrightness = ease(1 - (box.bottom - height) / (height / 2))

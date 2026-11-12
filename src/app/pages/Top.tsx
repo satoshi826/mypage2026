@@ -5,6 +5,7 @@ import {onScrollFrame} from '../scrollFrame'
 import {SCENE_SCREENS, advanceGather, type Stage} from '../stage'
 import {TabLink, Tabs} from '../Tabs'
 import {DevPanel, type Param} from '../DevPanel'
+import {useNarrow} from '../useNarrow'
 
 type SceneComponent = typeof import('../../scene/Scene').Scene
 let loaded: SceneComponent | null = null
@@ -134,19 +135,6 @@ const PLACEMENT_PARAMS: Param<Placement>[] = [
   },
   {key: 'direction', label: '導線の並べ方', options: DIRECTIONS, hint: 'row は横、column は縦'}
 ]
-
-/** 幅の狭い画面（Tailwind の sm 未満）か。プリレンダでは広い画面として描き、ブラウザで測り直す */
-function useNarrow() {
-  const [narrow, setNarrow] = useState(false)
-  useEffect(() => {
-    const media = matchMedia('(max-width: 639px)')
-    const update = () => setNarrow(media.matches)
-    update()
-    media.addEventListener('change', update)
-    return () => media.removeEventListener('change', update)
-  }, [])
-  return narrow
-}
 
 const LINKS = [
   {href: '/photos/street', label: 'Photos', current: false},
