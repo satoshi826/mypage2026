@@ -35,7 +35,6 @@ const MOTION_LABELS: Record<Motion, string> = {
   vortex: 'Vortex',
   dice: 'Dice',
   ripple: 'Ripple',
-  morse: 'Morse',
   cycle: 'Cycle'
 }
 const LAMP_LABELS: Record<LampKey, string> = {upper: 'Top', under: 'Bottom'}

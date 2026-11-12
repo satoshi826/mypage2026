@@ -55,8 +55,7 @@ export const LOOPS = [
   'orb',
   'spiral',
   'atom',
-  'ripple',
-  'morse'
+  'ripple'
 ] as const
 export type Loop = (typeof LOOPS)[number]
 
@@ -90,8 +89,7 @@ export const PERIOD: Record<Loop, number> = {
   shuffle: 4.4,
   vortex: 4.4,
   dice: 4.8,
-  ripple: 4.4,
-  morse: 4.8
+  ripple: 4.4
 }
 
 /**
@@ -122,7 +120,6 @@ const CYCLE: readonly Loop[] = [
   'ripple',
   'vortex',
   'shuffle',
-  'morse',
   'dice'
 ]
 
@@ -491,27 +488,6 @@ export function shapeAt(motion: Loop | 'still', seconds: number): Shape {
         const angle = -Math.PI / 2 + (i / rects.length) * Math.PI * 2 + phase * Math.PI
         const radius = 8 + 2.5 * swell * Math.sin(Math.PI * 6 * phase - (i / rects.length) * Math.PI * 2)
         return {x: CENTER.x + radius * Math.cos(angle), y: CENTER.y + radius * Math.sin(angle), size: 3.6}
-      })
-    }
-    // モールス信号の mu（— — · · —）になる。長い符号は面 2 つを重ねて、短い符号は面を円にして作り、左から順に打つように弾む
-    case 'morse': {
-      // 符号ごとの、左端からの中心の位置と、長いか。面 0〜6 をこの順に割り当てる（長い符号は 2 つの面で作る）
-      const codes = [
-        {at: 2.5, long: true},
-        {at: 2.5, long: true},
-        {at: 8.9, long: true},
-        {at: 8.9, long: true},
-        {at: 15.5, long: false},
-        {at: 19.1, long: false},
-        {at: 24.2, long: true}
-      ]
-      const start = CENTER.x - 26.7 / 2
-      return arranged(phase, (i) => {
-        const {at, long} = codes[i]
-        const beat = Math.sin(Math.PI * clamp01((phase - 0.35 - (at / 26.7) * 0.25) / 0.1))
-        const x = start + at
-        const y = CENTER.y - 1.2 * beat
-        return long ? {round: false, x, y, width: 5, height: 1.8, angle: 0} : {round: true, x, y, size: 2.2}
       })
     }
   }
