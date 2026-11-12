@@ -157,6 +157,6 @@ export const LIGHT_PARAMS: Param<LightTuning>[] = [
     step: 5,
     hint: '%。前のフレーム'
   },
-  {group: '描画', key: 'resolution', label: '解像度', min: 25, max: 100, step: 25, hint: '%。光をためる層'},
+  {group: '描画', key: 'resolution', label: '解像度', min: 20, max: 100, step: 5, hint: '%。光をためる層'},
   {group: '描画', key: 'particleGlow', label: '飛ぶ粒子の光', min: 0, max: 10, step: 0.1, hint: '粒子の輝度に掛ける'}
 ]
