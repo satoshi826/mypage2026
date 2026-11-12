@@ -191,6 +191,15 @@ function footerFrames(m: PageMotion): Frames {
   }
 }
 
+/**
+ * 見えている状態（不透明度 1）を、その要素が本来持つ濃さに置き換える。動きは要素の不透明度を上書きするので、1 のままだと
+ * 添える文字（見出しの 55% など）が動いているあいだだけ濃くなり、終わると本来の濃さへ跳ぶ
+ */
+const ownOpacity = (el: HTMLElement, frames: Keyframe[]) => {
+  const opacity = getComputedStyle(el).opacity
+  return frames.map((frame) => (frame.opacity === 1 ? {...frame, opacity} : frame))
+}
+
 /** ページの中身の動かす要素。stagger では main の中身をブロックごとに分ける */
 function pageTargets(m: PageMotion): HTMLElement[] {
   const all = [...document.querySelectorAll<HTMLElement>('[data-page]')]
@@ -263,7 +272,7 @@ export function usePageTransition(motion: PageMotion) {
       const {exit} = pageFrames(m)
       pageTargets(m).forEach((el, i, all) =>
         animations.push(
-          el.animate(exit, {
+          el.animate(ownOpacity(el, exit), {
             ...timing(m.exitSeconds),
             delay: m.variant === 'stagger' ? (all.length - 1 - i) * m.stagger * 500 : 0
           })
@@ -272,7 +281,7 @@ export function usePageTransition(motion: PageMotion) {
     }
     if (footer) {
       const {exit} = footerFrames(m)
-      for (const el of footerTargets()) animations.push(el.animate(exit, timing(m.footerExitSeconds)))
+      for (const el of footerTargets()) animations.push(el.animate(ownOpacity(el, exit), timing(m.footerExitSeconds)))
       for (const el of growTargets()) animations.push(el.animate(GROW.exit, timing(m.footerExitSeconds)))
     } else if (page) {
       // フッターが残るとき（カテゴリの切り替え）、スクロールの線は差し替えで先頭へ戻ると 0 へ跳ぶ。
@@ -326,12 +335,15 @@ export function usePageTransition(motion: PageMotion) {
     } else if (m.variant !== 'none') {
       const {enter: frames} = pageFrames(m)
       pageTargets(m).forEach((el, i) =>
-        el.animate(frames, timing(m.enterSeconds, m.pauseSeconds + (m.variant === 'stagger' ? i * m.stagger : 0)))
+        el.animate(
+          ownOpacity(el, frames),
+          timing(m.enterSeconds, m.pauseSeconds + (m.variant === 'stagger' ? i * m.stagger : 0))
+        )
       )
     }
     if (enter.footer) {
       const {enter: frames} = footerFrames(m)
-      for (const el of footerTargets()) el.animate(frames, timing(m.footerEnterSeconds, m.footerDelay))
+      for (const el of footerTargets()) el.animate(ownOpacity(el, frames), timing(m.footerEnterSeconds, m.footerDelay))
       for (const el of growTargets()) el.animate(GROW.enter, timing(m.footerEnterSeconds, m.footerDelay))
     }
     for (const a of exits) a.cancel()
