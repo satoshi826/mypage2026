@@ -123,7 +123,7 @@ const ITEMS = {left: 'items-start', center: 'items-center', right: 'items-end', 
 const ROW_HEIGHT = 48
 
 const WIDE_PLACEMENT: Placement = {links: 50, align: 'right-half', direction: 'row'}
-const NARROW_PLACEMENT: Placement = {links: 80, align: 'center', direction: 'row'}
+const NARROW_PLACEMENT: Placement = {links: 75, align: 'right-half', direction: 'column'}
 
 const PLACEMENT_PARAMS: Param<Placement>[] = [
   {key: 'links', label: '導線の高さ', min: 5, max: 95, step: 1, hint: '%。中心の位置。段（最後の画面）の上端から'},
