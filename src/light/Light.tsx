@@ -8,12 +8,9 @@ import type {LightCommand} from './scene'
 import {
   DEFAULT_ARRANGEMENT,
   MAX_SCALE,
-  MAX_TILT,
   MIN_SCALE,
-  angleOf,
   isDefault,
   shrink,
-  tiltOf,
   wrapAngle,
   type Arrangement,
   type LampKey,
@@ -80,8 +77,8 @@ const NARROW_LOGO = 0.85
  *   （指は 2 本で、トラックパッドはそのままピンチ。ブラウザには ctrl を押したホイールとして届く）。離した位置と大きさに
  *   とどまり、部屋の外へは出ない。大きさと素材（白い面・ガラス・金属）は、フッターのロゴの設定でも変えられる
  * - 光は光源をドラッグで動かせる（光源の上に見えないつかみ場所を重ねて受ける）。上の光は画面の中、下の光は部屋の中に
- *   とどまる。向きと強さはフッターのライトの設定で変えられる。向きはふだんロゴの今の位置を向き（Auto）、ロゴや光源を
- *   動かすとついてくる。向きは設定が変わっても跳ばさず、滑らかに追う
+ *   とどまる。広がりと強さはフッターのライトの設定で変えられる。向きはいつもロゴの今の位置を向き、ロゴや光源を
+ *   動かすとついてくる。向きは跳ばさず、滑らかに追う
  * 変えたあとは、フッターの操作（LogoControls.tsx）で既定へ戻せる。
  *
  * @param room ロゴを置く部屋の要素。中央（から logoShift ずらした位置）がロゴのもとの位置で、下の光も部屋と一緒に動く
@@ -325,13 +322,16 @@ export function Light({
     const width = screen.current?.clientWidth ?? 0
     const height = screen.current?.clientHeight ?? 0
     const now = performance.now()
-    // 光の強さの既定は tuning の値
-    const powers = {upper: tuning.upperPower, under: tuning.underPower}
+    // 光の強さと広がりの既定は tuning の値
+    const standards = {
+      upper: {power: tuning.upperPower, cone: tuning.upperCone},
+      under: {power: tuning.underPower, cone: tuning.underCone}
+    }
     // 既定へ戻している途中なら、減速しながらずれを 0 へ寄せる
     const back = returning.current
     if (back) {
       const r = Math.min(1, (now - back.at) / 1000 / RESET_SECONDS)
-      arrangement.current = r < 1 ? shrink(back.from, (1 - r) ** 3, powers) : DEFAULT_ARRANGEMENT
+      arrangement.current = r < 1 ? shrink(back.from, (1 - r) ** 3, standards) : DEFAULT_ARRANGEMENT
       if (r >= 1) returning.current = null
     }
     const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v))
@@ -433,7 +433,8 @@ export function Light({
     const brightness = arrived * (DIM + (1 - DIM) * ease(1 - (logoTop - height) / (height * BRIGHTEN_SCREENS)))
     // 下の光は、部屋の床が画面の下端の半画面下まで来たところから光り始め、下端に着くと最大になる
     const underBrightness = ease(1 - (box.bottom - height) / (height / 2))
-    const power = {upper: lamps.upper.power ?? powers.upper, under: lamps.under.power ?? powers.under}
+    const power = {upper: lamps.upper.power ?? standards.upper.power, under: lamps.under.power ?? standards.under.power}
+    const cone = {upper: lamps.upper.cone ?? standards.upper.cone, under: lamps.under.cone ?? standards.under.cone}
     // 下の光は、もとの位置に訪問者が動かした量を足し、部屋の中に収める
     const underBase = {x: home.x + underShift.x, y: home.y + underShift.y}
     const offsets = {
@@ -458,12 +459,11 @@ export function Light({
       if (lampOn[key]) place(lampGrips[key].current, x - LAMP_GRIP / 2, y - LAMP_GRIP / 2, LAMP_GRIP, LAMP_GRIP)
       else lampGrips[key].current?.style.setProperty('display', 'none')
     }
-    // 向きは、Auto ならロゴの今の位置へ、傾けてあればその向きへ。今の向きからそこへ滑らかに寄せる
+    // 向きはいつもロゴの今の位置へ。今の向きからそこへ滑らかに寄せる
     const follow = 1 - Math.exp(-Math.min(0.1, (now - lastFrame.current) / 1000) / TURN_SECONDS)
     lastFrame.current = now
     const turned = (key: LampKey) => {
-      const {tilt} = lamps[key]
-      const target = tilt === null ? Math.atan2(logo.y - at[key].y, logo.x - at[key].x) : angleOf(key, tilt)
+      const target = Math.atan2(logo.y - at[key].y, logo.x - at[key].x)
       const was = facing.current?.[key]
       if (was === undefined) return target
       const gap = wrapAngle(target - was)
@@ -475,8 +475,20 @@ export function Light({
       waiting.current = now
       send({
         frame: {
-          upper: {...at.upper, base: upperBase, angle: facing.current.upper, power: power.upper * brightness, focus},
-          under: {...at.under, angle: facing.current.under, power: power.under * underBrightness},
+          upper: {
+            ...at.upper,
+            base: upperBase,
+            angle: facing.current.upper,
+            cone: (cone.upper * Math.PI) / 180,
+            power: power.upper * brightness,
+            focus
+          },
+          under: {
+            ...at.under,
+            angle: facing.current.under,
+            cone: (cone.under * Math.PI) / 180,
+            power: power.under * underBrightness
+          },
           fast: dragging.current !== null || (animated && paused.current === null),
           logo: {...logo, shown: arrived, shape: shape.current},
           material: mix.current
@@ -484,17 +496,8 @@ export function Light({
       })
     }
 
-    // フッターに出す状態。向きは傾きにして 1 度に丸め、ロゴを動かすあいだ毎フレーム出し直さないようにする
-    const degree = Math.PI / 180
-    const control = (key: LampKey): LampControl => {
-      const tilt = Math.min(MAX_TILT, Math.max(-MAX_TILT, tiltOf(key, facing.current![key])))
-      return {
-        tilt: lamps[key].tilt,
-        facing: Math.round(tilt / degree) * degree,
-        power: power[key],
-        standard: powers[key]
-      }
-    }
+    // フッターに出す状態
+    const control = (key: LampKey): LampControl => ({power: power[key], cone: cone[key], standard: standards[key]})
     const next: Shown = {
       available: atBottom.current,
       changed: !isDefault(arrangement.current) || material !== 'matte' || animated,
@@ -554,7 +557,7 @@ const LAMP_GRIP = 44
 type Shown = {available: boolean; changed: boolean; scale: number; lamps: Record<LampKey, LampControl>}
 
 /** 光の設定の既定（フッターに出す前の値） */
-const STILL: LampControl = {tilt: null, facing: 0, power: 0, standard: 0}
+const STILL: LampControl = {power: 0, cone: 0, standard: {power: 0, cone: 0}}
 
 /** つかみ場所を、舞台の左上からの位置と大きさに置いて出す */
 function place(el: HTMLElement | null, x: number, y: number, width: number, height: number) {

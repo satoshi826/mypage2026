@@ -1,13 +1,13 @@
 // 訪問者が変えたロゴと光の置き方。ロゴはドラッグで動かし、ピンチ（指とトラックパッド）かフッターのロゴの設定で大きさを変える。
-// 光は光源をドラッグで動かし、フッターのライトの設定で向きと強さを変える。
+// 光は光源をドラッグで動かし、フッターのライトの設定で広がりと強さを変える（向きはいつもロゴを向く）。
 // どれも既定からのずれで持ち、フッターの戻す操作で既定へ戻す（Light.tsx）
 
 /** 1 つの光の設定 */
 export type LampSetting = {
   /** 光源をもとの位置から動かした量 px */
   offset: {x: number; y: number}
-  /** 照らす向き。上の光は真下、下の光は真上から右へ傾けた角度で、ラジアン。null ならロゴの今の位置を向く */
-  tilt: number | null
+  /** 広がり。光の向きから左右に広げる角度で、度。tuning の cone（下の光は underCone）と同じ単位。null なら tuning の値 */
+  cone: number | null
   /** 強さ。tuning の power（下の光は underPower）と同じ単位。null なら tuning の値 */
   power: number | null
 }
@@ -27,8 +27,8 @@ export const DEFAULT_ARRANGEMENT: Arrangement = {
   offset: {x: 0, y: 0},
   scale: 1,
   lamps: {
-    upper: {offset: {x: 0, y: 0}, tilt: null, power: null},
-    under: {offset: {x: 0, y: 0}, tilt: null, power: null}
+    upper: {offset: {x: 0, y: 0}, cone: null, power: null},
+    under: {offset: {x: 0, y: 0}, cone: null, power: null}
   }
 }
 
@@ -36,33 +36,36 @@ export const DEFAULT_ARRANGEMENT: Arrangement = {
 export const MIN_SCALE = 0.5
 export const MAX_SCALE = 3
 
-/** 光の向きを傾けられる範囲。真下（下の光は真上）から左右にこれだけ。ラジアン */
-export const MAX_TILT = Math.PI / 2
+/** 光の広がりの範囲。度 */
+export const MIN_CONE = 5
+export const MAX_CONE = 90
 
 /** 光の強さの上限。tuning の power と同じ単位 */
 export const MAX_POWER = 100
 
-const isDefaultLamp = ({offset, tilt, power}: LampSetting) =>
-  offset.x === 0 && offset.y === 0 && tilt === null && power === null
+const isDefaultLamp = ({offset, cone, power}: LampSetting) =>
+  offset.x === 0 && offset.y === 0 && cone === null && power === null
 
 export const isDefault = ({offset, scale, lamps}: Arrangement) =>
   offset.x === 0 && offset.y === 0 && scale === 1 && isDefaultLamp(lamps.upper) && isDefaultLamp(lamps.under)
 
-/**
- * 既定からのずれを left 倍にする。0 で既定。強さは既定の強さ powers へ寄せる。向きは途中の値を持たずに、すぐロゴを向く
- * 向きへ戻す（光の向きは Light が滑らかに追うので、跳ばない）
- */
+/** 光の既定の強さと広がり（tuning の値） */
+export type LampStandard = {power: number; cone: number}
+
+/** 既定からのずれを left 倍にする。0 で既定。強さと広がりは既定の値 standards へ寄せる */
 export const shrink = (
   {offset, scale, lamps}: Arrangement,
   left: number,
-  powers: Record<LampKey, number>
+  standards: Record<LampKey, LampStandard>
 ): Arrangement => {
   const lamp = (key: LampKey): LampSetting => {
-    const {offset, power} = lamps[key]
+    const {offset, power, cone} = lamps[key]
+    const toward = (value: number | null, standard: number) =>
+      value === null ? null : standard + (value - standard) * left
     return {
       offset: {x: offset.x * left, y: offset.y * left},
-      tilt: null,
-      power: power === null ? null : powers[key] + (power - powers[key]) * left
+      cone: toward(cone, standards[key].cone),
+      power: toward(power, standards[key].power)
     }
   }
   return {
@@ -74,12 +77,3 @@ export const shrink = (
 
 /** 角度を -π〜π に収める */
 export const wrapAngle = (angle: number) => Math.atan2(Math.sin(angle), Math.cos(angle))
-
-/** 傾けていないときの向き（上の光は真下、下の光は真上）と、右へ傾けたときに角度が増える向きか */
-const STRAIGHT = {upper: {angle: Math.PI / 2, sign: -1}, under: {angle: -Math.PI / 2, sign: 1}}
-
-/** 傾きから、画面の上の向き（右が 0 で時計回り。画面の y は下向き）にする */
-export const angleOf = (key: LampKey, tilt: number) => STRAIGHT[key].angle + STRAIGHT[key].sign * tilt
-
-/** 画面の上の向きから傾きにする */
-export const tiltOf = (key: LampKey, angle: number) => STRAIGHT[key].sign * wrapAngle(angle - STRAIGHT[key].angle)

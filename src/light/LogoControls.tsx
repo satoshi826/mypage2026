@@ -4,7 +4,7 @@ import {GLOW_HOVER} from '../app/glow'
 import {POPOVER} from '../app/popover'
 import {LOOPS, type Loop} from './motion'
 import {useExternal} from '../app/useExternal'
-import {MAX_POWER, MAX_SCALE, MAX_TILT, MIN_SCALE, type LampKey} from './arrangement'
+import {MAX_CONE, MAX_POWER, MAX_SCALE, MIN_CONE, MIN_SCALE, type LampKey} from './arrangement'
 import {MATERIALS, useLogoControls, type LampControl, type LogoControls as Controls, type Material} from './controls'
 
 const MATERIAL_LABELS: Record<Material, string> = {matte: 'Matte', glass: 'Glass', metal: 'Metal'}
@@ -32,7 +32,7 @@ const subscribe = () => () => {}
 
 /**
  * フッターの左に置くロゴとライトの操作。hero の再生操作と同じ場所に重ねる。光がつききって、一番下にいるあいだだけ出す
- * （available）。ロゴの設定（素材と大きさ）とライトの設定（上の光と下の光の向きと明るさ）は、それぞれアイコンを押すと上に開く
+ * （available）。ロゴの設定（素材と大きさ）とライトの設定（上の光と下の光の広がりと明るさ）は、それぞれアイコンを押すと上に開く
  * （おまけの操作なので普段は畳んでおく）。変えたロゴと光の置き方と素材を既定へ戻す操作は、変えたあとだけ出す。
  * 状態と操作は Light が controls.ts に出したものを使う
  */
@@ -107,8 +107,8 @@ const LIGHT_ICON = (
 /** 項目の名前をアイコンで示す欄。濃さは欄の名前と同じ 55% */
 const ITEM = `${LABEL} flex items-center`
 
-/** 向きの項目のアイコン。頂点から出る 2 本の線と、そのあいだの角度の弧 */
-const ANGLE_ICON = (
+/** 広がりの項目のアイコン。光源の点から、左右に開く 2 本の線と、そのあいだの弧 */
+const SPREAD_ICON = (
   <svg
     viewBox="0 0 24 24"
     aria-hidden
@@ -119,8 +119,8 @@ const ANGLE_ICON = (
     stroke-linecap="round"
     stroke-linejoin="round"
   >
-    <path d="M20 19H4L16 5" />
-    <path d="M10.5 19a6.5 6.5 0 0 0-2.3-4.9" />
+    <circle cx="12" cy="4.5" r="1.5" fill="currentColor" stroke="none" />
+    <path d="M10.8 7.5 5 19.5M13.2 7.5 19 19.5M7 15.5a11 11 0 0 0 10 0" />
   </svg>
 )
 
@@ -349,44 +349,30 @@ function LogoSettings({controls, focusable}: {controls: Controls; focusable: boo
   )
 }
 
-/** ライトの設定。上の光と下の光それぞれの向き（Auto でロゴを向く）と明るさ */
+/** ライトの設定。上の光と下の光それぞれの広がりと明るさ。向きはいつもロゴを向く */
 function LightSettings({controls, focusable}: {controls: Controls; focusable: boolean}) {
   const {lamps, setLamp} = controls
   return (
     <>
       {(['upper', 'under'] as const).map((key) => {
-        const lamp: LampControl = lamps[key]
-        const {tilt, power, standard, facing} = lamp
-        const auto = tilt === null
-        const degrees = Math.round((facing * 180) / Math.PI)
+        const {power, cone, standard}: LampControl = lamps[key]
         return (
           <div key={key} className="contents">
             <span className={`${SECTION} row-span-2`}>{LAMP_LABELS[key]}</span>
-            <span className={ITEM} role="img" aria-label="Angle" title="Angle">
-              {ANGLE_ICON}
+            <span className={ITEM} role="img" aria-label="Spread" title="Spread">
+              {SPREAD_ICON}
             </span>
-            {/* 外すと今照らしている向きのまま止める。向きが跳ばないように */}
-            <button
-              type="button"
-              onClick={() => setLamp(key, {tilt: auto ? facing : null})}
-              aria-pressed={auto}
-              tabIndex={focusable ? 0 : -1}
-              className={OPTION}
-            >
-              <span className="glow-text transition-[text-shadow] duration-800">Auto</span>
-            </button>
-            {/* Auto のあいだは、ロゴを向いている向きを薄く示す。動かすと Auto が外れる */}
             <Slider
-              label={`${LAMP_LABELS[key]} angle`}
-              value={degrees}
-              min={-(MAX_TILT * 180) / Math.PI}
-              max={(MAX_TILT * 180) / Math.PI}
+              label={`${LAMP_LABELS[key]} spread`}
+              value={Math.round(cone)}
+              min={MIN_CONE}
+              max={MAX_CONE}
               step={1}
-              mark={0}
-              faint={auto}
+              mark={standard.cone}
               format={(value) => `${value}°`}
               focusable={focusable}
-              onInput={(value) => setLamp(key, {tilt: (value * Math.PI) / 180})}
+              onInput={(value) => setLamp(key, {cone: value})}
+              className="col-span-2"
             />
             <span className={ITEM} role="img" aria-label="Power" title="Power">
               {POWER_ICON}
@@ -397,11 +383,11 @@ function LightSettings({controls, focusable}: {controls: Controls; focusable: bo
               min={0}
               max={MAX_POWER}
               step={0.5}
-              mark={standard}
+              mark={standard.power}
               format={(value) => value.toFixed(1)}
               focusable={focusable}
               onInput={(value) => setLamp(key, {power: value})}
-              className="col-start-4"
+              className="col-span-2"
             />
           </div>
         )
@@ -505,7 +491,6 @@ function Slider({
   max,
   step,
   mark,
-  faint = false,
   wide = false,
   format,
   focusable,
@@ -519,8 +504,6 @@ function Slider({
   step: number
   /** 既定の値。溝の上に点で示す */
   mark: number
-  /** 値を自動で決めているあいだは、つまみを薄くする */
-  faint?: boolean
   /** 溝を長くする。欄の幅いっぱいに置くスライダー（ロゴの大きさ）で使う */
   wide?: boolean
   /** 右に添える値の書き方 */
@@ -544,7 +527,7 @@ function Slider({
         />
         <div
           aria-hidden
-          className={`glow-line absolute top-1/2 size-2 -translate-1/2 rounded-full bg-ink transition-[scale,box-shadow,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-140 group-hover:opacity-100 group-hover:[--glow:var(--glow-hover)] group-has-[input:focus-visible]:scale-150 group-has-[input:focus-visible]:[--glow:var(--glow-hover)] ${faint ? 'opacity-55' : ''}`}
+          className={`glow-line absolute top-1/2 size-2 -translate-1/2 rounded-full bg-ink transition-[scale,box-shadow,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-140 group-hover:opacity-100 group-hover:[--glow:var(--glow-hover)] group-has-[input:focus-visible]:scale-150 group-has-[input:focus-visible]:[--glow:var(--glow-hover)]`}
           style={{left: position(value)}}
         />
         <input

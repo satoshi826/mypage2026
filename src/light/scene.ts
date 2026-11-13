@@ -424,9 +424,7 @@ export function createLightScene(core: Core, pixelRatio: number) {
       u_reflectance: tuning.reflectance / 100,
       u_rough: (tuning.roughness * Math.PI) / 180,
       u_upperSize: tuning.upperSize,
-      u_underSize: tuning.underSize,
-      u_underCone: (tuning.underCone * Math.PI) / 180,
-      u_upperCone: (tuning.upperCone * Math.PI) / 180
+      u_underSize: tuning.underSize
     })
     // 頂点の数は光線の数の上限と跳ね返りの回数で決まるので、変わったら作り直す。光線の数が変わっても作り直さない
     const vertices = tuning.maxRays * (tuning.bounces + 1) * 2
@@ -493,11 +491,13 @@ export function createLightScene(core: Core, pixelRatio: number) {
       u_upperPower: upper.power,
       u_upper: [upper.x, upper.y],
       u_upperAngle: upper.angle,
+      u_upperCone: upper.cone,
       u_focus: upper.focus,
       u_glass: material.glass,
       u_metal: material.metal,
       u_under: [under.x, under.y],
       u_underAngle: under.angle,
+      u_underCone: under.cone,
       // 光線は強さの比で 2 つの光に分ける。どちらの光線も 1 本あたりのエネルギーが同じになり、ざらつきが一番少なくなる。
       // 消えている光には回さない
       u_underRays: Math.round((count * under.power) / Math.max(upper.power + under.power, 1e-6)),
@@ -556,6 +556,8 @@ export type Lamp = {
   y: number
   /** 照らす向き。ラジアンで、右が 0、下へ回る向きが正 */
   angle: number
+  /** 広がり。向きから左右に広げる角度で、ラジアン */
+  cone: number
   /** 強さ。tuning の power と同じ単位で、スクロールでついていく明るさの割合も掛けたもの */
   power: number
 }
@@ -563,7 +565,7 @@ export type Lamp = {
 /** 1 フレームぶんの光の状態。位置はどれも canvas の左上からの px */
 export type LightFrame = {
   /**
-   * 上の光。focus は絞れ具合で、0 で全周に均一、1 で向きの円錐に絞りきる（tuning の cone）。base はスクロールで決まる
+   * 上の光。focus は絞れ具合で、0 で全周に均一、1 で向きの円錐（cone）に絞りきる。base はスクロールで決まる
    * 位置（訪問者が動かしたぶんを除く）で、前のフレームの結果はこの位置が動いたぶんだけずらす
    */
   upper: Lamp & {focus: number; base: {x: number; y: number}}
