@@ -75,17 +75,22 @@ const ADD: Photo = {file: '+', w: 3, h: 2, category: 'street', v: ''}
  *
  * opens を lightbox にすると、押した写真をその場で広げず、画面の中央へ重ねて見せる（Lightbox.tsx。Works。
  * 数枚の案件で 1 枚を広げると、残りが押し出されてまとまりが崩れるため）。重ねているあいだ、一覧のその写真は隠す。
+ *
+ * controls を false にすると、フッターの列数の操作（Photos だけに出る）とつながず、列数はいつも画面の幅で決める
+ * （Works。Photos で選んだ列数を持ち込むと、戻す操作が無いため）。
  */
 export function Gallery({
   photos,
   label,
   add,
-  opens = 'inline'
+  opens = 'inline',
+  controls = true
 }: {
   photos: Photo[]
   label: string
   add: Place
   opens?: 'inline' | 'lightbox'
+  controls?: boolean
 }) {
   const root = useRef<HTMLDivElement>(null)
   const [metrics, setMetrics] = useState<Metrics | null>(null)
@@ -93,8 +98,8 @@ export function Gallery({
   const [expanded, setExpanded] = useState<string | null>(null)
   const [motion, setMotion] = useState(DEFAULT_MOTION)
   const [spacing, setSpacing] = useState(DEFAULT_SPACING)
-  // 列数。フッターで選ぶ（controls.ts）
-  const [columns, setColumns] = useState<Columns>(chosen.columns)
+  // 列数。フッターで選ぶ（controls.ts）。操作とつながない一覧は画面の幅で決める
+  const [columns, setColumns] = useState<Columns>(controls ? chosen.columns : 'auto')
   // 段組を変えている最中の、変更前の状態。変えた直後の useLayoutEffect が使って消す
   const [before, setBefore] = useState<Before | null>(null)
   // 段組を変えるとき、変更前に画面の近くにあった写真。動き終わるまで描き続ける（離れていく動きを見せるため）
@@ -275,7 +280,7 @@ export function Gallery({
 
   // フッターの操作（列数）を出す。外れるときは消す
   useEffect(() => {
-    if (!cols) return
+    if (!cols || !controls) return
     setGalleryControls({
       columns: cols,
       setColumns: (next) => {
@@ -286,7 +291,7 @@ export function Gallery({
       }
     })
   })
-  useEffect(() => () => setGalleryControls(null), [])
+  useEffect(() => () => void (controls && setGalleryControls(null)), [controls])
 
   // 並べる写真が変わったとき（編集で足す・消す・カテゴリを移す、編集の切り替えで「＋」の枠が出入りする）も、
   // 段組を変えるときと同じく、変わる前の配置から動かす。スクロールはずらさない

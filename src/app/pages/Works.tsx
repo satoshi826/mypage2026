@@ -31,7 +31,13 @@ export function Works() {
             </Sweep>
           </div>
           {tools && <tools.Project project={project} />}
-          <Gallery photos={photos} label="Works" add={{category: 'works', project: project.id}} opens="lightbox" />
+          <Gallery
+            photos={photos}
+            label="Works"
+            add={{category: 'works', project: project.id}}
+            opens="lightbox"
+            controls={false}
+          />
         </section>
       ))}
       <Lightbox />
