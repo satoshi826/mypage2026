@@ -52,11 +52,13 @@ export function App() {
           <Route path="/en/about">
             <About key="en" lang="en" />
           </Route>
+          {/* Contact は作り直さない。作り直すとフォームの入力が消える。言語で中身が替わる段落は、段落ごとに
+              作り直されて現れ直す（Contact の key） */}
           <Route path="/contact">
-            <Contact key="ja" lang="ja" />
+            <Contact lang="ja" />
           </Route>
           <Route path="/en/contact">
-            <Contact key="en" lang="en" />
+            <Contact lang="en" />
           </Route>
           <Route path="/admin" component={Login} />
           <Route>
