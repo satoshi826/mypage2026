@@ -1,5 +1,5 @@
 import {heroesOf, renumberHero, showManifest, type Manifest, type Photo} from '../photos'
-import {VARIANTS} from '../photos/manifest'
+import {parseManifest, VARIANTS} from '../photos/manifest'
 import {deleteImage, fetchManifest, saveManifest} from './api'
 
 // 下書き。サイトの上での編集はすべてここに入り、「公開」でまとめて本番の一覧（manifest.json）へ書く。
@@ -7,6 +7,8 @@ import {deleteImage, fetchManifest, saveManifest} from './api'
 //
 // - 追加した写真の画像は、選んだ時点で R2 に置く（一覧に載るまで訪問者には見えない）。破棄したら消す
 // - 削除は「消す予定」にするだけで、R2 の画像は公開のときに消す。公開前なら破棄で戻せる。原本は残す
+// - 下書きの一覧は、変えるたびにサーバーが読むのと同じ形（parseManifest）にそろえる。公開のときの「別の場所で
+//   変わっていないか」と未公開の変更の数は一覧を文字列で比べるので、キーの並び順の違いを変更と取り違えないため
 
 type Draft = {
   /** 下書きを始めたときの公開中の一覧。公開のとき、別の場所で変わっていないかを確かめる */
@@ -84,17 +86,28 @@ export function edit(
   const live = state.live
   if (!live) return
   const draft = state.draft ?? {base: live, manifest: live, uploads: [], removed: []}
-  const next = change(draft.manifest)
   set({
     draft: {
       ...draft,
-      // hero の番号は、足す・外す・消すたびに 1 から詰め直す
-      manifest: {...next, photos: renumberHero(next.photos)},
+      // hero の番号は、足す・外す・消すたびに 1 から詰め直す（normalized の中で）
+      manifest: normalized(change(draft.manifest)),
       uploads: [...draft.uploads, ...uploads],
       removed: [...draft.removed, ...removed]
     }
   })
 }
+
+/**
+ * サーバーが読むのと同じ形（キーの並び、hero の番号の詰め直し）にそろえた一覧。検証に通らない一覧（説明が長すぎる
+ * など）は、hero の番号だけ詰めてそのまま返す（公開のときにサーバーが断る）
+ */
+function normalized(manifest: Manifest): Manifest {
+  const result = parseManifest(manifest)
+  return 'manifest' in result ? result.manifest : {...manifest, photos: renumberHero(manifest.photos)}
+}
+
+/** 画像のキー（kind/name）の写真の名前 */
+const fileOf = (key: string) => key.split('/')[1].replace(/\.[^.]+$/, '')
 
 /** 公開中の一覧か、下書きがあれば下書き。まだ読めていなければ null */
 export const current = () => state.draft?.manifest ?? state.live
@@ -125,22 +138,42 @@ export const publish = () =>
     )
       return
     await saveManifest(draft.manifest)
-    // 消す写真の派生画像。この下書きで足して消した写真は、原本も消す（公開中の一覧に一度も載っていない）
-    const fresh = draft.uploads.filter((key) => draft.removed.includes(key.split('/')[1].replace(/\.[^.]+$/, '')))
-    await Promise.all([
+    // 一覧を保存できたら、公開は済んでいる。画像の掃除を待たずに公開中の一覧を進める（掃除が失敗しても、公開済みの
+    // 下書きを残さない。残すと、破棄で公開した写真の画像を消しうる）。公開を待っているあいだに入った編集は、
+    // 公開した一覧を土台にした下書きとして残す
+    const now = state.draft
+    set({
+      live: draft.manifest,
+      draft:
+        now && now !== draft
+          ? {
+              base: draft.manifest,
+              manifest: now.manifest,
+              uploads: now.uploads.filter((key) => !draft.uploads.includes(key)),
+              removed: now.removed.filter((file) => !draft.removed.includes(file))
+            }
+          : null
+    })
+    // 消す写真の派生画像。この下書きで足して消した写真は、原本も消す（公開中の一覧に一度も載っていない）。
+    // 失敗したものは R2 に残るだけで、一覧からは外れている
+    const fresh = draft.uploads.filter((key) => draft.removed.includes(fileOf(key)))
+    await Promise.allSettled([
       ...draft.removed.flatMap((file) => VARIANTS.map((v) => deleteImage(`${v.kind}/${file}.webp`))),
       ...fresh.filter((key) => key.startsWith('originals/')).map((key) => deleteImage(key))
     ])
-    set({live: draft.manifest, draft: null})
   })
 
-/** 下書きを捨てる。この下書きで R2 に置いた画像も消す */
+/** 下書きを捨てる。この下書きで R2 に置いた画像も消す（公開されているものは除く） */
 export const discard = () =>
   run('破棄', async () => {
     const draft = state.draft
     if (!draft || !confirm('未公開の変更を捨てますか？')) return
-    await Promise.all(draft.uploads.map((key) => deleteImage(key)))
-    set({draft: null})
+    // 本番の一覧に載っている写真の画像は消さない。別のタブでこの下書きを公開したときなど、足した写真がもう
+    // 公開されていることがある
+    const live = await fetchManifest()
+    const published = new Set(live.photos.map((photo) => photo.file))
+    await Promise.all(draft.uploads.filter((key) => !published.has(fileOf(key))).map((key) => deleteImage(key)))
+    set({live, draft: null})
   })
 
 /**
