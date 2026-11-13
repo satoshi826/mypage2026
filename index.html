@@ -8,12 +8,13 @@
     <!-- 初めて開いたときのスプラッシュ。ロゴ（src/app/Logo.tsx）が 12 の格子から組み上がり、ナビの位置へ移る。
          JS を待たずに最初の描画から動かすため、HTML と CSS だけで書いてここに置く。そのあいだに裏で JS と写真を読む。
          訪問ごと（タブごと）に 1 回だけ出し、同じタブの再読み込みでは出さない。動きを減らす設定の人には出さない。
-         画面を触ると飛ばす -->
+         画面を触ると飛ばす。裏で開いたタブでは、表に出て描かれ始めるまで止めておく（止めないと、裏にいたあいだに
+         時計だけ進み、表に出た瞬間に途中から始まる） -->
     <script>
       try {
         if (!sessionStorage.getItem('mypage2026.splash') && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
           sessionStorage.setItem('mypage2026.splash', '1')
-          document.documentElement.classList.add('splash')
+          document.documentElement.classList.add('splash', 'splash-wait')
           // ナビのロゴの濃さ（トップは 90%、ほかは 80%。src/app/Nav.tsx）。移ってきたロゴを同じ濃さで着地させる
           if (location.pathname !== '/') document.documentElement.style.setProperty('--splash-logo', '0.8')
         }
@@ -70,6 +71,8 @@
       @keyframes splash-veil {from {opacity: 1;} to {opacity: 0;}}
       @keyframes splash-end {to {visibility: hidden;}}
       @keyframes splash-show {from {opacity: 0;} to {opacity: 1;}}
+      /* 描かれ始めるまで、すべての動きを最初の状態で止める。上の animation の指定より後に置く */
+      .splash-wait #splash, .splash-wait #splash *, .splash-wait [data-logo] svg {animation-play-state: paused;}
     </style>
     <title>mypage2026</title>
   </head>
@@ -99,11 +102,18 @@
       </svg>
     </div>
     <script>
-      // 終わったら片付ける。画面を触ったら、その場で薄くして飛ばす
+      // 描かれ始めたら動かし、終わったら片付ける。画面を触ったら、その場で薄くして飛ばす。
+      // requestAnimationFrame は裏のタブでは呼ばれないので、表に出て 1 枚描いてから動き出す
       if (document.documentElement.classList.contains('splash')) {
         const root = document.documentElement
-        const done = () => root.classList.remove('splash', 'splash-skip')
-        const timer = setTimeout(done, 2140 / 0.6)
+        const done = () => root.classList.remove('splash', 'splash-wait', 'splash-skip')
+        let timer
+        requestAnimationFrame(() =>
+          requestAnimationFrame(() => {
+            root.classList.remove('splash-wait')
+            timer = setTimeout(done, 2140 / 0.6)
+          })
+        )
         const skip = () => {
           clearTimeout(timer)
           root.classList.add('splash-skip')
