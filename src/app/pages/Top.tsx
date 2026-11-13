@@ -139,6 +139,7 @@ const PLACEMENT_PARAMS: Param<Placement>[] = [
 const LINKS = [
   {href: '/photos/street', label: 'Photos', current: false},
   {href: '/works', label: 'Works', current: false},
+  {href: '/about', label: 'About', current: false},
   {href: '/contact', label: 'Contact', current: false}
 ]
 
