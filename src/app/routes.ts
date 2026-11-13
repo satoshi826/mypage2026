@@ -51,7 +51,7 @@ export const ROUTES: RouteDef[] = [
     path: '/works',
     label: 'Works',
     title: `Works — ${NAME}`,
-    description: `Commissioned photography by ${SIGNED}. 依頼を受けて撮った写真。`
+    description: `Commissioned photography by ${SIGNED}. ご依頼をいただいて撮影した写真。`
   },
   {
     path: '/about',
