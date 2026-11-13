@@ -241,7 +241,7 @@ function Toggle({
       aria-label={label}
       onClick={() => onChange(!on)}
       tabIndex={focusable ? 0 : -1}
-      className={`group relative h-full w-7 shrink-0 cursor-pointer ${GLOW_HOVER}`}
+      className={`group relative h-full w-9 shrink-0 cursor-pointer ${GLOW_HOVER}`}
     >
       <span aria-hidden className="absolute inset-x-1 top-1/2 h-[0.5px] bg-ink/35" />
       {[0, 1].map((end) => (
@@ -253,7 +253,7 @@ function Toggle({
       ))}
       <span
         aria-hidden
-        className="glow-line absolute top-1/2 left-1 size-2 -translate-1/2 rounded-full border border-ink bg-transparent opacity-70 transition-[left,background-color,opacity,box-shadow,scale] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-125 group-hover:opacity-100 group-aria-checked:left-[calc(100%-4px)] group-aria-checked:bg-ink group-aria-checked:opacity-100 group-aria-checked:[--glow:var(--glow-selected)]"
+        className="glow-line absolute top-1/2 left-1 size-2.5 -translate-1/2 rounded-full border border-ink bg-transparent opacity-70 transition-[left,background-color,opacity,box-shadow,scale] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-125 group-hover:opacity-100 group-aria-checked:left-[calc(100%-4px)] group-aria-checked:bg-ink group-aria-checked:opacity-100 group-aria-checked:[--glow:var(--glow-selected)]"
       />
     </button>
   )
@@ -315,6 +315,7 @@ function LogoSettings({controls, focusable}: {controls: Controls; focusable: boo
         format={(value) => value.toFixed(2)}
         focusable={focusable}
         onInput={setScale}
+        wide
         className="col-span-3"
       />
     </>
@@ -478,6 +479,7 @@ function Slider({
   step,
   mark,
   faint = false,
+  wide = false,
   format,
   focusable,
   onInput,
@@ -492,6 +494,8 @@ function Slider({
   mark: number
   /** 値を自動で決めているあいだは、つまみを薄くする */
   faint?: boolean
+  /** 溝を長くする。欄の幅いっぱいに置くスライダー（ロゴの大きさ）で使う */
+  wide?: boolean
   /** 右に添える値の書き方 */
   format: (value: number) => string
   focusable: boolean
@@ -501,7 +505,10 @@ function Slider({
   const position = (v: number) => `calc(var(--thumb) / 2 + (100% - var(--thumb)) * ${(v - min) / (max - min)})`
   return (
     <div className={`group flex h-full items-center gap-2 justify-self-start ${className}`}>
-      <div className="relative h-full w-32 max-sm:w-24" style={{'--thumb': `${THUMB}px`}}>
+      <div
+        className={`relative h-full ${wide ? 'w-48 max-sm:w-32' : 'w-32 max-sm:w-24'}`}
+        style={{'--thumb': `${THUMB}px`}}
+      >
         <div aria-hidden className="absolute inset-x-[calc(var(--thumb)/2)] top-1/2 h-[0.5px] bg-ink/35" />
         <div
           aria-hidden

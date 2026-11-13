@@ -34,7 +34,7 @@ export const DEFAULT_ARRANGEMENT: Arrangement = {
 
 /** ロゴの大きさの倍率の範囲 */
 export const MIN_SCALE = 0.5
-export const MAX_SCALE = 2
+export const MAX_SCALE = 3
 
 /** 光の向きを傾けられる範囲。真下（下の光は真上）から左右にこれだけ。ラジアン */
 export const MAX_TILT = Math.PI / 2
