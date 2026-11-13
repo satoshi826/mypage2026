@@ -52,6 +52,19 @@ export function initialState(order: Order): SequenceState {
   return {from: 0, to, after: pickNext(to, {...order, seen: [...order.seen, to]}), elapsed: 0, chosen: false}
 }
 
+/**
+ * 今の写真が読めなかったとき、読める写真を今の写真にして周の頭からやり直す。行き先が読めればそれを、読めなければ
+ * ほかから選ぶ。今の写真が読めているか、ほかに候補が無ければそのまま返す。
+ * トップの入りの動き（Hero）は今の写真が読めてから始めるので、読めないまま待ち続けないために使う
+ */
+export function skipBrokenFrom(state: SequenceState, order: Order): SequenceState {
+  if (!order.broken.includes(state.from)) return state
+  const from = order.broken.includes(state.to) ? pickNext(state.from, order) : state.to
+  if (from === state.from) return state
+  const to = pickNext(from, order)
+  return {from, to, after: pickNext(to, {...order, seen: [...order.seen, to]}), elapsed: 0, chosen: false}
+}
+
 /** 読めなかった写真を、行き先とその次から外す */
 function avoidBroken(state: SequenceState, order: Order): SequenceState {
   const to = order.broken.includes(state.to) ? pickNext(state.from, order) : state.to

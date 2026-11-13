@@ -6,6 +6,7 @@ import {
   frameOf,
   initialState,
   jumpTo,
+  skipBrokenFrom,
   morphRatio,
   pause,
   restart,
@@ -227,6 +228,11 @@ export function Hero({
       // スクロールで上へ流れていきながら薄れ、スクロールしていることを示す。
       // 粒子がすべて光に吸い込まれたら写真は見えないので、時計も干渉も止める
       const scrolled = stage.current.progress * innerHeight
+      if (entry.current === 1) {
+        // 最初の写真が読めなかったら、読める写真から始める。どれも読めなければ入りの動きをやめ、カレンダーを出す
+        stateRef.current = skipBrokenFrom(stateRef.current, order)
+        if (order.broken.includes(stateRef.current.from)) entry.current = 0
+      }
       if (entry.current > 0) {
         const started =
           library.slotOf(stateRef.current.from) !== null && !document.documentElement.classList.contains('splash')
