@@ -142,14 +142,14 @@ const POWER_ICON = (
 
 /**
  * 同じ動きを繰り返す（Loop）のアイコン。上と下の矢印で、角の丸い輪を描く（音楽の再生の「繰り返す」と同じ形）。
- * 押して入れ切りするボタンなので、欄の名前の代わりのアイコン（Angle と Power、16px）より大きい 24px にする。線の太さは
- * フッターのアイコンと同じ 1.5px
+ * 押して入れ切りするボタンなので、欄の名前の代わりのアイコン（Angle と Power、16px）より大きい 20px にする（フッターの
+ * アイコンと同じ大きさ）。線の太さもフッターのアイコンと同じ 1.5px
  */
 const LOOP_ICON = (
   <svg
     viewBox="0 0 24 24"
     aria-hidden
-    className="size-6"
+    className="size-5"
     fill="none"
     stroke="currentColor"
     stroke-width={1.5}
@@ -162,6 +162,9 @@ const LOOP_ICON = (
 
 /** 動きの名前。先頭を大文字にする */
 const loopLabel = (loop: Loop) => loop[0].toUpperCase() + loop.slice(1)
+
+/** 一番長い動きの名前。プルダウンの幅を取るのに使う */
+const LONGEST_LABEL = loopLabel(LOOPS.reduce((a, b) => (b.length > a.length ? b : a)))
 
 /**
  * 流している動きを示し、押すと動きの一覧を入れ物の上に開いて選ばせる。一覧は入れ物と同じ見た目で、数が多いので格子に並べる。
@@ -200,9 +203,15 @@ function MotionPicker({current, onPick, focusable}: {current: Loop; onPick: (loo
         aria-expanded={open}
         aria-label={`Motion: ${loopLabel(current)}`}
         tabIndex={focusable ? 0 : -1}
-        className={`${OPTION} glow-under gap-2 border-b border-white/20 py-1 opacity-90! transition-[border-color,box-shadow] duration-300 hover:border-white/60 aria-expanded:border-white/60 aria-expanded:[--glow:var(--glow-selected)]`}
+        className={`${OPTION} glow-under gap-4 border-b border-white/20 py-1 opacity-90! transition-[border-color,box-shadow] duration-300 hover:border-white/60 aria-expanded:border-white/60 aria-expanded:[--glow:var(--glow-selected)]`}
       >
-        <span className="glow-text w-[6.5ch] transition-[text-shadow] duration-800">{loopLabel(current)}</span>
+        {/* 幅は一番長い名前に合わせて取り、名前によって山形の位置が動かないようにする（見えない一番長い名前を同じ場所に重ねる） */}
+        <span className="grid *:[grid-area:1/1]">
+          <span aria-hidden className="invisible">
+            {LONGEST_LABEL}
+          </span>
+          <span className="glow-text transition-[text-shadow] duration-800">{loopLabel(current)}</span>
+        </span>
         {/* 一覧を開く欄であることを示す、小さな山形 */}
         <svg viewBox="0 0 10 10" aria-hidden className="size-2" fill="none" stroke="currentColor" stroke-width={1.2}>
           <path d="M2 3.5 5 6.5 8 3.5" />
