@@ -73,11 +73,18 @@ async function request(url, init) {
   }
 }
 
+/** 一覧（写真と Works の案件。src/photos/manifest.ts の Manifest） */
 async function manifest(base) {
-  if (isDir(base)) return JSON.parse(readFileSync(join(base, 'manifest.json'), 'utf8'))
-  const res = await request(`${base}/api/manifest`, {cache: 'no-store'})
-  if (!res.ok) throw new Error(`${base}/api/manifest: ${res.status}`)
-  return res.json()
+  let body
+  if (isDir(base)) body = JSON.parse(readFileSync(join(base, 'manifest.json'), 'utf8'))
+  else {
+    const res = await request(`${base}/api/manifest`, {cache: 'no-store'})
+    if (!res.ok) throw new Error(`${base}/api/manifest: ${res.status}`)
+    body = await res.json()
+  }
+  if (!Array.isArray(body.photos))
+    throw new Error(`${base} の一覧が写真だけの配列の形。/admin から一度公開すると今の形になる`)
+  return body
 }
 
 /** etag。無ければ null。ファイルは R2 と同じ形（MD5 を引用符で囲む）で作る */
@@ -146,10 +153,10 @@ if (direction === 'originals') {
 
 const source = await manifest(from)
 const target = await manifest(to)
-console.log(`${direction}: ${from} (${source.length} 枚) → ${to} (${target.length} 枚)`)
+console.log(`${direction}: ${from} (${source.photos.length} 枚) → ${to} (${target.photos.length} 枚)`)
 
 // 送るもの: 送り元にあって、送り先と etag が違う画像
-const wanted = source.flatMap(keysOf)
+const wanted = source.photos.flatMap(keysOf)
 const copies = (
   await mapLimit(wanted, PARALLEL, async (key) => {
     const [a, b] = await Promise.all([etag(imageUrl(from, key)), etag(imageUrl(to, key))])
@@ -161,8 +168,8 @@ const missing = copies.filter((c) => c.missing).map((c) => c.key)
 const toCopy = copies.filter((c) => !c.missing).map((c) => c.key)
 
 // 消すもの: 送り先の一覧にだけある写真の画像
-const sourceFiles = new Set(source.map((p) => p.file))
-const orphaned = target.filter((p) => !sourceFiles.has(p.file)).flatMap(keysOf)
+const sourceFiles = new Set(source.photos.map((p) => p.file))
+const orphaned = target.photos.filter((p) => !sourceFiles.has(p.file)).flatMap(keysOf)
 const toDelete = (
   await mapLimit(orphaned, PARALLEL, async (key) => ((await etag(imageUrl(to, key))) ? key : null))
 ).filter(Boolean)
@@ -217,8 +224,9 @@ console.log('done')
  * 拡張子を順に試す
  */
 async function fetchOriginals() {
-  const photos = await manifest(SITE)
-  writeFileSync(join(PHOTOS_DIR, 'manifest.json'), `${JSON.stringify(photos, null, 2)}\n`)
+  const list = await manifest(SITE)
+  const photos = list.photos
+  writeFileSync(join(PHOTOS_DIR, 'manifest.json'), `${JSON.stringify(list, null, 2)}\n`)
   console.log(`本番の一覧（${photos.length} 枚）を .photos/manifest.json に取った`)
   const dir = join(PHOTOS_DIR, 'originals')
   mkdirSync(dir, {recursive: true})

@@ -3,9 +3,9 @@ import {editorReady, isEditing} from '../app/editing'
 import {Bar} from './Bar'
 import {HeroPanel} from './HeroPanel'
 import {start} from './draft'
-import {addPhotos, pageCategory} from './ops'
+import {addPhotos, dropPlace} from './ops'
 import {select} from './selection'
-import {AddTile, PhotoTools} from './Tools'
+import {AddProjectButton, AddTile, PhotoTools, ProjectTools} from './Tools'
 
 // サイトの上での編集。ログインしている人にだけ、src/app/editing.ts が動的 import で読み込む。
 // 訪問者の JS には入らない。
@@ -21,7 +21,7 @@ export function mount() {
     </>,
     host
   )
-  editorReady({Photo: PhotoTools, Add: AddTile})
+  editorReady({Photo: PhotoTools, Add: AddTile, Project: ProjectTools, AddProject: AddProjectButton})
   void start()
 
   // 写真の外を触ったら、出している操作を閉じる
@@ -29,14 +29,15 @@ export function mount() {
     if (!(event.target as Element).closest('[data-photo-tools]')) select(null)
   })
 
-  // Photos と Works では、ファイルを一覧の上へ落としても足せる（今見ているカテゴリの先頭に入る）
-  const category = pageCategory
+  // Photos と Works では、ファイルを一覧の上へ落としても足せる。Photos は今見ているカテゴリ、Works は落とした
+  // 案件の先頭に入る
+  const place = (event: DragEvent) => dropPlace(event.target as Element)
   const files = (event: DragEvent) => !!event.dataTransfer?.types.includes('Files')
   addEventListener('dragover', (event) => {
-    if (isEditing() && category() && files(event)) event.preventDefault()
+    if (isEditing() && place(event) && files(event)) event.preventDefault()
   })
   addEventListener('drop', (event) => {
-    const target = category()
+    const target = place(event)
     if (!isEditing() || !target || !files(event)) return
     event.preventDefault()
     const images = [...(event.dataTransfer?.files ?? [])].filter((file) => /^image\/(jpeg|png)$/.test(file.type))

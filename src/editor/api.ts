@@ -1,5 +1,5 @@
 // 管理画面から Worker の API を呼ぶ。認証は Cloudflare Access の cookie が自動で付く。
-import type {Photo} from '../photos'
+import type {Manifest} from '../photos'
 import {parseManifest} from '../photos/manifest'
 
 async function check(res: Response) {
@@ -14,19 +14,19 @@ async function check(res: Response) {
 }
 
 /** 公開中の一覧。サイトが読むときと同じく検証する（hero の番号も 1 から詰まった形になる） */
-export async function fetchManifest(): Promise<Photo[]> {
+export async function fetchManifest(): Promise<Manifest> {
   const res = await check(await fetch('/api/manifest', {cache: 'no-store'}))
   const result = parseManifest(await res.json())
   if ('error' in result) throw new Error(result.error)
-  return result.photos
+  return result.manifest
 }
 
-export async function saveManifest(photos: Photo[]): Promise<void> {
+export async function saveManifest(manifest: Manifest): Promise<void> {
   await check(
     await fetch('/api/manifest', {
       method: 'PUT',
       headers: {'content-type': 'application/json'},
-      body: JSON.stringify(photos)
+      body: JSON.stringify(manifest)
     })
   )
 }

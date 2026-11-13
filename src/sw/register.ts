@@ -1,5 +1,5 @@
 import {imageUrl, VARIANTS} from '../photos/manifest'
-import {loadPhotos, toCategory} from '../photos'
+import {loadManifest, toCategory} from '../photos'
 import {listSources} from '../gallery/prefetch'
 
 /**
@@ -16,7 +16,7 @@ export function registerServiceWorker() {
 
 async function start() {
   await navigator.serviceWorker.register('/sw.js')
-  const [photos, registration] = await Promise.all([loadPhotos(), navigator.serviceWorker.ready, quiet()])
+  const [{photos}, registration] = await Promise.all([loadManifest(), navigator.serviceWorker.ready, quiet()])
   // 今の一覧にある版だけを残す。差し替えや削除で古くなった版は消える
   const keep = photos.flatMap((photo) => VARIANTS.map((variant) => imageUrl(variant.kind, photo)))
   const category = toCategory(location.pathname.match(/^\/photos\/([^/]+)/)?.[1])

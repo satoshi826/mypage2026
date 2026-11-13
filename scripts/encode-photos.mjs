@@ -11,7 +11,7 @@
 // 派生は段ごとに .photos/<kind>/ へ。形は src/photos/manifest.ts の VARIANTS（長辺、画質）で、カラー、
 // トリミングなし。トップの hero も、この段の 1 つ（拡大用の 1200）を読む。
 //
-// 一覧の順番・カテゴリ・hero の選択は既存の .photos/manifest.json から引き継ぐ。一覧にあって原本が
+// 一覧の順番・カテゴリ・hero の選択・Works の案件は既存の .photos/manifest.json から引き継ぐ。一覧にあって原本が
 // 無い写真があれば止める（作り直せないので）。新規の写真は一覧の末尾に足し、彩度で color / street を
 // 仮置きし、hero には使わない（hero を持たない）。
 // 必要なツール: imagemagick, cwebp
@@ -47,7 +47,9 @@ for (const name of existsSync(SRC) ? readdirSync(SRC) : []) {
 }
 if (originals.size === 0) throw new Error(`${SRC} に jpg / jpeg / png がない`)
 
-const prev = existsSync(LIST) ? JSON.parse(readFileSync(LIST, 'utf8')) : []
+const list = existsSync(LIST) ? JSON.parse(readFileSync(LIST, 'utf8')) : {photos: [], projects: []}
+if (!Array.isArray(list.photos)) throw new Error(`${LIST} が写真だけの配列の形。npm run photos:originals で取り直す`)
+const prev = list.photos
 const missing = prev.filter((p) => !originals.has(p.file)).map((p) => p.file)
 if (missing.length) {
   console.error(`一覧にあって原本が無い写真: ${missing.join(', ')}`)
@@ -84,6 +86,7 @@ async function encode(entry) {
       join(PHOTOS, variant.kind, `${entry.file}.webp`)
     ])
   }
+  const {isNew: _isNew, ...kept} = entry
   let {category, hero} = entry
   if (entry.isNew) {
     const saturation = Number(
@@ -111,7 +114,8 @@ async function encode(entry) {
   for (const variant of variants) hash.update(readFileSync(join(PHOTOS, variant.kind, `${entry.file}.webp`)))
   const v = hash.digest('hex').slice(0, 10)
   console.log(`${entry.file}  ${w}x${h}  ${category}  hero=${hero ?? '-'}  v=${v}${entry.isNew ? '  （新規）' : ''}`)
-  return {file: entry.file, w, h, category, hero, v}
+  // 置き場所（Works の案件）は引き継ぐ。寸法と版は書き出し直したもの
+  return {...kept, w, h, category, hero, v}
 }
 
 // PARALLEL 枚ずつ同時に書き出す。一覧の順番は保つ
@@ -127,5 +131,5 @@ try {
   rmSync(tmp, {recursive: true, force: true})
 }
 
-writeFileSync(LIST, `${JSON.stringify(out, null, 2)}\n`)
+writeFileSync(LIST, `${JSON.stringify({photos: out, projects: list.projects}, null, 2)}\n`)
 console.log(`${out.length} 枚を書き出し、${LIST.replace(ROOT + '/', '')} を更新した`)

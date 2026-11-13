@@ -11,7 +11,7 @@ import {useDragging, useEditorTools} from '../app/editing'
 import {onScrollFrame} from '../app/scrollFrame'
 import {useExternal} from '../app/useExternal'
 import {glideTo, jumpTo} from '../app/useSmoothScroll'
-import {pickSource, type Photo} from '../photos'
+import {pickSource, type Photo, type Place} from '../photos'
 
 /**
  * 寸法。容器の幅、画面の幅で決まる列数（auto のとき使う）、広げた写真に許す高さ、画面の高さ、
@@ -70,8 +70,7 @@ const ADD: Photo = {file: '+', w: 3, h: 2, category: 'street', v: ''}
  *
  * マウスを載せた写真は、枠を動かさずに中の画像だけ少しズームする（Img の zoom）。広げている写真は除く。
  *
- * 編集中は先頭に写真を足す「＋」の枠を置く。add を false にすると置かない（Works のように 1 ページに一覧が
- * いくつも並ぶとき、先頭の一覧にだけ置くため）。
+ * 編集中は先頭に、add（カテゴリか Works の案件）へ写真を足す「＋」の枠を置く。
  *
  * expandable を false にすると、押しても広げず、マウスを載せたときのズームもしない（Works。数枚の案件で 1 枚を
  * 広げると、残りが押し出されてまとまりが崩れるため）。
@@ -79,12 +78,12 @@ const ADD: Photo = {file: '+', w: 3, h: 2, category: 'street', v: ''}
 export function Gallery({
   photos,
   label,
-  add = true,
+  add,
   expandable = true
 }: {
   photos: Photo[]
   label: string
-  add?: boolean
+  add: Place
   expandable?: boolean
 }) {
   const root = useRef<HTMLDivElement>(null)
@@ -106,8 +105,7 @@ export function Gallery({
   const editing = !!tools
   const dragging = useDragging()
   // 並べる写真。編集中は先頭に「＋」の枠を足す
-  const adding = !!tools && add
-  const items = useMemo(() => (adding ? [ADD, ...photos] : photos), [adding, photos])
+  const items = useMemo(() => (editing ? [ADD, ...photos] : photos), [editing, photos])
   // 広げた写真が画面に収まらなければ寄せるか。押して広げたときだけ
   const reveal = useRef(false)
 
@@ -184,7 +182,7 @@ export function Gallery({
     const from = view - RANGE * height
     const to = view + (1 + STEP + RANGE) * height
     // 番号（alt）は写真だけで数える。「＋」の枠のぶんをずらす
-    const offset = adding ? 1 : 0
+    const offset = editing ? 1 : 0
     items.forEach((photo, i) => {
       const at = placed.items.get(photo.file)!
       if ((at.y + at.h > from && at.y < to) || keep.has(photo.file) || photo.file === dragging)
@@ -409,10 +407,10 @@ export function Gallery({
         mounted.map(({photo, index}) => {
           const at = placed.items.get(photo.file)!
           const box = {left: `${at.x}px`, top: `${at.y}px`, width: `${at.w}px`, height: `${at.h}px`}
-          if (adding && photo === ADD)
+          if (tools && photo === ADD)
             return (
               <div key={photo.file} data-file={photo.file} className="absolute" style={box}>
-                <tools.Add />
+                <tools.Add place={add} />
               </div>
             )
           const wide = expanded === photo.file

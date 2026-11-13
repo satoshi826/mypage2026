@@ -35,27 +35,48 @@ export const LIST_HEADROOM = 1.5
 /** 余裕を持たせる端末。一覧の JS（src/photos/index.ts）と Worker の先読み（imagesizes）が同じ条件を使う */
 export const HOVER = '(hover: hover)'
 
-export type Photo = {
+/**
+ * 写真の置き場所。Photos のカテゴリか、Works の案件。Works の写真はどれかの案件に入る
+ */
+export type Place = {category: PhotoCategory; project?: undefined} | {category: 'works'; project: string}
+
+export type Photo = Place & {
   file: string
   /** 一番大きい派生（large-2000）の寸法。ほかの段は同じ比率で小さい */
   w: number
   h: number
-  category: Category
   /** トップの hero での順番（1 から）。カレンダーの番号。hero に使わない写真は持たない */
   hero?: number
-  /** Works の写真の種類（Performance / Talk / Portrait など）。案件の最初の写真に添える */
-  tag?: string
-  /**
-   * Works の案件の説明の 1 行（被写体 / 場 / 年）。案件の最初の写真にだけ持たせ、続く写真は持たない。
-   * 書体は HTML に出る文字だけに絞っているので（scripts/fonts.js）、英数字で書くとサイトの書体で出る
-   */
-  caption?: string
   /**
    * 派生画像の版。その写真の派生を全部つないだ中身のハッシュ（先頭 10 桁）で、書き出し直して中身が
    * 変わったときだけ変わる。画像の URL に付け、URL が同じなら中身も同じ、としてずっと手元に持てるようにする
    */
   v: string
 }
+
+/**
+ * Works の案件。並びは一覧の projects の順で、中の写真の並びは photos の順。写真の無い案件も持てる（編集中だけ出す）。
+ * 書体は HTML に出る文字だけに絞っているので（scripts/fonts.js）、英数字で書くとサイトの書体で出る
+ */
+export type Project = {
+  id: string
+  /** 種類（Performance / Talk / Portrait など） */
+  tag?: string
+  /** 説明の 1 行（被写体 / 場 / 年） */
+  caption?: string
+}
+
+/** 一覧（manifest.json）。写真と Works の案件 */
+export type Manifest = {photos: Photo[]; projects: Project[]}
+
+export const EMPTY_MANIFEST: Manifest = {photos: [], projects: []}
+
+/** 同じ置き場所か */
+export const samePlace = (a: Place, b: Place) => a.category === b.category && a.project === b.project
+
+/** Works の案件と、その写真（一覧の順） */
+export const worksOf = ({photos, projects}: Manifest) =>
+  projects.map((project) => ({project, photos: photos.filter((photo) => photo.project === project.id)}))
 
 /** 派生画像の URL */
 export const imageUrl = (kind: Variant['kind'], photo: Photo) => `/images/${kind}/${photo.file}.webp?v=${photo.v}`
@@ -93,15 +114,41 @@ const TEXT_LIMIT = {tag: 40, caption: 160}
 const FILE = /^[A-Za-z0-9_-]+$/
 const VERSION = /^[0-9a-f]{10}$/
 
-/** 一覧を検証する。通れば写真の配列、通らなければ理由 */
-export function parseManifest(body: unknown): {photos: Photo[]} | {error: string} {
-  if (!Array.isArray(body)) return {error: 'manifest must be an array'}
+/** 種類と説明の 1 行。無いか、空でない上限以内の文字列 */
+const validText = (value: unknown, limit: number) =>
+  value === undefined || (typeof value === 'string' && !!value.trim() && value.length <= limit)
+
+/** 一覧を検証する。通れば一覧（hero の番号は 1 から詰めた形）、通らなければ理由 */
+export function parseManifest(body: unknown): {manifest: Manifest} | {error: string} {
+  if (Array.isArray(body)) body = fromPhotoArray(body)
+  if (typeof body !== 'object' || body === null) return {error: 'manifest must be an object'}
+  const {photos: photoEntries, projects: projectEntries} = body as Record<string, unknown>
+  if (!Array.isArray(photoEntries) || !Array.isArray(projectEntries))
+    return {error: 'manifest must have photos and projects'}
+
+  const projects: Project[] = []
+  const ids = new Set<string>()
+  for (const [i, entry] of projectEntries.entries()) {
+    const at = `project ${i}`
+    if (typeof entry !== 'object' || entry === null) return {error: `${at}: not an object`}
+    const {id, tag, caption} = entry as Record<string, unknown>
+    if (typeof id !== 'string' || !FILE.test(id)) return {error: `${at}: invalid id`}
+    if (ids.has(id)) return {error: `${at}: duplicate id ${id}`}
+    if (!validText(tag, TEXT_LIMIT.tag)) return {error: `${at}: invalid tag`}
+    if (!validText(caption, TEXT_LIMIT.caption)) return {error: `${at}: invalid caption`}
+    ids.add(id)
+    const project: Project = {id}
+    if (typeof tag === 'string') project.tag = tag
+    if (typeof caption === 'string') project.caption = caption
+    projects.push(project)
+  }
+
   const photos: Photo[] = []
   const seen = new Set<string>()
-  for (const [i, entry] of body.entries()) {
-    const at = `entry ${i}`
+  for (const [i, entry] of photoEntries.entries()) {
+    const at = `photo ${i}`
     if (typeof entry !== 'object' || entry === null) return {error: `${at}: not an object`}
-    const {file, w, h, category, hero, v, tag, caption} = entry as Record<string, unknown>
+    const {file, w, h, category, project, hero, v} = entry as Record<string, unknown>
     if (typeof file !== 'string' || !FILE.test(file)) return {error: `${at}: invalid file`}
     if (seen.has(file)) return {error: `${at}: duplicate file ${file}`}
     if (!Number.isInteger(w) || !Number.isInteger(h) || (w as number) <= 0 || (h as number) <= 0)
@@ -110,18 +157,34 @@ export function parseManifest(body: unknown): {photos: Photo[]} | {error: string
     if (hero !== undefined && !(Number.isInteger(hero) && (hero as number) > 0))
       return {error: `${at}: hero must be a positive integer`}
     if (typeof v !== 'string' || !VERSION.test(v)) return {error: `${at}: invalid v`}
-    for (const [key, value] of [
-      ['tag', tag],
-      ['caption', caption]
-    ] as const)
-      if (value !== undefined && (typeof value !== 'string' || !value.trim() || value.length > TEXT_LIMIT[key]))
-        return {error: `${at}: invalid ${key}`}
+    let place: Place
+    if (category === 'works') {
+      if (typeof project !== 'string' || !ids.has(project)) return {error: `${at}: unknown project`}
+      place = {category, project}
+    } else {
+      if (project !== undefined) return {error: `${at}: only works photos have a project`}
+      place = {category}
+    }
     seen.add(file)
-    const photo: Photo = {file, w: w as number, h: h as number, category, v}
+    const photo: Photo = {file, w: w as number, h: h as number, ...place, v}
     if (hero !== undefined) photo.hero = hero as number
-    if (typeof tag === 'string') photo.tag = tag
-    if (typeof caption === 'string') photo.caption = caption
     photos.push(photo)
   }
-  return {photos: renumberHero(photos)}
+  return {manifest: {photos: renumberHero(photos), projects}}
+}
+
+/**
+ * 写真だけの配列だった前の形を、今の形に移す。案件は並び順で表していて、説明の 1 行（caption）を持つ写真から
+ * 次の案件が始まり、案件の種類と説明は最初の写真が持っていた。本番の一覧を一度公開し直したら消す
+ */
+function fromPhotoArray(entries: unknown[]): unknown {
+  const projects: Record<string, unknown>[] = []
+  const photos = entries.map((entry) => {
+    if (typeof entry !== 'object' || entry === null) return entry
+    const {tag, caption, ...photo} = entry as Record<string, unknown>
+    if (photo.category !== 'works') return photo
+    if (projects.length === 0 || caption !== undefined) projects.push({id: `p${projects.length + 1}`, tag, caption})
+    return {...photo, project: projects[projects.length - 1].id}
+  })
+  return {photos, projects}
 }

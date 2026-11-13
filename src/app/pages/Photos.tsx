@@ -20,7 +20,7 @@ export function Photos() {
   // 固定のナビとフッターの内側から同じ幅の額縁で囲む。下はホームインジケータのぶん（safe area）も足す
   return (
     <div className="mx-auto min-h-[100svh] max-w-7xl px-8 pt-[calc(var(--spacing-nav)+2rem)] pb-[calc(var(--spacing-footer)+env(safe-area-inset-bottom)+2rem)] max-sm:px-4 max-sm:pt-[calc(var(--spacing-nav)+1rem)] max-sm:pb-[calc(var(--spacing-footer)+env(safe-area-inset-bottom)+1rem)]">
-      <Gallery key={category} photos={photos} label={LABEL[category]} />
+      <Gallery key={category} photos={photos} label={LABEL[category]} add={{category}} />
     </div>
   )
 }

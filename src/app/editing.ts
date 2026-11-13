@@ -1,5 +1,5 @@
 import type {ComponentType} from 'preact'
-import type {Photo} from '../photos'
+import type {Photo, Place, Project} from '../photos'
 import {useExternal} from './useExternal'
 
 // サイトの上での編集（src/editor）の入口。訪問者の JS に入るのはこのファイルだけで、編集用の UI は
@@ -59,12 +59,16 @@ export function setEditing(next: boolean) {
   for (const listener of listeners) listener()
 }
 
-/** Gallery に差し込む編集の部品。編集用のコードが読み込まれたときに渡す */
+/** 一覧と Works の案件に差し込む編集の部品。編集用のコードが読み込まれたときに渡す */
 export type EditorTools = {
-  /** 写真の上に重ねる操作（hero、カテゴリ、差し替え、削除） */
+  /** 写真の上に重ねる操作（hero、置き場所、差し替え、削除） */
   Photo: ComponentType<{photo: Photo}>
-  /** 一覧の先頭に置く「＋」の枠の中身。押すと写真を足す */
-  Add: ComponentType
+  /** 一覧の先頭に置く「＋」の枠の中身。押すと place に写真を足す */
+  Add: ComponentType<{place: Place}>
+  /** Works の案件の見出しに置く操作（種類と説明、並べ替え、削除） */
+  Project: ComponentType<{project: Project}>
+  /** Works の先頭に置く、案件を作る操作 */
+  AddProject: ComponentType
 }
 let tools: EditorTools | null = null
 

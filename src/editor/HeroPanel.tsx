@@ -27,7 +27,7 @@ export function HeroPanel() {
 
 function Panel() {
   // 開いたときの一覧。閉じるまでこのパネルの外では変わらない
-  const [photos] = useState(() => current() ?? [])
+  const [photos] = useState(() => current()?.photos ?? [])
   const byFile = new Map(photos.map((photo) => [photo.file, photo]))
   const [initial] = useState(() => heroesOf(photos).map((photo) => photo.file))
   const [order, setOrder] = useState(initial)

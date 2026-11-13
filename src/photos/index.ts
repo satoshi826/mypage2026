@@ -7,22 +7,30 @@ import {useExternal} from '../app/useExternal'
 
 export {
   CATEGORIES,
+  EMPTY_MANIFEST,
   heroesOf,
   heroSrc,
   isCategory,
   PHOTO_CATEGORIES,
   renumberHero,
+  samePlace,
+  worksOf,
   type Category,
+  type Manifest,
   type Photo,
-  type PhotoCategory
+  type PhotoCategory,
+  type Place,
+  type Project
 } from './manifest'
 import {
+  EMPTY_MANIFEST,
   imageUrl,
   isPhotoCategory,
   HOVER,
   LIST_HEADROOM,
   parseManifest,
   VARIANTS,
+  type Manifest,
   type Photo,
   type PhotoCategory,
   type Variant
@@ -51,16 +59,16 @@ export function pickSource(photo: Photo, need: number, large: boolean): Source {
   return sources.find((source) => source.width >= target) ?? sources[sources.length - 1]
 }
 
-function parse(body: unknown): Photo[] {
+function parse(body: unknown): Manifest {
   const result = parseManifest(body)
   if ('error' in result) throw new Error(`manifest: ${result.error}`)
-  return result.photos
+  return result.manifest
 }
 
-let loading: Promise<Photo[]> | null = null
+let loading: Promise<Manifest> | null = null
 
 /** トップと Photos の HTML に Worker が埋め込んだ一覧。ほかのページから入ったときは無い */
-function embedded(): Photo[] | null {
+function embedded(): Manifest | null {
   const text = document.getElementById('manifest')?.textContent
   if (!text) return null
   try {
@@ -71,7 +79,7 @@ function embedded(): Photo[] | null {
 }
 
 /** 一覧を取得する。HTML に埋め込まれていればそれを使い、無ければ取りに行く。同じセッション内では 1 回だけ */
-export function loadPhotos(): Promise<Photo[]> {
+export function loadManifest(): Promise<Manifest> {
   const inline = loading ? null : embedded()
   if (inline) loading = Promise.resolve(inline)
   loading ??= fetch('/api/manifest')
@@ -88,7 +96,7 @@ export function loadPhotos(): Promise<Photo[]> {
 }
 
 // サイトの上で編集しているあいだの一覧（src/editor）。あるあいだは、取得した一覧の代わりにこれで描く
-let shown: Photo[] | null = null
+let shown: Manifest | null = null
 const listeners = new Set<() => void>()
 const subscribe = (listener: () => void) => {
   listeners.add(listener)
@@ -96,27 +104,30 @@ const subscribe = (listener: () => void) => {
 }
 
 /** 編集用のコードが、描く一覧（下書き、または公開済みの最新）を渡す */
-export function showPhotos(list: Photo[] | null) {
-  shown = list
+export function showManifest(manifest: Manifest | null) {
+  shown = manifest
   for (const listener of listeners) listener()
 }
 
-/** 一覧。取得が終わるまで null。失敗したら空配列（写真がないのと同じ扱い） */
-export function usePhotos(): Photo[] | null {
+/** 一覧。取得が終わるまで null。失敗したら空（写真がないのと同じ扱い） */
+export function useManifest(): Manifest | null {
   const editing = useExternal(subscribe, () => shown, null)
-  const [photos, setPhotos] = useState<Photo[] | null>(null)
+  const [manifest, setManifest] = useState<Manifest | null>(null)
   useEffect(() => {
     let alive = true
-    loadPhotos().then(
-      (list) => alive && setPhotos(list),
+    loadManifest().then(
+      (list) => alive && setManifest(list),
       (e) => {
         console.error(e)
-        if (alive) setPhotos([])
+        if (alive) setManifest(EMPTY_MANIFEST)
       }
     )
     return () => {
       alive = false
     }
   }, [])
-  return editing ?? photos
+  return editing ?? manifest
 }
+
+/** 写真の一覧。取得が終わるまで null */
+export const usePhotos = (): Photo[] | null => useManifest()?.photos ?? null

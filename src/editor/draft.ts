@@ -1,4 +1,4 @@
-import {heroesOf, renumberHero, showPhotos, type Photo} from '../photos'
+import {heroesOf, renumberHero, showManifest, type Manifest, type Photo} from '../photos'
 import {VARIANTS} from '../photos/manifest'
 import {deleteImage, fetchManifest, saveManifest} from './api'
 
@@ -10,8 +10,8 @@ import {deleteImage, fetchManifest, saveManifest} from './api'
 
 type Draft = {
   /** 下書きを始めたときの公開中の一覧。公開のとき、別の場所で変わっていないかを確かめる */
-  base: Photo[]
-  photos: Photo[]
+  base: Manifest
+  manifest: Manifest
   /** この下書きで R2 に置いたもののキー（kind/name）。破棄したら消す */
   uploads: string[]
   /** 公開のとき、派生画像を R2 から消す写真 */
@@ -20,7 +20,7 @@ type Draft = {
 
 export type State = {
   /** 公開中の一覧。読めるまで null */
-  live: Photo[] | null
+  live: Manifest | null
   draft: Draft | null
   /** 進行中の処理（公開中、アップロード中など）。無ければ null */
   busy: string | null
@@ -33,7 +33,9 @@ const KEY = 'mypage2026.draft'
 function read(): Draft | null {
   try {
     const text = localStorage.getItem(KEY)
-    return text ? (JSON.parse(text) as Draft) : null
+    const draft = text ? (JSON.parse(text) as Draft) : null
+    // 一覧が写真だけの配列だったころの下書きは読まない
+    return draft && 'manifest' in draft ? draft : null
   } catch {
     return null
   }
@@ -60,7 +62,7 @@ export const getState = () => state
 function set(next: Partial<State>) {
   state = {...state, ...next}
   if ('draft' in next) write(state.draft)
-  showPhotos(state.draft?.photos ?? state.live)
+  showManifest(state.draft?.manifest ?? state.live)
   for (const listener of listeners) listener()
 }
 
@@ -78,17 +80,18 @@ export async function start() {
  * もの・消す予定にした写真
  */
 export function edit(
-  change: (photos: Photo[]) => Photo[],
+  change: (manifest: Manifest) => Manifest,
   {uploads = [], removed = []}: Partial<Pick<Draft, 'uploads' | 'removed'>> = {}
 ) {
   const live = state.live
   if (!live) return
-  const draft = state.draft ?? {base: live, photos: live, uploads: [], removed: []}
+  const draft = state.draft ?? {base: live, manifest: live, uploads: [], removed: []}
+  const next = change(draft.manifest)
   set({
     draft: {
       ...draft,
       // hero の番号は、足す・外す・消すたびに 1 から詰め直す
-      photos: renumberHero(change(draft.photos)),
+      manifest: {...next, photos: renumberHero(next.photos)},
       uploads: [...draft.uploads, ...uploads],
       removed: [...draft.removed, ...removed]
     }
@@ -96,7 +99,7 @@ export function edit(
 }
 
 /** 公開中の一覧か、下書きがあれば下書き。まだ読めていなければ null */
-export const current = () => state.draft?.photos ?? state.live
+export const current = () => state.draft?.manifest ?? state.live
 
 /** 長い処理を、操作バーに「〜中」と出しながら行う */
 export async function run(label: string, task: () => Promise<void>) {
@@ -123,14 +126,14 @@ export const publish = () =>
       !confirm('下書きを始めたあとに、公開中の一覧が別の場所で変わっています。上書きして公開しますか？')
     )
       return
-    await saveManifest(draft.photos)
+    await saveManifest(draft.manifest)
     // 消す写真の派生画像。この下書きで足して消した写真は、原本も消す（公開中の一覧に一度も載っていない）
     const fresh = draft.uploads.filter((key) => draft.removed.includes(key.split('/')[1].replace(/\.[^.]+$/, '')))
     await Promise.all([
       ...draft.removed.flatMap((file) => VARIANTS.map((v) => deleteImage(`${v.kind}/${file}.webp`))),
       ...fresh.filter((key) => key.startsWith('originals/')).map((key) => deleteImage(key))
     ])
-    set({live: draft.photos, draft: null})
+    set({live: draft.manifest, draft: null})
   })
 
 /** 下書きを捨てる。この下書きで R2 に置いた画像も消す */
@@ -143,33 +146,55 @@ export const discard = () =>
   })
 
 /**
- * 未公開の変更の数。足した写真・消す写真・カテゴリや画像を変えた写真の数に、並びの変わったカテゴリの数と、
- * hero の並び（足す・外す・並べ替える）が変わっていれば 1 を足したもの
+ * 未公開の変更の数。足した写真・消す写真・置き場所や画像を変えた写真の数と、足した・消した・書き換えた案件の数に、
+ * 並びの変わった置き場所（カテゴリか案件）の数と、案件の並び・hero の並び（足す・外す・並べ替える）がそれぞれ
+ * 変わっていれば 1 を足したもの
  */
-export function changes(draft: Draft): number {
-  const before = new Map(draft.base.map((photo) => [photo.file, photo]))
-  const after = new Map(draft.photos.map((photo) => [photo.file, photo]))
-  let count = 0
-  // hero の番号は並びの変更でまとめて変わるので、写真ごとには比べず、最後に並び全体で比べる
-  const rest = (photo: Photo) => JSON.stringify({...photo, hero: undefined})
-  for (const photo of draft.photos) {
-    const was = before.get(photo.file)
-    if (!was || rest(was) !== rest(photo)) count++
-  }
-  for (const file of before.keys()) if (!after.has(file)) count++
-  // 並びは、前後で同じカテゴリにいる写真だけで比べる（足した・消した・カテゴリを移した写真は上で数えた）
-  const stayed = (photo: Photo) => before.get(photo.file)?.category === photo.category && after.has(photo.file)
-  const order = (list: Photo[], category: string) =>
+export function changes({base, manifest}: Draft): number {
+  const count = changed(
+    base.photos,
+    manifest.photos,
+    (photo) => photo.file,
+    (photo) => ({...photo, hero: undefined})
+  )
+  const projects = changed(
+    base.projects,
+    manifest.projects,
+    (project) => project.id,
+    (project) => project
+  )
+  // 並びは、前後で同じ置き場所にいる写真だけで比べる（足した・消した・置き場所を移した写真は上で数えた）
+  const placeOf = (photo: Photo) => `${photo.category}/${photo.project ?? ''}`
+  const before = new Map(base.photos.map((photo) => [photo.file, placeOf(photo)]))
+  const after = new Map(manifest.photos.map((photo) => [photo.file, placeOf(photo)]))
+  const order = (list: Photo[], place: string) =>
     list
-      .filter((photo) => photo.category === category && stayed(after.get(photo.file) ?? photo))
+      .filter((photo) => after.get(photo.file) === place && before.get(photo.file) === place)
       .map((photo) => photo.file)
       .join()
-  for (const category of new Set(draft.photos.map((photo) => photo.category)))
-    if (order(draft.base, category) !== order(draft.photos, category)) count++
+  let orders = 0
+  for (const place of new Set(after.values())) if (order(base.photos, place) !== order(manifest.photos, place)) orders++
+  // 案件の並びも、前後どちらにもある案件だけで比べる
+  const kept = (list: {id: string}[], other: {id: string}[]) =>
+    list
+      .filter((project) => other.some((o) => o.id === project.id))
+      .map((project) => project.id)
+      .join()
+  if (kept(base.projects, manifest.projects) !== kept(manifest.projects, base.projects)) orders++
   const heroes = (list: Photo[]) =>
     heroesOf(list)
       .map((photo) => photo.file)
       .join()
-  if (heroes(draft.base) !== heroes(draft.photos)) count++
+  if (heroes(base.photos) !== heroes(manifest.photos)) orders++
+  return count + projects + orders
+}
+
+/** 足した・消した・中身を変えたものの数。key で同じものを見分け、content で中身を比べる */
+function changed<T>(before: T[], after: T[], key: (item: T) => string, content: (item: T) => unknown): number {
+  const was = new Map(before.map((item) => [key(item), JSON.stringify(content(item))]))
+  const now = new Set(after.map(key))
+  let count = 0
+  for (const item of after) if (was.get(key(item)) !== JSON.stringify(content(item))) count++
+  for (const id of was.keys()) if (!now.has(id)) count++
   return count
 }

@@ -29,6 +29,8 @@ import {
   LIST_HEADROOM,
   parseManifest,
   VARIANTS,
+  EMPTY_MANIFEST,
+  type Manifest,
   type Photo
 } from '../src/photos/manifest'
 
@@ -96,18 +98,18 @@ export default {
 const MANIFEST_KEY = 'https://mu826.com/cache/manifest.json'
 const MANIFEST_TTL = 60
 
-async function photosOf(env: Env, ctx: ExecutionContext): Promise<Photo[]> {
+async function manifestOf(env: Env, ctx: ExecutionContext): Promise<Manifest> {
   const cache = caches.default
   let response = await cache.match(MANIFEST_KEY)
   if (!response) {
     const object = await env.PHOTOS.get('manifest.json')
-    response = new Response(object ? await object.text() : '[]', {
+    response = new Response(object ? await object.text() : JSON.stringify(EMPTY_MANIFEST), {
       headers: {'content-type': 'application/json', 'cache-control': `max-age=${MANIFEST_TTL}`}
     })
     ctx.waitUntil(cache.put(MANIFEST_KEY, response.clone()))
   }
   const result = parseManifest(await response.json())
-  return 'error' in result ? [] : result.photos
+  return 'error' in result ? EMPTY_MANIFEST : result.manifest
 }
 
 /** そのページが最初に要る写真の Link ヘッダ。parts はパスを / で割ったもの */
@@ -168,10 +170,10 @@ async function pageWithHints(request: Request, env: Env, ctx: ExecutionContext, 
   const headers = new Headers(request.headers)
   headers.delete('if-none-match')
   headers.delete('if-modified-since')
-  const [page, photos] = await Promise.all([env.ASSETS.fetch(new Request(request, {headers})), photosOf(env, ctx)])
+  const [page, manifest] = await Promise.all([env.ASSETS.fetch(new Request(request, {headers})), manifestOf(env, ctx)])
   if (!page.ok) return page
   // </script> で閉じられないよう、< を逃がす
-  const json = JSON.stringify(photos).replace(/</g, '\\u003c')
+  const json = JSON.stringify(manifest).replace(/</g, '\\u003c')
   const body = new HTMLRewriter()
     .on('head', {
       element(head) {
@@ -183,13 +185,13 @@ async function pageWithHints(request: Request, env: Env, ctx: ExecutionContext, 
   response.headers.delete('etag')
   response.headers.delete('last-modified')
   response.headers.set('cache-control', 'no-cache')
-  for (const hint of hintsOf(parts, photos)) response.headers.append('link', hint)
+  for (const hint of hintsOf(parts, manifest.photos)) response.headers.append('link', hint)
   return response
 }
 
 async function getManifest(env: Env) {
   const object = await env.PHOTOS.get('manifest.json')
-  if (!object) return json([], {headers: {'cache-control': 'no-cache'}})
+  if (!object) return json(EMPTY_MANIFEST, {headers: {'cache-control': 'no-cache'}})
   return new Response(object.body, {
     headers: {
       'content-type': 'application/json; charset=utf-8',
@@ -209,12 +211,12 @@ async function putManifest(request: Request, env: Env) {
   }
   const result = parseManifest(body)
   if ('error' in result) return error(400, result.error)
-  await env.PHOTOS.put('manifest.json', JSON.stringify(result.photos), {
+  await env.PHOTOS.put('manifest.json', JSON.stringify(result.manifest), {
     httpMetadata: {contentType: 'application/json'}
   })
   // 公開した人がすぐ確かめられるよう、このデータセンターのキャッシュは消す
   await caches.default.delete(MANIFEST_KEY)
-  return json({count: result.photos.length})
+  return json({count: result.manifest.photos.length})
 }
 
 async function getImage(key: string, env: Env, immutable: boolean) {
