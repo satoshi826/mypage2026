@@ -1,5 +1,6 @@
 // サイトの API。R2 に置いた原本・派生画像・manifest.json の読み書きと、問い合わせフォームの受け口。
-// 静的ファイルの配信は wrangler.jsonc の assets が担い、/api と /images だけここへ来る。
+// 静的ファイルの配信は wrangler.jsonc の assets が担い、/api と /images と、下の写真を埋め込むページ・サイトマップだけ
+// ここへ来る。
 //
 // | メソッド | パス                      | 認証 | 内容 |
 // |----------|---------------------------|------|------|
@@ -13,9 +14,10 @@
 //
 // 認証は Cloudflare Access。Access が付ける JWT を検証する（access.ts）。
 //
-// トップ（/）と Photos（/photos*）は静的ファイルをここ経由で返し、最初に要る写真の先読みヘッダを足す。
-// どちらも JS の起動 → 一覧の取得と直列に待ってから写真を取りに行くので、HTML の時点でブラウザに
-// 取り始めさせる。どの写真かは一覧（R2）で決まるので、ビルド時には出せない。
+// トップ（/）と Photos（/photos*）と Works（/works）は静的ファイルをここ経由で返し、写真の一覧を埋め込み、
+// 最初に要る写真の先読みヘッダを足す。どれも JS の起動 → 一覧の取得と直列に待ってから写真を取りに行くので、
+// HTML の時点でブラウザに取り始めさせる。どの写真かは一覧（R2）で決まるので、ビルド時には出せない。
+// サイトマップ（/sitemap.xml）も、プリレンダで書いたものに一覧からページごとの写真を足して返す。
 
 import {authorize} from './access'
 import {contact} from './contact'
@@ -30,6 +32,7 @@ import {
   parseManifest,
   VARIANTS,
   EMPTY_MANIFEST,
+  worksOf,
   type Manifest,
   type Photo
 } from '../src/photos/manifest'
@@ -48,11 +51,18 @@ export default {
     const url = new URL(request.url)
     const parts = url.pathname.split('/').filter(Boolean)
 
-    if ((parts.length === 0 || parts[0] === 'photos') && (request.method === 'GET' || request.method === 'HEAD')) {
+    if (
+      (parts.length === 0 || parts[0] === 'photos' || (parts[0] === 'works' && parts.length === 1)) &&
+      (request.method === 'GET' || request.method === 'HEAD')
+    ) {
       // Photos はカテゴリ別の URL。カテゴリの無い /photos は street へ（恒久的な転送）
-      if (parts.length === 1) return Response.redirect(new URL(`/photos/street${url.search}`, url).href, 308)
+      if (parts[0] === 'photos' && parts.length === 1)
+        return Response.redirect(new URL(`/photos/street${url.search}`, url).href, 308)
       return pageWithHints(request, env, ctx, parts)
     }
+
+    if (url.pathname === '/sitemap.xml' && (request.method === 'GET' || request.method === 'HEAD'))
+      return sitemapWithImages(request, env, ctx)
 
     if (parts[0] === 'api' && parts[1] === 'session' && parts.length === 2) {
       if (request.method !== 'GET') return error(405, 'method not allowed')
@@ -161,8 +171,8 @@ const SIZES = [
   .join(', ')
 
 /**
- * トップと Photos の HTML。最初に要る写真の先読みヘッダを足し、写真の一覧を埋め込む（src/photos/index.ts の
- * loadPhotos が読む）。JS が動いてから一覧を取りに行く往復が 1 回減り、すぐに段組を組める。
+ * トップと Photos と Works の HTML。最初に要る写真の先読みヘッダを足し、写真の一覧を埋め込む（src/photos/index.ts の
+ * loadManifest が読む）。Works は一覧が無いと HTML の時点で写真の無いページになるので、検索のためにも埋め込む。JS が動いてから一覧を取りに行く往復が 1 回減り、すぐに段組を組める。
  * 中身が一覧ごとに変わるので、静的ファイルの ETag は外し、条件付きの取得（304）で古い一覧のまま
  * 使い回されないようにする
  */
@@ -243,4 +253,32 @@ async function putImage(key: string, request: Request, env: Env) {
 async function deleteImage(key: string, env: Env) {
   await env.PHOTOS.delete(key)
   return json({key})
+}
+
+/**
+ * サイトマップ。プリレンダで書いたページの一覧（dist/sitemap.xml）に、ページごとの写真を画像として足す（画像サイトマップ）。
+ * 写真は JS が画面に近いものだけを描くので、HTML からは見つからない。写真の一覧から作るので、写真を足したり
+ * 消したりしても作り直さずに反映される。Photos はそのカテゴリ、Works は案件の順、トップは hero の写真
+ */
+async function sitemapWithImages(request: Request, env: Env, ctx: ExecutionContext) {
+  const [page, manifest] = await Promise.all([env.ASSETS.fetch(request), manifestOf(env, ctx)])
+  if (!page.ok) return page
+  const photosOf = (path: string): Photo[] => {
+    if (path === '/') return heroesOf(manifest.photos)
+    if (path === '/works') return worksOf(manifest).flatMap((work) => work.photos)
+    const category = path.match(/^\/photos\/([^/]+)$/)?.[1]
+    return isPhotoCategory(category) ? manifest.photos.filter((photo) => photo.category === category) : []
+  }
+  const xml = (await page.text())
+    .replace('<urlset ', '<urlset xmlns:image="http://www.google.com/schemas/sitemap-image/1.1" ')
+    .replace(/<url><loc>([^<]+)<\/loc><\/url>/g, (entry, loc: string) => {
+      const {origin, pathname} = new URL(loc)
+      const images = photosOf(pathname)
+        .map((photo) => `<image:image><image:loc>${origin}${imageUrl('large-2000', photo)}</image:loc></image:image>`)
+        .join('')
+      return images ? `<url><loc>${loc}</loc>${images}</url>` : entry
+    })
+  return new Response(xml, {
+    headers: {'content-type': 'application/xml; charset=utf-8', 'cache-control': `public, max-age=${MANIFEST_TTL}`}
+  })
 }

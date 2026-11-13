@@ -35,7 +35,8 @@ export function Works() {
         </section>
       ))}
       <Lightbox />
-      {works.length === 0 && (
+      {/* 一覧を読めて、本当に案件が無いときだけ。読む前（プリレンダの HTML を含む）に出すと、検索に「準備中」が載る */}
+      {manifest && works.length === 0 && (
         <>
           <Heading>準備中</Heading>
           <Text>撮影の実績をまとめています。</Text>
