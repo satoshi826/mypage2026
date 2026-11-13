@@ -62,6 +62,8 @@ export function ControlPanel({
       <div className="relative">
         <div
           ref={markerRef}
+          // トップに入ったとき、自分の数字と一緒に左から引いて現す（Hero の sweepIn）
+          data-marker
           aria-hidden
           className="pointer-events-none absolute rounded-full transition-transform ease-out [border-color:var(--marker-line)] [border-width:var(--marker-border)] [transition-duration:var(--marker-duration)]"
         />
@@ -93,7 +95,8 @@ export function ControlPanel({
                         : '[opacity:var(--idle-opacity)]'
                 }`}
               >
-                {String(i + 1).padStart(2, '0')}
+                {/* トップに入ったとき、ほかのページの文字と同じく左から光りながら現す内側（Hero の sweepIn。styles.css） */}
+                <span data-sweep-body>{String(i + 1).padStart(2, '0')}</span>
               </button>
             </li>
           ))}

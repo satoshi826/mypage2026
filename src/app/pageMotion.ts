@@ -17,8 +17,8 @@ import {EASINGS, type Easing} from '../gallery/tuning'
  *   フッターの細い線（[data-page-grow]）は、ぼかさずに点から伸び縮みさせる
  * 差し替えは 1 回なので、両方が消えきるのを待ってから差し替え、それぞれの設定で現れる。
  * Photos のカテゴリの切り替えでは、フッターは残す（カテゴリの下線が滑り、スクロールの線も続く）。
- * 文字が光の幕で現れるページ（Works・About・Contact。src/app/Sweep.tsx）は、現れるときは中身全体を短く
- * 薄く出すだけにする。文字はそこから順に現れ、区切りの線や入力欄はこの動きで現れる。
+ * トップ・Works・About・Contact は、現れるときは中身全体を短く薄く出すだけにする。文字と線はそこから順に
+ * 現れ（src/app/Sweep.tsx）、トップの写真は画面の中央の光から粒子が飛び出して結ぶ（src/hero/Hero.tsx）。
  * About と Contact のあいだも、フッターの言語の切り替えが同じなので残す。
  *
  * 演出は開発用パネル（PageTransition.tsx）で切り替えて詰める。決まったら既定値に書き戻す。
@@ -59,7 +59,7 @@ export type PageMotion = {
   footerEnterSeconds: number
   /** フッターが動く距離 px（sink / lift / slide） */
   footerDistance: number
-  /** 文字が光の幕で現れるページで、中身全体が薄く現れる秒数 */
+  /** トップ・Works・About・Contact で、中身全体が薄く現れる秒数 */
   sweepEnterSeconds: number
 }
 
@@ -104,7 +104,7 @@ export const PAGE_MOTION_PARAMS: Param<PageMotion>[] = [
     min: 0.1,
     max: 2,
     step: 0.05,
-    hint: '秒。Works・About・Contact は中身全体を薄く出すだけ（文字は光の幕で現れる）'
+    hint: '秒。トップ・Works・About・Contact は中身全体を薄く出すだけ'
   },
   {
     group: FOOTER,
@@ -233,8 +233,11 @@ const footerTargets = () => [...document.querySelectorAll<HTMLElement>('[data-pa
 const growTargets = () => [...document.querySelectorAll<HTMLElement>('[data-page-grow]')]
 const GROW: Frames = {exit: [{scale: '1 1'}, {scale: '1 0'}], enter: [{scale: '1 0'}, {scale: '1 1'}]}
 
-/** 文字が光の幕で現れるページ（言語の頭を外した URL） */
-const SWEEP_PAGES = ['/works', '/about', '/contact']
+/**
+ * 現れるときは中身全体を薄く出すだけのページ（言語の頭を外した URL）。文字が光りながら現れるページ（Sweep）と、
+ * トップ（写真は画面の中央の光から粒子が飛び出して結ぶ。src/hero/Hero.tsx）
+ */
+const SWEEP_PAGES = ['/', '/works', '/about', '/contact']
 
 let navigated = false
 /** 一度でもページを移ったか。最初に開いたページで、見えている文字を隠さないために使う（src/app/sweepReveal.ts） */

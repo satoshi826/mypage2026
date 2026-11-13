@@ -44,6 +44,7 @@ import {usePointer} from './pointer'
 import {createLibrary, type Library} from './library'
 import type {HeroCommand, Rect} from './scene'
 import type {SceneCommand} from '../scene/worker'
+import {sweepIn, type SweepKind} from '../app/sweepReveal'
 
 const timingOf = ({cycleSeconds, dwellRatio}: Tuning): Timing => ({cycleSeconds, dwellRatio})
 
@@ -138,6 +139,9 @@ export function Hero({
   const lastGather = useRef(-1)
   // カレンダーの濃さ（0〜1）
   const calendarShown = useRef(1)
+  // 入ってきたときの、粒子が画面の中央の光から飛び出して写真を結ぶ動きの残り（1 で全部が光の中、0 で結び終わった）。
+  // 集まる動き（gather）を時間で逆にたどる。最初の写真が読めて、スプラッシュが片付いてから始める
+  const entry = useRef(1)
   // フッターの再生操作を出し、写真を触れるようにするか。粒子が集まり始めて写真が崩れたら下げる
   const [visible, setVisible] = useState(true)
   const velocity = useRef({x: 0, y: 0})
@@ -196,6 +200,21 @@ export function Hero({
     [send]
   )
 
+  /**
+   * 入ってきたとき、カレンダーの数字を 01 から順に、ほかのページの文字と同じく左から光りながら現す。今の番号の丸は、
+   * 自分の数字の次に左から引く（src/app/sweepReveal.ts）
+   */
+  const revealCalendar = () => {
+    const panel = calendarRef.current
+    if (!panel) return
+    const numbers = [...panel.querySelectorAll<HTMLElement>('li > button')]
+    const marker = panel.querySelector<HTMLElement>('[data-marker]')
+    const current = numbers.findIndex((button) => button.getAttribute('aria-current') === 'true')
+    const items: [HTMLElement, SweepKind][] = numbers.map((button) => [button, 'text'])
+    if (marker) items.splice(current + 1, 0, [marker, 'draw'])
+    sweepIn(items)
+  }
+
   useAnimationFrame(
     useCallback(() => {
       const now = performance.now()
@@ -208,12 +227,24 @@ export function Hero({
       // スクロールで上へ流れていきながら薄れ、スクロールしていることを示す。
       // 粒子がすべて光に吸い込まれたら写真は見えないので、時計も干渉も止める
       const scrolled = stage.current.progress * innerHeight
-      const {gather} = stage.current
+      if (entry.current > 0) {
+        const started =
+          library.slotOf(stateRef.current.from) !== null && !document.documentElement.classList.contains('splash')
+        if (reduced) entry.current = 0
+        else if (started) {
+          if (entry.current === 1) revealCalendar()
+          entry.current = Math.max(0, entry.current - delta / ENTRY_SECONDS)
+        }
+      }
+      // 入ってきたときの動きと、スクロールで集まる動きの、進んでいるほう
+      const entering = entry.current > stage.current.gather
+      const gather = Math.max(stage.current.gather, entry.current)
       const shown = gather < 1
-      // 粒子が出入りする点（光の位置。Light が書く）を、写真の枠の NDC に直す。光はスクロールで上がるので、毎フレーム求める
+      // 粒子が出入りする点を、写真の枠の NDC に直す。入ってきたときは画面の中央、スクロールで集まるときは光の位置
+      // （Light が書く）。光はスクロールで上がるので、毎フレーム求める
       const box = frameBox.current
       if (box) {
-        const {x, y} = stage.current.light
+        const {x, y} = entering ? {x: innerWidth / 2, y: innerHeight / 2} : stage.current.light
         const at: [number, number] = [((x - box.x) / box.width) * 2 - 1, 1 - ((y - box.y) / box.height) * 2]
         const last = lastGatherAt.current
         if (!last || at[0] !== last[0] || at[1] !== last[1]) {
@@ -225,9 +256,13 @@ export function Hero({
         lastScrolled.current = scrolled
         calendarRef.current?.style.setProperty('translate', `0 ${-scrolled}px`)
       }
-      // カレンダーは、粒子が集まるあいだをかけてゆっくり薄れ、ほどけ始めたら（スクロールを戻したら）粒子を待たずに早く現れる
-      const calendar =
-        gather > lastGather.current || gather === 1
+      // カレンダーは、粒子が集まるあいだをかけてゆっくり薄れ、ほどけ始めたら（スクロールを戻したら）粒子を待たずに早く現れる。
+      // 入ってきたときは、始まるまで隠し、始まったら数字が順に現れる（revealCalendar）ので入れ物は出しておく
+      const calendar = entering
+        ? entry.current < 1
+          ? 1
+          : 0
+        : gather > lastGather.current || gather === 1
           ? Math.min(calendarShown.current, 1 - gather)
           : Math.min(1, calendarShown.current + delta / CALENDAR_APPEAR_SECONDS)
       if (calendar !== calendarShown.current) {
@@ -509,6 +544,9 @@ const CONTROLS_SHOWN = 0.4
 
 /** 粒子がほどけ始めてから、カレンダーが現れきるまでの秒数 */
 const CALENDAR_APPEAR_SECONDS = 0.5
+
+/** 入ってきたとき、画面の中央の光から粒子が飛び出して写真を結び終わるまでの秒数 */
+const ENTRY_SECONDS = 2.4
 
 /** 使える領域から、パネルに取られるぶんを引いて、3:2 を保った最大の枠を出す。幅は MAX_PHOTO_WIDTH まで */
 function fitPhoto({width, height}: {width: number; height: number}, takenX: number) {

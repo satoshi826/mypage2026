@@ -111,6 +111,31 @@ const durationOf = (el: HTMLElement) =>
     ? Math.max(look.drawMin, el.offsetWidth / look.drawSpeed)
     : Math.min(look.textMax, Math.max(look.textMin, textLength(el) / look.textSpeed))
 
+/**
+ * 隠したものを、並んだ順に遅らせて現す。durations はそれぞれの現れる秒数（先に読んでおく）。同じときに現すものは
+ * stagger ずつ遅らせ、遅れは全体で cascade までに詰める。現れ終わったら外す
+ */
+function show(list: HTMLElement[], durations: number[]) {
+  const step = Math.min(look.stagger, look.cascade / Math.max(list.length - 1, 1))
+  list.forEach((el, i) => {
+    el.style.setProperty('--sweep-delay', `${i * step}ms`)
+    el.style.setProperty('--sweep-duration', `${durations[i]}s`)
+    el.dataset.shown = ''
+    // 一番長い動き（文字は光、線は切り抜き）が終わったら外す。見え方は変わらず、かけ続ける手間がなくなる。
+    // 中の要素（文字を包む内側のマスク、リンクの色など）の動きの終わりも上がってくるので、自分の動きだけを見る
+    const last = el.dataset.sweep === 'draw' ? 'clip-path' : look.mode === 'glow' ? 'text-shadow' : 'filter'
+    const done = (event: TransitionEvent) => {
+      if (event.target !== el || !event.propertyName.includes(last)) return
+      el.removeEventListener('transitionend', done)
+      delete el.dataset.sweep
+      delete el.dataset.shown
+      el.style.removeProperty('--sweep-delay')
+      el.style.removeProperty('--sweep-duration')
+    }
+    el.addEventListener('transitionend', done)
+  })
+}
+
 /** 現すのを待っているまとまり */
 const pending = new Set<HTMLElement>()
 let stop: (() => void) | null = null
@@ -122,29 +147,13 @@ const measure = () => {
     .map((el) => ({el, top: el.getBoundingClientRect().top}))
     .filter(({top}) => top < line)
     .sort((a, b) => a.top - b.top)
+    .map(({el}) => el)
   if (!shown.length) return
   // 文字も線も、長さを速さで割った時間で現す
-  const durations = shown.map(({el}) => durationOf(el))
-  const step = Math.min(look.stagger, look.cascade / Math.max(shown.length - 1, 1))
+  const durations = shown.map(durationOf)
   return () => {
-    shown.forEach(({el}, i) => {
-      el.style.setProperty('--sweep-delay', `${i * step}ms`)
-      el.style.setProperty('--sweep-duration', `${durations[i]}s`)
-      el.dataset.shown = ''
-      pending.delete(el)
-      // 一番長い動き（文字は光、線は切り抜き）が終わったら外す。見え方は変わらず、かけ続ける手間がなくなる。
-      // 中の要素（文字を包む内側のマスク、リンクの色など）の動きの終わりも上がってくるので、自分の動きだけを見る
-      const last = el.dataset.sweep === 'draw' ? 'clip-path' : look.mode === 'glow' ? 'text-shadow' : 'filter'
-      const done = (event: TransitionEvent) => {
-        if (event.target !== el || !event.propertyName.includes(last)) return
-        el.removeEventListener('transitionend', done)
-        delete el.dataset.sweep
-        delete el.dataset.shown
-        el.style.removeProperty('--sweep-delay')
-        el.style.removeProperty('--sweep-duration')
-      }
-      el.addEventListener('transitionend', done)
-    })
+    show(shown, durations)
+    for (const el of shown) pending.delete(el)
     if (!pending.size) {
       stop?.()
       stop = null
@@ -174,4 +183,16 @@ export function watchSweep(el: HTMLElement, kind: SweepKind) {
     cancelAnimationFrame(frame)
     pending.delete(el)
   }
+}
+
+/**
+ * 渡した順に、今すぐ隠して現す（画面に入ったかは見ない）。トップのカレンダーの数字のように、ほかの動きに合わせて
+ * 現すときに使う。動きを減らす設定では何もしない
+ */
+export function sweepIn(items: [HTMLElement, SweepKind][]) {
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return
+  for (const [el, kind] of items) el.dataset.sweep = kind
+  const list = items.map(([el]) => el)
+  // 隠した状態を一度描いてから現す（watchSweep と同じ）
+  requestAnimationFrame(() => requestAnimationFrame(() => show(list, list.map(durationOf))))
 }
