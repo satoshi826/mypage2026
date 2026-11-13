@@ -4,7 +4,7 @@ import {GLOW_HOVER} from '../app/glow'
 import {POPOVER} from '../app/popover'
 import {LOOPS, type Loop} from './motion'
 import {useExternal} from '../app/useExternal'
-import {MAX_CONE, MAX_POWER, MAX_SCALE, MIN_CONE, MIN_SCALE, type LampKey} from './arrangement'
+import {MAX_CONE, MAX_POWER, MIN_CONE, MIN_SCALE, type LampKey} from './arrangement'
 import {MATERIALS, useLogoControls, type LampControl, type LogoControls as Controls, type Material} from './controls'
 
 const MATERIAL_LABELS: Record<Material, string> = {matte: 'Matte', glass: 'Glass', metal: 'Metal'}
@@ -288,7 +288,8 @@ function Toggle({
 
 /** ロゴの設定。素材と、形の動きと、大きさ */
 function LogoSettings({controls, focusable}: {controls: Controls; focusable: boolean}) {
-  const {material, setMaterial, animated, setAnimated, loop, setLoop, repeat, setRepeat, scale, setScale} = controls
+  const {material, setMaterial, animated, setAnimated, loop, setLoop, repeat, setRepeat, scale, maxScale, setScale} =
+    controls
   return (
     <>
       <span className={SECTION}>Material</span>
@@ -336,7 +337,7 @@ function LogoSettings({controls, focusable}: {controls: Controls; focusable: boo
         label="Size"
         value={scale}
         min={MIN_SCALE}
-        max={MAX_SCALE}
+        max={maxScale}
         step={0.01}
         mark={1}
         format={(value) => value.toFixed(2)}

@@ -34,7 +34,8 @@ export const DEFAULT_ARRANGEMENT: Arrangement = {
 
 /** ロゴの大きさの倍率の範囲 */
 export const MIN_SCALE = 0.5
-export const MAX_SCALE = 3
+/** 大きさの倍率の上限。狭い画面（スマホ）では部屋が小さいので低くする */
+export const MAX_SCALE = {wide: 4, narrow: 3}
 
 /** 光の広がりの範囲。度 */
 export const MIN_CONE = 5

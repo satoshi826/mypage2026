@@ -133,6 +133,7 @@ export function Light({
   // 訪問者が変えたロゴと光の置き方
   const arrangement = useRef(DEFAULT_ARRANGEMENT)
   const narrow = useNarrow()
+  const maxScale = narrow ? MAX_SCALE.narrow : MAX_SCALE.wide
   // 既定へ戻している途中なら、戻し始めた時刻と、そのときの置き方
   const returning = useRef<{at: number; from: Arrangement} | null>(null)
   // フッターに出している状態。変わったときだけ出し直す
@@ -202,10 +203,11 @@ export function Light({
       setLoop,
       repeat,
       setRepeat,
+      maxScale,
       setScale,
       setLamp
     }),
-    [reset, material, setMaterial, animated, setAnimated, chosen, setLoop, repeat, setScale, setLamp]
+    [reset, material, setMaterial, animated, setAnimated, chosen, setLoop, repeat, maxScale, setScale, setLamp]
   )
   useEffect(() => {
     setLogoControls({...shown.current, ...actions})
@@ -394,7 +396,7 @@ export function Light({
     const scale = clamp(
       arrangement.current.scale,
       MIN_SCALE,
-      Math.min(MAX_SCALE, box.width / homeWidth, box.height / homeHeight)
+      Math.min(maxScale, box.width / homeWidth, box.height / homeHeight)
     )
     const logoWidth = homeWidth * scale
     const logoHeight = homeHeight * scale

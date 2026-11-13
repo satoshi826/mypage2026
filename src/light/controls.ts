@@ -40,6 +40,8 @@ export type LogoControls = {
   /** 動きの移り方。cycle は 1 周したら次の動きへ、loop は同じ動きを繰り返す */
   repeat: Repeat
   setRepeat: (repeat: Repeat) => void
+  /** ロゴの大きさの倍率の上限。狭い画面では低い（arrangement.ts の MAX_SCALE） */
+  maxScale: number
   /** ロゴの大きさの倍率。0.01 に丸めたもの */
   scale: number
   setScale: (scale: number) => void
