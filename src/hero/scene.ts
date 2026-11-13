@@ -22,8 +22,10 @@ export function createHeroScene(core: Core, pixelRatio: number) {
 
   const layout = layoutFor(textureLimit, SLOTS, grid)
 
-  // 頂点ごとのランク。glaku の型は number[] だが内部で Float32Array に詰め直すだけ
-  const rankIndices = Float32Array.from({length: grid.count}, (_, i) => i)
+  // 頂点ごとのランク。glaku の型は number[] だが内部で Float32Array に詰め直すだけ。
+  // 並びはばらばらにする（shuffled）。描く順がランク（輝度）の順だと、1 画素に何粒も重なる画面（写真の小さいスマホ）で
+  // 後から描く明るい粒子ばかりが残り、写真が白っぽくなるため。ばらばらなら残る粒子は偏らない
+  const rankIndices = shuffled(grid.count)
   const vao = new Vao(core, {attributes: {a_rank: rankIndices as unknown as number[]}})
   // 光へ飛ぶ粒子を舞台の canvas に描くときの、stride 個に 1 個へ間引いたランク。stride ごとに作って使い回す
   const sparse = new Map<number, Vao>([[1, vao]])
@@ -494,7 +496,7 @@ export function createHeroScene(core: Core, pixelRatio: number) {
     const canvasAR = width / height
     fit = canvasAR > imageAspect ? [imageAspect / canvasAR, 1] : [1, canvasAR / imageAspect]
     // 点サイズはピクセル単位に丸められるので、切り上げないと格子状の隙間が出る。
-    // 重なる分には後から描かれる明るい粒子が上書きするだけで害がない
+    // 重なる画素には、その画素の粒子のどれかが残る（描く順はばらばら。rankIndices）
     const pointSize = Math.max(1, Math.ceil((height * ratio * fit[1]) / grid.height))
     setFlight({u_fit: fit})
     program.setUniform({u_pointSize: pointSize})
@@ -612,4 +614,25 @@ export function applyHero(scene: ReturnType<typeof createHeroScene>, command: He
   if (command.gatherAt) scene.gatherAt(command.gatherAt)
   if (command.step !== undefined) scene.step(command.step)
   scene.draw()
+}
+
+/**
+ * 0 から count - 1 までをばらばらに並べた列。並びは毎回同じ（種を固定した乱数）。
+ * 写真ごとに重なり方が変わってちらつかないよう、読み込みのたびにも変えない
+ */
+function shuffled(count: number) {
+  const ranks = Float32Array.from({length: count}, (_, i) => i)
+  let seed = 0x9e3779b9
+  const random = () => {
+    // mulberry32
+    seed = (seed + 0x6d2b79f5) | 0
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed)
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+  for (let i = count - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1))
+    ;[ranks[i], ranks[j]] = [ranks[j], ranks[i]]
+  }
+  return ranks
 }
