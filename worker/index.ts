@@ -155,14 +155,14 @@ function hintsOf(parts: string[], photos: Photo[]): string[] {
 /**
  * Photos の一覧で、列数が Auto のときの写真 1 枚の表示幅に、マウスのある端末（HOVER）では段を選ぶときの
  * 余裕（LIST_HEADROOM）を掛けたもの。
- * 列数は src/gallery/controls.ts の autoColumns（640px 未満は 2 列、1280px 以上は 4 列、ほかは 3 列）。
- * 幅は容器の左右の余白と写真のあいだ（既定の隙間で、2 列は約 7px、3 列は約 14px × 2、4 列は約 12px × 3）を
- * 引いて列数で割る。一覧の JS が選ぶ段と揃えるため
+ * 列数は src/gallery/controls.ts の autoColumns（640px 未満は 2 列、ほかは 3 列）。
+ * 幅は容器の左右の余白と写真のあいだ（既定の隙間で、2 列は約 7px、3 列は約 14〜16px × 2）を引いて列数で割る。
+ * 容器は 1280px 以上で 1216px に止まる（max-w-7xl から左右の余白を引いた幅）。一覧の JS が選ぶ段と揃えるため
  */
 const SIZES = [
   ['(max-width: 639px)', '(100vw - 39px) / 2'],
   ['(max-width: 1279px)', '(100vw - 92px) / 3'],
-  ['', '1181px / 4']
+  ['', '1184px / 3']
 ]
   .flatMap(([query, width]) => [
     `${query ? `${query} and ` : ''}${HOVER} calc(${width} * ${LIST_HEADROOM})`,
