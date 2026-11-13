@@ -2,7 +2,7 @@ import {useEffect, useLayoutEffect, useRef, useState} from 'preact/hooks'
 import {createPortal, type ComponentChildren} from 'preact'
 import {GLOW_HOVER} from '../app/glow'
 import {POPOVER} from '../app/popover'
-import {LOOPS, REPEATS, type Loop, type Repeat} from './motion'
+import {LOOPS, type Loop} from './motion'
 import {useExternal} from '../app/useExternal'
 import {MAX_POWER, MAX_SCALE, MAX_TILT, MIN_SCALE, type LampKey} from './arrangement'
 import {MATERIALS, useLogoControls, type LampControl, type LogoControls as Controls, type Material} from './controls'
@@ -140,7 +140,25 @@ const POWER_ICON = (
   </svg>
 )
 
-const REPEAT_LABELS: Record<Repeat, string> = {cycle: 'Cycle', loop: 'Loop'}
+/**
+ * 同じ動きを繰り返す（Loop）のアイコン。上と下の矢印で輪を描き、中に 1 を入れる（音楽の再生の「1 つを繰り返す」と同じ形）。
+ * 中の 1 が潰れないよう、ライトの設定の Angle と Power のアイコン（16px）より少し大きくする
+ */
+const LOOP_ICON = (
+  <svg
+    viewBox="0 0 24 24"
+    aria-hidden
+    className="size-[18px]"
+    fill="none"
+    stroke="currentColor"
+    stroke-width={1.5}
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  >
+    <path d="M5 11V9.5A1.5 1.5 0 0 1 6.5 8H19M16 5l3 3-3 3M19 13v1.5a1.5 1.5 0 0 1-1.5 1.5H5M8 19l-3-3 3-3" />
+    <path d="M11 11.2 12.4 10v4" stroke-width={1.3} />
+  </svg>
+)
 
 /** 動きの名前。先頭を大文字にする */
 const loopLabel = (loop: Loop) => loop[0].toUpperCase() + loop.slice(1)
@@ -241,19 +259,19 @@ function Toggle({
       aria-label={label}
       onClick={() => onChange(!on)}
       tabIndex={focusable ? 0 : -1}
-      className={`group relative h-full w-9 shrink-0 cursor-pointer ${GLOW_HOVER}`}
+      className={`group relative h-full w-10 shrink-0 cursor-pointer ${GLOW_HOVER}`}
     >
-      <span aria-hidden className="absolute inset-x-1 top-1/2 h-[0.5px] bg-ink/35" />
+      <span aria-hidden className="absolute inset-x-1.5 top-1/2 h-[0.5px] bg-ink/35" />
       {[0, 1].map((end) => (
         <span
           key={end}
           aria-hidden
-          className={`absolute top-1/2 size-0.5 -translate-1/2 rounded-full bg-ink/70 ${end ? 'left-[calc(100%-4px)]' : 'left-1'}`}
+          className={`absolute top-1/2 size-0.5 -translate-1/2 rounded-full bg-ink/70 ${end ? 'left-[calc(100%-6px)]' : 'left-1.5'}`}
         />
       ))}
       <span
         aria-hidden
-        className="glow-line absolute top-1/2 left-1 size-2.5 -translate-1/2 rounded-full border border-ink bg-transparent opacity-70 transition-[left,background-color,opacity,box-shadow,scale] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-125 group-hover:opacity-100 group-aria-checked:left-[calc(100%-4px)] group-aria-checked:bg-ink group-aria-checked:opacity-100 group-aria-checked:[--glow:var(--glow-selected)]"
+        className="glow-line absolute top-1/2 left-1.5 size-3 -translate-1/2 rounded-full border border-ink bg-transparent opacity-70 transition-[left,background-color,opacity,box-shadow,scale] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-125 group-hover:opacity-100 group-aria-checked:left-[calc(100%-6px)] group-aria-checked:bg-ink group-aria-checked:opacity-100 group-aria-checked:[--glow:var(--glow-selected)]"
       />
     </button>
   )
@@ -290,18 +308,18 @@ function LogoSettings({controls, focusable}: {controls: Controls; focusable: boo
           className={`flex h-full items-center gap-6 transition-opacity duration-300 max-sm:gap-3 ${animated ? '' : 'pointer-events-none opacity-0'}`}
         >
           <MotionPicker current={loop} onPick={setLoop} focusable={focusable && animated} />
-          {REPEATS.map((r) => (
-            <button
-              key={r}
-              type="button"
-              onClick={() => setRepeat(r)}
-              aria-pressed={repeat === r}
-              tabIndex={focusable && animated ? 0 : -1}
-              className={OPTION}
-            >
-              <span className="glow-text transition-[text-shadow] duration-800">{REPEAT_LABELS[r]}</span>
-            </button>
-          ))}
+          {/* 入れると同じ動きを繰り返し（Loop）、切ると 1 周ごとに次の動きへ移る（Cycle） */}
+          <button
+            type="button"
+            onClick={() => setRepeat(repeat === 'loop' ? 'cycle' : 'loop')}
+            aria-pressed={repeat === 'loop'}
+            tabIndex={focusable && animated ? 0 : -1}
+            aria-label="Loop"
+            title="Loop"
+            className={OPTION}
+          >
+            <span className="glow-mark flex transition-[filter] duration-800">{LOOP_ICON}</span>
+          </button>
         </div>
       </div>
       <span className={SECTION}>Size</span>

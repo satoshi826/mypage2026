@@ -63,8 +63,7 @@ export const LOOPS = [
 export type Loop = (typeof LOOPS)[number]
 
 /** 動きの移り方。cycle は 1 周したら LOOPS の次の動きへ、loop は同じ動きを繰り返す */
-export const REPEATS = ['cycle', 'loop'] as const
-export type Repeat = (typeof REPEATS)[number]
+export type Repeat = 'cycle' | 'loop'
 
 /** 動きの 1 周の秒数 */
 export const PERIOD: Record<Loop, number> = {
