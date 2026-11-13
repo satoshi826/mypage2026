@@ -306,13 +306,15 @@ export function usePageTransition(motion: PageMotion) {
       })
   }, [location, displayed, parser])
 
-  // 差し替えた直後。先頭へ戻し、消えた状態から現れさせる。消えたときの状態を残したまま
-  // 現れる側を重ねるので、そのあいだに中身がちらつくことはない
+  // 差し替えた直後。先頭へ戻し、消えた状態から現れさせる。消える動きを外してから現れる動きを付けるまでを
+  // 描画の前に同じ処理の中で済ませるので、そのあいだに中身がちらつくことはない。
+  // 消える動きは先に外す。同じ部品のまま中身だけ替わるとき（言語やカテゴリの切り替え）は要素が使い回され、
+  // 消える動きが残っていると、現れる動きの終わりの濃さ（ownOpacity）が 0 と読まれて、現れずに跳ぶため
   useLayoutEffect(() => {
     const enter = entering.current
     if (!enter) return
     entering.current = null
-    const exits = leaving.current ?? []
+    for (const a of leaving.current ?? []) a.cancel()
     leaving.current = null
     jumpTo(0)
     const m = motionRef.current
@@ -346,7 +348,6 @@ export function usePageTransition(motion: PageMotion) {
       for (const el of footerTargets()) el.animate(ownOpacity(el, frames), timing(m.footerEnterSeconds, m.footerDelay))
       for (const el of growTargets()) el.animate(GROW.enter, timing(m.footerEnterSeconds, m.footerDelay))
     }
-    for (const a of exits) a.cancel()
   }, [swaps])
 
   return displayed
