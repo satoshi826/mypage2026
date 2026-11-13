@@ -24,7 +24,9 @@ const SIZES = {
 const LINK_TARGET = 'a, button:not(:disabled), [role="button"], summary'
 const SLIDER_TARGET = 'input[type="range"]'
 const GRAB_TARGET = '[data-grab]'
-const PHOTO_TARGET = 'figure[data-file]:not([data-still])'
+const PHOTO_TARGET = 'figure[data-file]'
+/** 押すと小さくする写真。その場で広げた写真と、中央へ重ねた写真（src/gallery/Lightbox.tsx） */
+const PHOTO_OUT_TARGET = '[data-expanded], [data-lightbox]'
 const TEXT = 'input:not([type="range"]), textarea, select, [contenteditable]'
 
 export function startCursor() {
@@ -56,11 +58,11 @@ export function startCursor() {
           ? 'grab'
           : over?.closest(LINK_TARGET)
             ? 'link'
-            : over?.closest(PHOTO_TARGET)
-              ? over.closest('[data-expanded]')
-                ? 'photo-out'
-                : 'photo'
-              : 'idle'
+            : over?.closest(PHOTO_OUT_TARGET)
+              ? 'photo-out'
+              : over?.closest(PHOTO_TARGET)
+                ? 'photo'
+                : 'idle'
     const [width, height] = SIZES[state]
     cursor.dataset.state = state
     cursor.style.width = `${width}px`

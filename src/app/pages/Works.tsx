@@ -1,5 +1,6 @@
 import {useManifest, worksOf} from '../../photos'
 import {Gallery} from '../../gallery/Gallery'
+import {Lightbox} from '../../gallery/Lightbox'
 import {useEditorTools} from '../editing'
 import {Heading, Page, Text} from '../Page'
 
@@ -23,9 +24,10 @@ export function Works() {
             <p className="m-0 text-sm">{project.caption}</p>
           </div>
           {tools && <tools.Project project={project} />}
-          <Gallery photos={photos} label="Works" add={{category: 'works', project: project.id}} expandable={false} />
+          <Gallery photos={photos} label="Works" add={{category: 'works', project: project.id}} opens="lightbox" />
         </section>
       ))}
+      <Lightbox />
       {works.length === 0 && (
         <>
           <Heading>準備中</Heading>

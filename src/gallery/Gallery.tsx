@@ -12,6 +12,7 @@ import {onScrollFrame} from '../app/scrollFrame'
 import {useExternal} from '../app/useExternal'
 import {glideTo, jumpTo} from '../app/useSmoothScroll'
 import {pickSource, type Photo, type Place} from '../photos'
+import {lightboxSource, openLightbox, useLifted} from './lifted'
 
 /**
  * 寸法。容器の幅、画面の幅で決まる列数（auto のとき使う）、広げた写真に許す高さ、画面の高さ、
@@ -72,19 +73,19 @@ const ADD: Photo = {file: '+', w: 3, h: 2, category: 'street', v: ''}
  *
  * 編集中は先頭に、add（カテゴリか Works の案件）へ写真を足す「＋」の枠を置く。
  *
- * expandable を false にすると、押しても広げず、マウスを載せたときのズームもしない（Works。数枚の案件で 1 枚を
- * 広げると、残りが押し出されてまとまりが崩れるため）。
+ * opens を lightbox にすると、押した写真をその場で広げず、画面の中央へ重ねて見せる（Lightbox.tsx。Works。
+ * 数枚の案件で 1 枚を広げると、残りが押し出されてまとまりが崩れるため）。重ねているあいだ、一覧のその写真は隠す。
  */
 export function Gallery({
   photos,
   label,
   add,
-  expandable = true
+  opens = 'inline'
 }: {
   photos: Photo[]
   label: string
   add: Place
-  expandable?: boolean
+  opens?: 'inline' | 'lightbox'
 }) {
   const root = useRef<HTMLDivElement>(null)
   const [metrics, setMetrics] = useState<Metrics | null>(null)
@@ -247,9 +248,15 @@ export function Gallery({
    */
   const preload = (event: PointerEvent, photo: Photo) => {
     if (event.pointerType !== 'mouse' || event.button !== 0 || !metrics || expanded === photo.file) return
+    if (opens === 'lightbox') return void (new Image().src = lightboxSource(photo))
     const width = Math.min(metrics.width, (metrics.maxHeight * photo.w) / photo.h)
     new Image().src = pickSource(photo, width * devicePixelRatio, true).src
   }
+
+  /** 押した写真を開く。その場で広げるか、中央へ重ねる */
+  const open = (photo: Photo) => (opens === 'lightbox' ? openLightbox(photos, photo.file, label) : toggle(photo.file))
+  // 中央へ重ねている写真。一覧では隠す
+  const lifted = useLifted()
 
   /** 押した写真を広げる・戻す。別の写真を広げているときは、そちらを戻しながら広げる */
   const toggle = (file: string) =>
@@ -425,12 +432,10 @@ export function Gallery({
               ref={(node) => {
                 if (node && revealed.current.has(photo.file)) node.dataset.revealed = ''
               }}
-              // 編集中（src/editor）は押しても広げない。写真の操作と並べ替えに使うため
-              // 押しても広げない一覧は、マウスのカーソル（src/app/cursor.ts）もピントの枠にしない
-              data-still={expandable ? undefined : ''}
-              onPointerDown={(event) => expandable && !editing && preload(event, photo)}
-              onClick={() => expandable && !editing && toggle(photo.file)}
-              className={`group absolute m-0 overflow-hidden select-none ${editing || !expandable ? '' : wide ? 'cursor-zoom-out' : 'cursor-zoom-in'}`}
+              // 編集中（src/editor）は押しても開かない。写真の操作と並べ替えに使うため
+              onPointerDown={(event) => !editing && preload(event, photo)}
+              onClick={() => !editing && open(photo)}
+              className={`group absolute m-0 overflow-hidden select-none ${editing ? '' : wide ? 'cursor-zoom-out' : 'cursor-zoom-in'} ${lifted === photo.file ? 'invisible' : ''}`}
               // 高さも配置の計算値で与える。画像が届くまでの img は高さを持たず、枠が潰れるため。
               // content-visibility: auto は使わない。中身を飛ばすかどうかの判定がフレームの更新に
               // 乗っていて、スクロールが止まったあと画面内の写真が飛ばされたまま残ることがある（Chrome）
@@ -446,7 +451,7 @@ export function Gallery({
                   large={wide}
                   // 広げる写真は待たずに拡大用へ替える。1 枚なので重くなく、待つと小さい段が全幅に引き伸ばされて荒れる
                   hold={keep.size > 0 && !wide}
-                  zoom={expandable && !wide}
+                  zoom={!wide}
                 />
               </div>
               {tools && <tools.Photo photo={photo} />}

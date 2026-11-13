@@ -136,3 +136,32 @@ export const SLIDER_PARAMS: Param<SliderLook>[] = [
   {key: 'numberGap', label: '数字との間', min: 0, max: 40, step: 1, hint: 'px。数字と溝の左端'},
   {key: 'dividerGap', label: '仕切りとの間', min: 8, max: 80, step: 1, hint: 'px。溝の右端と SNS との仕切り（PC）'}
 ]
+
+/** Works の写真を押したときに重ねて見せる写真（Lightbox.tsx）の見せ方 */
+export type LightboxLook = {
+  /** 写真を収める大きさ。画面の幅と高さに対する割合（狭い画面では幅いっぱい） */
+  size: number
+  /** 開く・閉じるときに写真が動く秒数 */
+  seconds: number
+  easing: Easing
+  /** 背景の暗さ。0 で透明、1 で地の色 */
+  dim: number
+  /** 大きい画像や前後の写真へ替えるときに溶け合う秒数 */
+  fadeSeconds: number
+}
+
+export const DEFAULT_LIGHTBOX: LightboxLook = {
+  size: 0.75,
+  seconds: 0.9,
+  easing: 'easeOutQuint',
+  dim: 0.92,
+  fadeSeconds: 0.4
+}
+
+export const LIGHTBOX_PARAMS: Param<LightboxLook>[] = [
+  {key: 'size', label: '大きさ', min: 0.4, max: 1, step: 0.01, hint: '画面の幅と高さに対する割合'},
+  {key: 'seconds', label: '開く・閉じる', min: 0.2, max: 3, step: 0.05, hint: '秒'},
+  {key: 'easing', label: 'イージング', options: Object.keys(EASINGS), hint: '開く・閉じるとき'},
+  {key: 'dim', label: '背景の暗さ', min: 0, max: 1, step: 0.01, hint: '1 で地の色'},
+  {key: 'fadeSeconds', label: '替わるとき', min: 0.1, max: 1.5, step: 0.05, hint: '秒。大きい画像と前後の写真'}
+]
