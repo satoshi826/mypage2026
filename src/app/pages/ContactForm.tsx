@@ -2,6 +2,7 @@ import type {ComponentChildren} from 'preact'
 import {useEffect, useRef, useState} from 'preact/hooks'
 import type {Lang} from '../lang'
 import {GLOW_HOVER} from '../glow'
+import {Draw, Sweep} from '../Sweep'
 
 // 問い合わせフォーム。送ると Worker（worker/contact.ts）が本人の Gmail へメールで送る。
 // 自動送信の対策に Turnstile を使う。読み込むのはフォームに触れたときで、人の操作が要るときだけ
@@ -196,13 +197,16 @@ export function ContactForm({lang}: {lang: Lang}) {
       </Field>
       <div ref={box} />
       <div className="flex flex-col items-start gap-3">
-        <button
-          type="submit"
-          disabled={status === 'sending'}
-          className={`glow-text cursor-pointer border border-white/25 bg-transparent px-6 py-2 text-inherit transition-[border-color,opacity,text-shadow] duration-300 hover:border-white/60 focus-visible:border-white/60 disabled:cursor-default disabled:opacity-55 ${GLOW_HOVER}`}
-        >
-          {text.send}
-        </button>
+        {/* 枠の線ごと、左から右へ引いて現す */}
+        <Draw>
+          <button
+            type="submit"
+            disabled={status === 'sending'}
+            className={`glow-text cursor-pointer border border-white/25 bg-transparent px-6 py-2 text-inherit transition-[border-color,opacity,text-shadow] duration-300 hover:border-white/60 focus-visible:border-white/60 disabled:cursor-default disabled:opacity-55 ${GLOW_HOVER}`}
+          >
+            {text.send}
+          </button>
+        </Draw>
         <p className="grid text-sm" aria-live="polite">
           {MESSAGES.map((key) => (
             <span
@@ -224,11 +228,12 @@ export function ContactForm({lang}: {lang: Lang}) {
 const INPUT =
   'glow-under block w-full rounded-none border-0 border-b border-white/20 bg-transparent px-0 py-2 [font-family:system-ui,sans-serif] font-light text-inherit outline-none transition-[border-color,box-shadow] duration-300 focus:border-white/60 focus:[--glow:var(--glow-selected)]'
 
+/** 欄の名前と入力欄。名前は文字として現し、入力欄は下線ごと左から右へ引いて現す */
 function Field({label, children}: {label: string; children: ComponentChildren}) {
   return (
     <label className="block">
-      <span className="text-sm opacity-55">{label}</span>
-      {children}
+      <Sweep className="text-sm opacity-55">{label}</Sweep>
+      <Draw>{children}</Draw>
     </label>
   )
 }

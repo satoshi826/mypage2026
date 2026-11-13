@@ -17,6 +17,7 @@ import {DEFAULT_PAGE_MOTION, usePageTransition} from './pageMotion'
 import {PageCover, PageMotionPanel} from './PageTransition'
 import {DevDock} from './DevPanel'
 import {GlowPanel} from './GlowPanel'
+import {SweepPanel} from './Sweep'
 import {GrainPanel} from './GrainPanel'
 
 export function App() {
@@ -45,16 +46,17 @@ export function App() {
           <Route path="/photos/:category" component={Photos} />
           <Route path="/works" component={Works} />
           <Route path="/about">
-            <About lang="ja" />
+            {/* 言語を切り替えたら作り直す。文字を現し直すため（Sweep） */}
+            <About key="ja" lang="ja" />
           </Route>
           <Route path="/en/about">
-            <About lang="en" />
+            <About key="en" lang="en" />
           </Route>
           <Route path="/contact">
-            <Contact lang="ja" />
+            <Contact key="ja" lang="ja" />
           </Route>
           <Route path="/en/contact">
-            <Contact lang="en" />
+            <Contact key="en" lang="en" />
           </Route>
           <Route path="/admin" component={Login} />
           <Route>
@@ -68,6 +70,7 @@ export function App() {
       {import.meta.env.DEV && <DevDock />}
       {import.meta.env.DEV && <PageMotionPanel onChange={setMotion} />}
       {import.meta.env.DEV && <GlowPanel />}
+      {import.meta.env.DEV && <SweepPanel />}
       {import.meta.env.DEV && <GrainPanel />}
     </>
   )

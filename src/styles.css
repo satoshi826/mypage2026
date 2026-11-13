@@ -181,6 +181,61 @@ input[data-slider]::-moz-range-thumb {
   clip-path: inset(0);
 }
 
+/* 文字のまとまりと線を、画面に入ったら現す（src/app/Sweep.tsx、sweepReveal.ts）。JS が隠したものに [data-sweep]（text か draw）、
+   現すときに [data-shown] を付ける。動くのは隠すときではなく現すときだけで、現れ終わったら JS が両方を外す。
+   時間（--sweep-duration）と遅れ（--sweep-delay）は、長さと順番から JS が 1 つずつ決める。
+   文字の見せ方は 2 つで、開発中は「文字と線の現れ方」で切り替えて詰める（:root の data-sweep-mode）。
+   - sweep（既定）：左から右へ、光りながら現れる。文字を包む内側（[data-sweep-body]、幅は文字の長さ）に、左が見えて
+     右が透けるマスクを 4 倍の幅でかけて左から右へ動かし（境目は文字の長さの 0.6 倍でぼかす）、外側に光（部品の光と
+     同じ文字のにじみ）をかける。光は内側の見えている部分にだけ付くので左から右へ移り、マスクに切られない。
+     光は現れ終わるまで保ち、そこから落ち着く（docs/design.md の光）
+   - glow：光を帯びた状態で、まとまり全体が同時に薄く現れる */
+/* 文字が濃くなる（マスクが動く）曲線。sweepReveal.ts の DEFAULT_SWEEP と同じ。開発中はパネルで替える */
+:root {
+  --sweep-text-easing: ease-in-out;
+}
+[data-sweep='text'] {
+  filter: drop-shadow(0 0 var(--glow-text-blur) rgb(255 255 255 / 0.9));
+}
+[data-sweep='text'] > [data-sweep-body] {
+  mask-image: linear-gradient(to right, #000 42.5%, transparent 57.5%);
+  mask-size: 400% 100%;
+  mask-repeat: no-repeat;
+  mask-position: 100% 0;
+}
+/* transition-delay は JS がまとまりごとに決めるので、光の遅れは足し算で持つ（--sweep-delay） */
+[data-sweep='text'][data-shown] {
+  filter: drop-shadow(0 0 var(--glow-text-blur) rgb(255 255 255 / 0));
+  transition: filter calc(var(--sweep-duration) * 1.6) ease-in-out calc(var(--sweep-delay) + var(--sweep-duration) * 0.6);
+}
+[data-sweep='text'][data-shown] > [data-sweep-body] {
+  mask-position: 0 0;
+  transition: mask-position var(--sweep-duration) var(--sweep-text-easing) var(--sweep-delay);
+}
+/* glow。濃さは filter で重ねる。見出しや欄の名前は opacity で薄くしてあり、それを上書きすると現れ終わりに跳ぶため */
+:root[data-sweep-mode='glow'] [data-sweep='text'] {
+  filter: opacity(0);
+  text-shadow: 0 0 var(--glow-text-blur) rgb(255 255 255 / 0.9);
+}
+:root[data-sweep-mode='glow'] [data-sweep='text'] > [data-sweep-body] {
+  mask-image: none;
+}
+:root[data-sweep-mode='glow'] [data-sweep='text'][data-shown] {
+  filter: opacity(1);
+  text-shadow: 0 0 var(--glow-text-blur) rgb(255 255 255 / 0);
+  transition:
+    filter var(--sweep-duration) var(--sweep-text-easing) var(--sweep-delay),
+    text-shadow calc(var(--sweep-duration) * 1.6) ease-in-out calc(var(--sweep-delay) + var(--sweep-duration) * 0.6);
+}
+/* 線（区切りの線・入力欄・ボタン）は、左から右へ切り抜きを広げて引く */
+[data-sweep='draw'] {
+  clip-path: inset(0 100% 0 0);
+}
+[data-sweep='draw'][data-shown] {
+  clip-path: inset(0);
+  transition: clip-path var(--sweep-duration) cubic-bezier(0.33, 1, 0.68, 1) var(--sweep-delay);
+}
+
 /* 配置が変わる瞬間（Photos で写真を広げる・戻す）は、ワイプを挟まず即座に出す */
 [data-reveal-instant] [data-reveal-clip] {
   transition: none;

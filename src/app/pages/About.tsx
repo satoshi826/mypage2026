@@ -1,4 +1,5 @@
 import type {ComponentChildren} from 'preact'
+import {Draw, Sweep} from '../Sweep'
 import {Page} from '../Page'
 import type {Lang} from '../lang'
 import {AWARDS, EXHIBITIONS, LINKS, PRESS} from '../profile'
@@ -30,14 +31,14 @@ export function About({lang}: {lang: Lang}) {
       <p className="mb-24 max-w-3xl text-lg/[1.9] tracking-[0.04em] max-sm:text-base/[1.9]">
         {STATEMENT[lang].map((line) => (
           // 折り返してよいのは <wbr> の位置だけにする（英語は語の間の空白でも折り返す）
-          <span key={line} className="block break-keep">
+          <Sweep key={line} className="block break-keep">
             {line.split('|').map((phrase, i) => (
               <>
                 {i > 0 && <wbr />}
                 {phrase}
               </>
             ))}
-          </span>
+          </Sweep>
         ))}
       </p>
 
@@ -79,8 +80,12 @@ export function About({lang}: {lang: Lang}) {
 
 function Section({label, children}: {label: string; children: ComponentChildren}) {
   return (
-    <section className="mb-16 grid grid-cols-[10rem_1fr] gap-x-8 border-t border-white/10 pt-6 max-sm:grid-cols-1 max-sm:gap-y-4">
-      <h2 className="m-0 text-xs font-normal tracking-[0.1em] opacity-55">{label}</h2>
+    <section className="relative mb-16 grid grid-cols-[10rem_1fr] gap-x-8 pt-6 max-sm:grid-cols-1 max-sm:gap-y-4">
+      {/* 区切りの線。左から右へ引いて現す */}
+      <Draw className="absolute inset-x-0 top-0 h-px bg-white/10" />
+      <Sweep as="h2" className="m-0 text-xs font-normal tracking-[0.1em] opacity-55">
+        {label}
+      </Sweep>
       <dl className="m-0 grid grid-cols-[7rem_1fr] gap-x-6 gap-y-3 max-sm:grid-cols-[5.5rem_1fr]">{children}</dl>
     </section>
   )
@@ -101,8 +106,12 @@ function Entries({items}: {items: typeof AWARDS}) {
 function Row({label, children}: {label: string; children: ComponentChildren}) {
   return (
     <>
-      <dt className="text-sm opacity-55">{label}</dt>
-      <dd className="m-0">{children}</dd>
+      <Sweep as="dt" className="text-sm opacity-55">
+        {label}
+      </Sweep>
+      <Sweep as="dd" className="m-0">
+        {children}
+      </Sweep>
     </>
   )
 }

@@ -2,6 +2,7 @@ import {useManifest, worksOf} from '../../photos'
 import {Gallery} from '../../gallery/Gallery'
 import {Lightbox} from '../../gallery/Lightbox'
 import {useEditorTools} from '../editing'
+import {Draw, Sweep} from '../Sweep'
 import {Heading, Page, Text} from '../Page'
 
 // 撮影の依頼の実績。案件（一覧の projects）ごとに、その案件の写真（category が works）を並べる。サイトの上で
@@ -18,10 +19,16 @@ export function Works() {
       {tools && <tools.AddProject />}
       {works.map(({project, photos}) => (
         // data-project はファイルを落としたときの足す先（src/editor）
-        <section key={project.id} data-project={project.id} className="relative mb-16 border-t border-white/10 pt-6">
+        <section key={project.id} data-project={project.id} className="relative mb-16 pt-6">
+          {/* 区切りの線。左から右へ引いて現す */}
+          <Draw className="absolute inset-x-0 top-0 h-px bg-white/10" />
           <div className="mb-6 grid grid-cols-[10rem_1fr] gap-x-8 max-sm:grid-cols-1 max-sm:gap-y-1">
-            <h2 className="m-0 text-xs font-normal tracking-[0.1em] opacity-55">{project.tag}</h2>
-            <p className="m-0 text-sm">{project.caption}</p>
+            <Sweep as="h2" className="m-0 text-xs font-normal tracking-[0.1em] opacity-55">
+              {project.tag}
+            </Sweep>
+            <Sweep as="p" className="m-0 text-sm">
+              {project.caption}
+            </Sweep>
           </div>
           {tools && <tools.Project project={project} />}
           <Gallery photos={photos} label="Works" add={{category: 'works', project: project.id}} opens="lightbox" />

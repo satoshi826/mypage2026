@@ -17,6 +17,8 @@ import {EASINGS, type Easing} from '../gallery/tuning'
  *   フッターの細い線（[data-page-grow]）は、ぼかさずに点から伸び縮みさせる
  * 差し替えは 1 回なので、両方が消えきるのを待ってから差し替え、それぞれの設定で現れる。
  * Photos のカテゴリの切り替えでは、フッターは残す（カテゴリの下線が滑り、スクロールの線も続く）。
+ * 文字が光の幕で現れるページ（Works・About・Contact。src/app/Sweep.tsx）は、現れるときは中身全体を短く
+ * 薄く出すだけにする。文字はそこから順に現れ、区切りの線や入力欄はこの動きで現れる。
  * About と Contact のあいだも、フッターの言語の切り替えが同じなので残す。
  *
  * 演出は開発用パネル（PageTransition.tsx）で切り替えて詰める。決まったら既定値に書き戻す。
@@ -57,6 +59,8 @@ export type PageMotion = {
   footerEnterSeconds: number
   /** フッターが動く距離 px（sink / lift / slide） */
   footerDistance: number
+  /** 文字が光の幕で現れるページで、中身全体が薄く現れる秒数 */
+  sweepEnterSeconds: number
 }
 
 export const DEFAULT_PAGE_MOTION: PageMotion = {
@@ -73,7 +77,8 @@ export const DEFAULT_PAGE_MOTION: PageMotion = {
   footerExitSeconds: 0.3,
   footerDelay: 0.15,
   footerEnterSeconds: 0.8,
-  footerDistance: 8
+  footerDistance: 8,
+  sweepEnterSeconds: 0.45
 }
 
 const FOOTER = 'フッター'
@@ -92,6 +97,14 @@ export const PAGE_MOTION_PARAMS: Param<PageMotion>[] = [
     label: 'カテゴリ切替も',
     options: ['yes', 'no'],
     hint: 'Photos のカテゴリの切り替えも中身が消えて現れるか'
+  },
+  {
+    key: 'sweepEnterSeconds',
+    label: '文字のページ',
+    min: 0.1,
+    max: 2,
+    step: 0.05,
+    hint: '秒。Works・About・Contact は中身全体を薄く出すだけ（文字は光の幕で現れる）'
   },
   {
     group: FOOTER,
@@ -220,6 +233,13 @@ const footerTargets = () => [...document.querySelectorAll<HTMLElement>('[data-pa
 const growTargets = () => [...document.querySelectorAll<HTMLElement>('[data-page-grow]')]
 const GROW: Frames = {exit: [{scale: '1 1'}, {scale: '1 0'}], enter: [{scale: '1 0'}, {scale: '1 1'}]}
 
+/** 文字が光の幕で現れるページ（言語の頭を外した URL） */
+const SWEEP_PAGES = ['/works', '/about', '/contact']
+
+let navigated = false
+/** 一度でもページを移ったか。最初に開いたページで、見えている文字を隠さないために使う（src/app/sweepReveal.ts） */
+export const hasNavigated = () => navigated
+
 /** 同じページの中の移動か（Photos のカテゴリの切り替え、About と Contact の言語の切り替え） */
 const samePage = (parser: Parameters<typeof matchRoute>[0], a: string, b: string) =>
   basePath(a) === basePath(b) ||
@@ -241,8 +261,8 @@ export function usePageTransition(motion: PageMotion) {
   // 消えているあいだに URL がさらに変わったら、最後の行き先へ向かう
   const target = useRef(location)
   const leaving = useRef<Animation[] | null>(null)
-  // 差し替えた直後に現れさせるもの
-  const entering = useRef<{footer: boolean} | null>(null)
+  // 差し替えた直後に現れさせるもの。path は差し替えた先
+  const entering = useRef<{footer: boolean; path: string} | null>(null)
   const motionRef = useRef(motion)
   useEffect(() => {
     motionRef.current = motion
@@ -255,6 +275,7 @@ export function usePageTransition(motion: PageMotion) {
     const inPage = samePage(parser, location, displayed)
     const page = m.variant !== 'none' && !(inPage && m.categories === 'no')
     const footer = m.footerVariant !== 'none' && !sameFooter(parser, location, displayed)
+    navigated = true
     if (matchMedia('(prefers-reduced-motion: reduce)').matches || (!page && !footer)) {
       jumpTo(0)
       setDisplayed(location)
@@ -300,7 +321,7 @@ export function usePageTransition(motion: PageMotion) {
     Promise.all(animations.map((a) => a.finished))
       .catch(() => {})
       .then(() => {
-        entering.current = {footer}
+        entering.current = {footer, path: target.current}
         setDisplayed(target.current)
         setSwaps((n) => n + 1)
       })
@@ -334,6 +355,9 @@ export function usePageTransition(motion: PageMotion) {
         ],
         {...timing(m.enterSeconds, m.pauseSeconds), fill: 'both'}
       )
+    } else if (m.variant !== 'none' && SWEEP_PAGES.includes(basePath(enter.path))) {
+      for (const el of document.querySelectorAll<HTMLElement>('[data-page]'))
+        el.animate([{opacity: 0}, {opacity: 1}], {...timing(m.sweepEnterSeconds, m.pauseSeconds), easing: 'linear'})
     } else if (m.variant !== 'none') {
       const {enter: frames} = pageFrames(m)
       pageTargets(m).forEach((el, i) =>
