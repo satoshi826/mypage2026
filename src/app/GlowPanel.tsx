@@ -16,14 +16,14 @@ type Glow = {
 
 /** 既定値。styles.css の --glow-* と同じ値。決まったら両方を書き換える */
 const DEFAULT_GLOW: Glow = {
-  nearBlur: 4,
+  nearBlur: 6,
   near: 60,
-  farBlur: 32,
+  farBlur: 24,
   far: 80,
-  textBlur: 16,
+  textBlur: 18,
   text: 100,
   hover: 100,
-  selected: 50
+  selected: 75
 }
 
 const PARAMS: Param<Glow>[] = [
