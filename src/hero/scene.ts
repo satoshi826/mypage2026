@@ -25,13 +25,6 @@ export function createHeroScene(core: Core, pixelRatio: number) {
   // 頂点ごとのランク。glaku の型は number[] だが内部で Float32Array に詰め直すだけ
   const rankIndices = Float32Array.from({length: grid.count}, (_, i) => i)
   const vao = new Vao(core, {attributes: {a_rank: rankIndices as unknown as number[]}})
-  // 写真を描くときだけの並び。ランク（輝度）の順に描くと、1 画素に何粒も重なる画面（写真の小さいスマホ）で、後から描く
-  // 明るい粒子ばかりが残って写真が白っぽくなる。表の 1 行（grid.width 個。ほぼ同じ輝度）ずつの順番を入れ替えて、残る
-  // 粒子を偏らせない。1 行の中は順のままにして、表と状態を続けて読めるようにする（粒子ごとにばらばらにすると、
-  // 飛び飛びに読むことになり、スマホの GPU でとても重くなった）
-  const drawVao = new Vao(core, {
-    attributes: {a_rank: rowShuffled(grid.count, grid.width) as unknown as number[]}
-  })
   // 光へ飛ぶ粒子を舞台の canvas に描くときの、stride 個に 1 個へ間引いたランク。stride ごとに作って使い回す
   const sparse = new Map<number, Vao>([[1, vao]])
   const sparseVao = (stride: number) => {
@@ -464,7 +457,7 @@ export function createHeroScene(core: Core, pixelRatio: number) {
     if (!drawable()) return
     bindState()
     sampled.renderer.clear()
-    sampled.renderer.render(drawVao, program)
+    sampled.renderer.render(vao, program)
     sampled.resolve()
   }
 
@@ -501,7 +494,7 @@ export function createHeroScene(core: Core, pixelRatio: number) {
     const canvasAR = width / height
     fit = canvasAR > imageAspect ? [imageAspect / canvasAR, 1] : [1, canvasAR / imageAspect]
     // 点サイズはピクセル単位に丸められるので、切り上げないと格子状の隙間が出る。
-    // 重なる画素には、その画素の粒子のどれかが残る（描く順は行ごとに入れ替えてある。drawVao）
+    // 重なる分には後から描かれる明るい粒子が上書きするだけで害がない
     const pointSize = Math.max(1, Math.ceil((height * ratio * fit[1]) / grid.height))
     setFlight({u_fit: fit})
     program.setUniform({u_pointSize: pointSize})
@@ -619,28 +612,4 @@ export function applyHero(scene: ReturnType<typeof createHeroScene>, command: He
   if (command.gatherAt) scene.gatherAt(command.gatherAt)
   if (command.step !== undefined) scene.step(command.step)
   scene.draw()
-}
-
-/**
- * 0 から count - 1 までを、width 個ずつの行の順番だけ入れ替えて並べた列。行の中は順のまま。
- * 並びは毎回同じ（種を固定した乱数）。写真ごとに重なり方が変わってちらつかないよう、読み込みのたびにも変えない
- */
-function rowShuffled(count: number, width: number) {
-  const rows = Array.from({length: Math.ceil(count / width)}, (_, i) => i)
-  let seed = 0x9e3779b9
-  const random = () => {
-    // mulberry32
-    seed = (seed + 0x6d2b79f5) | 0
-    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed)
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
-  }
-  for (let i = rows.length - 1; i > 0; i--) {
-    const j = Math.floor(random() * (i + 1))
-    ;[rows[i], rows[j]] = [rows[j], rows[i]]
-  }
-  const ranks = new Float32Array(count)
-  let n = 0
-  for (const row of rows) for (let k = row * width; k < Math.min(count, (row + 1) * width); k++) ranks[n++] = k
-  return ranks
 }
