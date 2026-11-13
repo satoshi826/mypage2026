@@ -41,7 +41,7 @@ export const MIN_CONE = 5
 export const MAX_CONE = 90
 
 /** 光の強さの上限。tuning の power と同じ単位 */
-export const MAX_POWER = 100
+export const MAX_POWER = 200
 
 const isDefaultLamp = ({offset, cone, power}: LampSetting) =>
   offset.x === 0 && offset.y === 0 && cone === null && power === null
