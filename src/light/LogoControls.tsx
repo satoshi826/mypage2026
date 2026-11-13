@@ -141,22 +141,22 @@ const POWER_ICON = (
 )
 
 /**
- * 同じ動きを繰り返す（Loop）のアイコン。上と下の矢印で輪を描き、中に 1 を入れる（音楽の再生の「1 つを繰り返す」と同じ形）。
- * 中の 1 が潰れないよう、ライトの設定の Angle と Power のアイコン（16px）より少し大きくする
+ * 同じ動きを繰り返す（Loop）のアイコン。上と下の矢印で、角の丸い輪を描く（音楽の再生の「繰り返す」と同じ形）。
+ * 押して入れ切りするボタンなので、欄の名前の代わりのアイコン（Angle と Power、16px）より大きい 24px にする。線の太さは
+ * フッターのアイコンと同じ 1.5px
  */
 const LOOP_ICON = (
   <svg
     viewBox="0 0 24 24"
     aria-hidden
-    className="size-[18px]"
+    className="size-6"
     fill="none"
     stroke="currentColor"
     stroke-width={1.5}
     stroke-linecap="round"
     stroke-linejoin="round"
   >
-    <path d="M5 11V9.5A1.5 1.5 0 0 1 6.5 8H19M16 5l3 3-3 3M19 13v1.5a1.5 1.5 0 0 1-1.5 1.5H5M8 19l-3-3 3-3" />
-    <path d="M11 11.2 12.4 10v4" stroke-width={1.3} />
+    <path d="M4 12V9a3 3 0 0 1 3-3h13M17 3l3 3-3 3M20 12v3a3 3 0 0 1-3 3H4M7 21l-3-3 3-3" />
   </svg>
 )
 
