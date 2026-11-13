@@ -33,9 +33,7 @@ const KEY = 'mypage2026.draft'
 function read(): Draft | null {
   try {
     const text = localStorage.getItem(KEY)
-    const draft = text ? (JSON.parse(text) as Draft) : null
-    // 一覧が写真だけの配列だったころの下書きは読まない
-    return draft && 'manifest' in draft ? draft : null
+    return text ? (JSON.parse(text) as Draft) : null
   } catch {
     return null
   }

@@ -120,7 +120,6 @@ const validText = (value: unknown, limit: number) =>
 
 /** 一覧を検証する。通れば一覧（hero の番号は 1 から詰めた形）、通らなければ理由 */
 export function parseManifest(body: unknown): {manifest: Manifest} | {error: string} {
-  if (Array.isArray(body)) body = fromPhotoArray(body)
   if (typeof body !== 'object' || body === null) return {error: 'manifest must be an object'}
   const {photos: photoEntries, projects: projectEntries} = body as Record<string, unknown>
   if (!Array.isArray(photoEntries) || !Array.isArray(projectEntries))
@@ -171,20 +170,4 @@ export function parseManifest(body: unknown): {manifest: Manifest} | {error: str
     photos.push(photo)
   }
   return {manifest: {photos: renumberHero(photos), projects}}
-}
-
-/**
- * 写真だけの配列だった前の形を、今の形に移す。案件は並び順で表していて、説明の 1 行（caption）を持つ写真から
- * 次の案件が始まり、案件の種類と説明は最初の写真が持っていた。本番の一覧を一度公開し直したら消す
- */
-function fromPhotoArray(entries: unknown[]): unknown {
-  const projects: Record<string, unknown>[] = []
-  const photos = entries.map((entry) => {
-    if (typeof entry !== 'object' || entry === null) return entry
-    const {tag, caption, ...photo} = entry as Record<string, unknown>
-    if (photo.category !== 'works') return photo
-    if (projects.length === 0 || caption !== undefined) projects.push({id: `p${projects.length + 1}`, tag, caption})
-    return {...photo, project: projects[projects.length - 1].id}
-  })
-  return {photos, projects}
 }

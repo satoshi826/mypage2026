@@ -75,16 +75,10 @@ async function request(url, init) {
 
 /** 一覧（写真と Works の案件。src/photos/manifest.ts の Manifest） */
 async function manifest(base) {
-  let body
-  if (isDir(base)) body = JSON.parse(readFileSync(join(base, 'manifest.json'), 'utf8'))
-  else {
-    const res = await request(`${base}/api/manifest`, {cache: 'no-store'})
-    if (!res.ok) throw new Error(`${base}/api/manifest: ${res.status}`)
-    body = await res.json()
-  }
-  if (!Array.isArray(body.photos))
-    throw new Error(`${base} の一覧が写真だけの配列の形。/admin から一度公開すると今の形になる`)
-  return body
+  if (isDir(base)) return JSON.parse(readFileSync(join(base, 'manifest.json'), 'utf8'))
+  const res = await request(`${base}/api/manifest`, {cache: 'no-store'})
+  if (!res.ok) throw new Error(`${base}/api/manifest: ${res.status}`)
+  return res.json()
 }
 
 /** etag。無ければ null。ファイルは R2 と同じ形（MD5 を引用符で囲む）で作る */

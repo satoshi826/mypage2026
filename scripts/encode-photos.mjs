@@ -48,7 +48,6 @@ for (const name of existsSync(SRC) ? readdirSync(SRC) : []) {
 if (originals.size === 0) throw new Error(`${SRC} に jpg / jpeg / png がない`)
 
 const list = existsSync(LIST) ? JSON.parse(readFileSync(LIST, 'utf8')) : {photos: [], projects: []}
-if (!Array.isArray(list.photos)) throw new Error(`${LIST} が写真だけの配列の形。npm run photos:originals で取り直す`)
 const prev = list.photos
 const missing = prev.filter((p) => !originals.has(p.file)).map((p) => p.file)
 if (missing.length) {
