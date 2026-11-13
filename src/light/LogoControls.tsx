@@ -2,6 +2,7 @@ import {useEffect, useLayoutEffect, useRef, useState} from 'preact/hooks'
 import {createPortal, type ComponentChildren} from 'preact'
 import {GLOW_HOVER} from '../app/glow'
 import {POPOVER} from '../app/popover'
+import {LOOPS, REPEATS, type Loop, type Repeat} from './motion'
 import {useExternal} from '../app/useExternal'
 import {MAX_POWER, MAX_SCALE, MAX_TILT, MIN_SCALE, type LampKey} from './arrangement'
 import {MATERIALS, useLogoControls, type LampControl, type LogoControls as Controls, type Material} from './controls'
@@ -139,9 +140,128 @@ const POWER_ICON = (
   </svg>
 )
 
+const REPEAT_LABELS: Record<Repeat, string> = {cycle: 'Cycle', loop: 'Loop'}
+
+/** 動きの名前。先頭を大文字にする */
+const loopLabel = (loop: Loop) => loop[0].toUpperCase() + loop.slice(1)
+
+/**
+ * 流している動きを示し、押すと動きの一覧を入れ物の上に開いて選ばせる。一覧は入れ物と同じ見た目で、数が多いので格子に並べる。
+ * 選ぶか、外を押すか Esc で閉じる。見た目は問い合わせフォームの入力欄と同じ、下に線を引いた欄
+ */
+function MotionPicker({current, onPick, focusable}: {current: Loop; onPick: (loop: Loop) => void; focusable: boolean}) {
+  const [open, setOpen] = useState(false)
+  const root = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!focusable) setOpen(false)
+  }, [focusable])
+  useEffect(() => {
+    if (!open) return
+    const close = (event: PointerEvent) => {
+      if (!root.current?.contains(event.target as Node)) setOpen(false)
+    }
+    const escape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      event.stopPropagation()
+      setOpen(false)
+    }
+    addEventListener('pointerdown', close)
+    addEventListener('keydown', escape, true)
+    return () => {
+      removeEventListener('pointerdown', close)
+      removeEventListener('keydown', escape, true)
+    }
+  }, [open])
+  return (
+    // 一覧は入れ物（Menu の fixed の枠）の上に開く。ここを基準にすると入れ物の中の欄に重なり、下の文字が透けて読みにくい
+    <div ref={root} className="flex h-full items-center">
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-label={`Motion: ${loopLabel(current)}`}
+        tabIndex={focusable ? 0 : -1}
+        className={`${OPTION} glow-under gap-2 border-b border-white/20 py-1 opacity-90! transition-[border-color,box-shadow] duration-300 hover:border-white/60 aria-expanded:border-white/60 aria-expanded:[--glow:var(--glow-selected)]`}
+      >
+        <span className="glow-text w-[6.5ch] transition-[text-shadow] duration-800">{loopLabel(current)}</span>
+        {/* 一覧を開く欄であることを示す、小さな山形 */}
+        <svg viewBox="0 0 10 10" aria-hidden className="size-2" fill="none" stroke="currentColor" stroke-width={1.2}>
+          <path d="M2 3.5 5 6.5 8 3.5" />
+        </svg>
+      </button>
+      <div
+        role="listbox"
+        aria-label="Motion"
+        aria-hidden={!open}
+        className={`absolute bottom-full left-0 mb-2 grid auto-rows-[2.25rem] grid-cols-[repeat(5,auto)] gap-x-5 ${POPOVER} px-4 py-1 transition-[opacity,translate] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] max-sm:grid-cols-[repeat(3,auto)] max-sm:gap-x-4 ${open ? '' : 'pointer-events-none translate-y-1 opacity-0'}`}
+      >
+        {LOOPS.map((loop) => (
+          <button
+            key={loop}
+            type="button"
+            role="option"
+            aria-selected={loop === current}
+            aria-pressed={loop === current}
+            tabIndex={open ? 0 : -1}
+            onClick={() => {
+              onPick(loop)
+              setOpen(false)
+            }}
+            className={OPTION}
+          >
+            <span className="glow-text transition-[text-shadow] duration-800">{loopLabel(loop)}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/**
+ * 入れて切る操作。設定のスライダー（Slider）と同じ部品でできた短いスライダーで、0.5px の溝の両端に Off と On の位置を点で
+ * 刻み、つまみがそのあいだを滑る。切っているあいだのつまみは輪郭だけで、入れると塗られて光る（計器のランプのように）
+ */
+function Toggle({
+  label,
+  on,
+  onChange,
+  focusable
+}: {
+  label: string
+  on: boolean
+  onChange: (on: boolean) => void
+  focusable: boolean
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={on}
+      aria-label={label}
+      onClick={() => onChange(!on)}
+      tabIndex={focusable ? 0 : -1}
+      className={`group relative h-full w-7 shrink-0 cursor-pointer ${GLOW_HOVER}`}
+    >
+      <span aria-hidden className="absolute inset-x-1 top-1/2 h-[0.5px] bg-ink/35" />
+      {[0, 1].map((end) => (
+        <span
+          key={end}
+          aria-hidden
+          className={`absolute top-1/2 size-0.5 -translate-1/2 rounded-full bg-ink/70 ${end ? 'left-[calc(100%-4px)]' : 'left-1'}`}
+        />
+      ))}
+      <span
+        aria-hidden
+        className="glow-line absolute top-1/2 left-1 size-2 -translate-1/2 rounded-full border border-ink bg-transparent opacity-70 transition-[left,background-color,opacity,box-shadow,scale] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-125 group-hover:opacity-100 group-aria-checked:left-[calc(100%-4px)] group-aria-checked:bg-ink group-aria-checked:opacity-100 group-aria-checked:[--glow:var(--glow-selected)]"
+      />
+    </button>
+  )
+}
+
 /** ロゴの設定。素材と、形の動きと、大きさ */
 function LogoSettings({controls, focusable}: {controls: Controls; focusable: boolean}) {
-  const {material, setMaterial, animated, setAnimated, scale, setScale} = controls
+  const {material, setMaterial, animated, setAnimated, loop, setLoop, repeat, setRepeat, scale, setScale} = controls
   return (
     <>
       <span className={SECTION}>Material</span>
@@ -159,21 +279,30 @@ function LogoSettings({controls, focusable}: {controls: Controls; focusable: boo
           </button>
         ))}
       </div>
+      {/* トグルで動かすか（On）、ロゴに戻すか（Off）を切り替え、プルダウンで流す動きを選び（選ぶと動き出す）、1 周したら
+          次の動きへ移るか（Cycle）、同じ動きを繰り返すか（Loop）を選ぶ。動いているあいだは、ロゴのクリックで一時停止する */}
       <span className={SECTION}>Motion</span>
-      {/* On のあいだ、ロゴの形をいろいろな動きで順に変え続ける。Off でロゴに戻る */}
-      <div className="col-span-3 flex gap-6 max-sm:gap-4">
-        {[false, true].map((on) => (
-          <button
-            key={String(on)}
-            type="button"
-            onClick={() => setAnimated(on)}
-            aria-pressed={animated === on}
-            tabIndex={focusable ? 0 : -1}
-            className={OPTION}
-          >
-            <span className="glow-text transition-[text-shadow] duration-800">{on ? 'On' : 'Off'}</span>
-          </button>
-        ))}
+      <div className="col-span-3 flex h-full items-center gap-6 max-sm:gap-4">
+        <Toggle label="Motion" on={animated} onChange={setAnimated} focusable={focusable} />
+        {/* 動きの選択と移り方は、動かしているあいだだけ出す。消えても場所は空けたままにし、欄の幅を変えない */}
+        <div
+          aria-hidden={!animated}
+          className={`flex h-full items-center gap-6 transition-opacity duration-300 max-sm:gap-3 ${animated ? '' : 'pointer-events-none opacity-0'}`}
+        >
+          <MotionPicker current={loop} onPick={setLoop} focusable={focusable && animated} />
+          {REPEATS.map((r) => (
+            <button
+              key={r}
+              type="button"
+              onClick={() => setRepeat(r)}
+              aria-pressed={repeat === r}
+              tabIndex={focusable && animated ? 0 : -1}
+              className={OPTION}
+            >
+              <span className="glow-text transition-[text-shadow] duration-800">{REPEAT_LABELS[r]}</span>
+            </button>
+          ))}
+        </div>
       </div>
       <span className={SECTION}>Size</span>
       <Slider
@@ -326,7 +455,7 @@ function Menu({
             aria-label={label}
             aria-hidden={!open}
             style={{left: `${at.left}px`, bottom: `${at.bottom}px`}}
-            className={`fixed z-20 grid auto-rows-[2.5rem] grid-cols-[repeat(4,auto)] items-center gap-x-6 ${POPOVER} px-4 py-1 text-sm tracking-[0.12em] transition-[opacity,translate] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] max-sm:gap-x-4 max-sm:text-xs ${open ? '' : 'pointer-events-none translate-y-1 opacity-0'}`}
+            className={`fixed z-20 grid auto-rows-[3rem] grid-cols-[repeat(4,auto)] items-center gap-x-6 ${POPOVER} px-4 py-1 text-sm tracking-[0.12em] transition-[opacity,translate] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] max-sm:gap-x-4 max-sm:text-xs ${open ? '' : 'pointer-events-none translate-y-1 opacity-0'}`}
           >
             {children(open)}
           </div>,

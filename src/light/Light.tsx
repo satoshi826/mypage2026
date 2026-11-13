@@ -1,4 +1,4 @@
-import {useCallback, useEffect, useRef, useState} from 'preact/hooks'
+import {useCallback, useEffect, useMemo, useRef, useState} from 'preact/hooks'
 import {DevPanel, DevReadout} from '../app/DevPanel'
 import {GATHER_AT, SCENE_SCREENS, ease, lightAt, lightOf, type Stage} from '../app/stage'
 import {useNarrow} from '../app/useNarrow'
@@ -22,7 +22,7 @@ import {
 import {setLogoControls, type LampControl, type Material} from './controls'
 import {createRayBudget, type RayBudget} from './rayBudget'
 import {LOGO_HEIGHT, LOGO_WIDTH} from './logo'
-import {LOGO_SHAPE, PERIOD, between, nextLoop, shapeAt, type Loop, type Shape} from './motion'
+import {LOGO_SHAPE, PERIOD, between, nextLoop, shapeAt, type Loop, type Repeat, type Shape} from './motion'
 import {DEFAULT_LIGHT, LIGHT_PARAMS, type LightTuning} from './tuning'
 
 /** 動かしたロゴと回した光を、フッターの操作で既定へ戻すのにかける秒数 */
@@ -57,6 +57,9 @@ const CONTROLS_AT = {show: 0.02, hide: 0.1}
 
 /** 動きを切り替えたとき（Still に戻すときも）、今の形から次の動きへ移る秒数 */
 const MOTION_BLEND_SECONDS = 0.6
+
+/** ロゴを押してから離すまでに、これより動かさなければクリック（一時停止と再開）とみなす。px */
+const CLICK_PX = 6
 
 /** 幅の狭い画面（スマホ）でのロゴの大きさ。tuning の 1 マスに掛ける。訪問者が変える大きさ（arrangement の scale）とは別 */
 const NARROW_LOGO = 0.85
@@ -154,28 +157,62 @@ export function Light({
     switched.current = {at: performance.now(), from: {...mix.current}}
     setMaterialState(next)
   }, [])
-  // ロゴの形の動き。動かすあいだは、流している動き（playing）が 1 周したら次の動きへ移る。動かし始めと止めたとき、
-  // 次の動きへ移るときは、そのときの形から MOTION_BLEND_SECONDS かけて移る
+  // ロゴの形の動き。流している動き（playing）は、移り方が cycle なら 1 周したら次の動きへ移り、loop なら繰り返す。
+  // 動かし始めと止めたとき、ほかの動きへ移るときは、そのときの形から MOTION_BLEND_SECONDS かけて移る。
+  // 一時停止（paused）のあいだは、止めた時刻で形を止めておき、再開したら止めていたぶん時刻をずらして続ける
   const [animated, setAnimatedState] = useState(false)
+  const [repeat, setRepeat] = useState<Repeat>('cycle')
+  const [chosen, setChosen] = useState<Loop>(nextLoop(null))
   const shape = useRef<Shape>(LOGO_SHAPE)
   const playing = useRef<{loop: Loop | 'still'; at: number; from: Shape}>({loop: 'still', at: 0, from: LOGO_SHAPE})
-  const setAnimated = useCallback((next: boolean) => {
-    playing.current = {loop: next ? nextLoop(null) : 'still', at: performance.now(), from: shape.current}
-    setAnimatedState(next)
+  const paused = useRef<number | null>(null)
+  const play = useCallback((loop: Loop | 'still') => {
+    paused.current = null
+    playing.current = {loop, at: performance.now(), from: shape.current}
+    if (loop !== 'still') setChosen(loop)
+    setAnimatedState(loop !== 'still')
   }, [])
+  const setAnimated = useCallback((next: boolean) => play(next ? chosen : 'still'), [play, chosen])
+  const setLoop = useCallback((loop: Loop) => play(loop), [play])
+  /** 動かしているあいだ、ロゴのクリックで一時停止と再開を切り替える */
+  const togglePause = () => {
+    if (playing.current.loop === 'still') return
+    const now = performance.now()
+    if (paused.current === null) paused.current = now
+    else {
+      playing.current = {...playing.current, at: playing.current.at + now - paused.current}
+      paused.current = null
+    }
+  }
   // 置き方と素材を既定へ戻す
   const reset = useCallback(() => {
     returning.current = {at: performance.now(), from: arrangement.current}
     setMaterial('matte')
-    setAnimated(false)
-  }, [setMaterial, setAnimated])
+    play('still')
+  }, [setMaterial, play])
   const publish = (next: Shown) => {
     shown.current = next
-    setLogoControls({...next, reset, material, setMaterial, animated, setAnimated, setScale, setLamp})
+    setLogoControls({...next, ...actions})
   }
+  const actions = useMemo(
+    () => ({
+      reset,
+      material,
+      setMaterial,
+      animated,
+      setAnimated,
+      loop: chosen,
+      setLoop,
+      repeat,
+      setRepeat,
+      setScale,
+      setLamp
+    }),
+    [reset, material, setMaterial, animated, setAnimated, chosen, setLoop, repeat, setScale, setLamp]
+  )
   useEffect(() => {
-    setLogoControls({...shown.current, reset, material, setMaterial, animated, setAnimated, setScale, setLamp})
-  }, [reset, material, setMaterial, animated, setAnimated, setScale, setLamp])
+    setLogoControls({...shown.current, ...actions})
+  }, [actions])
   useEffect(() => () => setLogoControls(null), [])
 
   // ロゴのつかみ場所と、光源のつかみ場所。位置は毎フレーム書く
@@ -198,8 +235,11 @@ export function Light({
     const points = [...touching.current.values()].slice(0, 2)
     gesture.current = points.length > 0 ? {from: arrangement.current, points} : null
   }
+  // 押した指と位置。ほとんど動かさずに離したら、つかんだのではなくクリックとみなす
+  const pressed = useRef<{id: number; x: number; y: number} | null>(null)
   const onLogoDown = (event: PointerEvent) => {
     returning.current = null
+    pressed.current = touching.current.size === 0 ? {id: event.pointerId, x: event.clientX, y: event.clientY} : null
     touching.current.set(event.pointerId, {x: event.clientX, y: event.clientY})
     ;(event.currentTarget as HTMLElement).setPointerCapture(event.pointerId)
     event.preventDefault()
@@ -228,6 +268,13 @@ export function Light({
   }
   const onLogoUp = (event: PointerEvent) => {
     if (!touching.current.delete(event.pointerId)) return
+    const press = pressed.current
+    pressed.current = null
+    const click =
+      event.type === 'pointerup' &&
+      press?.id === event.pointerId &&
+      Math.hypot(event.clientX - press.x, event.clientY - press.y) < CLICK_PX
+    if (click) togglePause()
     regrip()
   }
   // 光源をつかんでいる指と、どちらの光か、つかんだときの指の位置と光源の動かした量。指の動いたぶんだけ光源を動かす
@@ -371,10 +418,14 @@ export function Light({
     const from = change.from
     mix.current = {glass: from.glass + (to.glass - from.glass) * r, metal: from.metal + (to.metal - from.metal) * r}
     const current = playing.current
-    if (current.loop !== 'still' && (now - current.at) / 1000 >= PERIOD[current.loop])
-      playing.current = {loop: nextLoop(current.loop), at: now, from: shape.current}
+    const clock = paused.current ?? now
+    if (repeat === 'cycle' && current.loop !== 'still' && (clock - current.at) / 1000 >= PERIOD[current.loop]) {
+      const next = nextLoop(current.loop)
+      playing.current = {loop: next, at: clock, from: shape.current}
+      setChosen(next)
+    }
     const {loop, from: start} = playing.current
-    const since = (now - playing.current.at) / 1000
+    const since = (clock - playing.current.at) / 1000
     shape.current = between(start, shapeAt(loop, since), ease(since / MOTION_BLEND_SECONDS))
     place(grip.current, logo.x - logoWidth / 2, logo.y - logoHeight / 2, logoWidth, logoHeight)
     // 光は、ロゴの上端（もとの位置からロゴの高さの半分上）が画面の下端に届くところで最大になる
@@ -426,7 +477,7 @@ export function Light({
         frame: {
           upper: {...at.upper, base: upperBase, angle: facing.current.upper, power: power.upper * brightness, focus},
           under: {...at.under, angle: facing.current.under, power: power.under * underBrightness},
-          fast: dragging.current !== null || animated,
+          fast: dragging.current !== null || (animated && paused.current === null),
           logo: {...logo, shown: arrived, shape: shape.current},
           material: mix.current
         }
