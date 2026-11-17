@@ -56,6 +56,7 @@ function createStage(canvas: OffscreenCanvas, pixelRatio: number) {
     uniformTypes: {
       u_lit: 'float',
       u_photo: 'float',
+      u_photoReveal: 'float',
       u_rect: 'vec4',
       u_size: 'vec2',
       u_logo: 'float',
@@ -100,7 +101,8 @@ function createStage(canvas: OffscreenCanvas, pixelRatio: number) {
         vec4 lit = vec4(vec3(c + u_logoColor * body * (1.0 - c)), c + body * (1.0 - c));
         vec2 uv = (v_uv - u_rect.xy) / (u_rect.zw - u_rect.xy);
         bool inside = all(greaterThanEqual(uv, vec2(0.0))) && all(lessThanEqual(uv, vec2(1.0)));
-        vec4 photo = u_photo > 0.5 && inside ? texture(t_photo, uv) : vec4(0.0);
+        // 写真は枠の下から u_photoReveal の高さまで見せる（トップに入ったときのワイプ。Photos の写真と同じ向き）
+        vec4 photo = u_photo > 0.5 && inside && uv.y <= u_photoReveal ? texture(t_photo, uv) : vec4(0.0);
         o_color = photo + lit * (1.0 - photo.a);
       }`
   })
@@ -118,7 +120,8 @@ function createStage(canvas: OffscreenCanvas, pixelRatio: number) {
       const {x, y, width, height} = photo.rect
       // 枠を、画面の下を 0 とする uv に直す
       compose.setUniform({
-        u_rect: [x / size.width, 1 - (y + height) / size.height, (x + width) / size.width, 1 - y / size.height]
+        u_rect: [x / size.width, 1 - (y + height) / size.height, (x + width) / size.width, 1 - y / size.height],
+        u_photoReveal: photo.revealed
       })
     }
     const logo = light.logo()

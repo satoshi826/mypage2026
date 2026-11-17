@@ -427,6 +427,8 @@ export function createHeroScene(core: Core, pixelRatio: number) {
   }
   // 粒子が集まった割合。0 より大きく 1 より小さいあいだ、粒子が光へ向けて飛んでいる
   let gathered = 0
+  // 写真が下から現れた割合。トップに入ったとき、Photos の写真と同じワイプで現す（Hero が時間で進める）
+  let revealed = 1
 
   const applyTuning = (tuning: Tuning) =>
     setMorph({
@@ -509,7 +511,10 @@ export function createHeroScene(core: Core, pixelRatio: number) {
     place,
     draw,
     /** 粒子を描いた層と、その層を置く枠。まだ描けないあいだは null */
-    layer: () => (drawable() && rect ? {texture: renderer.renderTexture[0], rect} : null),
+    layer: () => (drawable() && rect ? {texture: renderer.renderTexture[0], rect, revealed} : null),
+    reveal: (amount: number) => {
+      revealed = amount
+    },
     step,
     tune: applyTuning,
     interact: applyInteraction,
@@ -593,6 +598,8 @@ export type HeroCommand = {
   step?: number
   /** 粒子が集まった割合（src/app/stage.ts） */
   gather?: number
+  /** 写真が下から現れた割合。0 で隠れ、1 で現れきる。舞台が重ねるとき、枠の下からこの割合だけ見せる */
+  reveal?: number
   /** 粒子が集まる点。写真の枠の NDC */
   gatherAt?: [number, number]
   tuning?: Tuning
@@ -609,6 +616,7 @@ export function applyHero(scene: ReturnType<typeof createHeroScene>, command: He
   if (command.pointer) scene.setPointer(command.pointer)
   if (command.render) scene.setFrame(command.render, command.jump)
   if (command.gather !== undefined) scene.gather(command.gather)
+  if (command.reveal !== undefined) scene.reveal(command.reveal)
   if (command.gatherAt) scene.gatherAt(command.gatherAt)
   if (command.step !== undefined) scene.step(command.step)
   scene.draw()

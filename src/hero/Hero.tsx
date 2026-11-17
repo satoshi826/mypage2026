@@ -140,9 +140,10 @@ export function Hero({
   const lastGather = useRef(-1)
   // カレンダーの濃さ（0〜1）
   const calendarShown = useRef(1)
-  // 入ってきたときの、粒子が画面の中央の光から飛び出して写真を結ぶ動きの残り（1 で全部が光の中、0 で結び終わった）。
-  // 集まる動き（gather）を時間で逆にたどる。最初の写真が読めて、スプラッシュが片付いてから始める
-  const entry = useRef(1)
+  // 入ってきたとき、写真を下から現すワイプの進み（0 で隠れ、1 で現れきった）。Photos の写真が現れるのと同じ見た目。
+  // 最初の写真が読めて、スプラッシュが片付いてから始める
+  const reveal = useRef(0)
+  const lastReveal = useRef(-1)
   // フッターの再生操作を出し、写真を触れるようにするか。粒子が集まり始めて写真が崩れたら下げる
   const [visible, setVisible] = useState(true)
   const velocity = useRef({x: 0, y: 0})
@@ -228,29 +229,32 @@ export function Hero({
       // スクロールで上へ流れていきながら薄れ、スクロールしていることを示す。
       // 粒子がすべて光に吸い込まれたら写真は見えないので、時計も干渉も止める
       const scrolled = stage.current.progress * innerHeight
-      if (entry.current === 1) {
-        // 最初の写真が読めなかったら、読める写真から始める。どれも読めなければ入りの動きをやめ、カレンダーを出す
+      if (reveal.current === 0) {
+        // 最初の写真が読めなかったら、読める写真から始める。どれも読めなければ現す動きをやめ、カレンダーを出す
         stateRef.current = skipBrokenFrom(stateRef.current, order)
-        if (order.broken.includes(stateRef.current.from)) entry.current = 0
+        if (reduced || order.broken.includes(stateRef.current.from)) reveal.current = 1
       }
-      if (entry.current > 0) {
+      const revealing = reveal.current < 1
+      if (revealing) {
         const started =
           library.slotOf(stateRef.current.from) !== null && !document.documentElement.classList.contains('splash')
-        if (reduced) entry.current = 0
-        else if (started) {
-          if (entry.current === 1) revealCalendar()
-          entry.current = Math.max(0, entry.current - delta / ENTRY_SECONDS)
+        if (started) {
+          if (reveal.current === 0) revealCalendar()
+          // 最初のフレームは経過時間が 0 なので、始めたことが分かるよう少しだけ進める
+          reveal.current = Math.min(1, Math.max(reveal.current + delta / REVEAL_SECONDS, 1e-6))
         }
       }
-      // 入ってきたときの動きと、スクロールで集まる動きの、進んでいるほう
-      const entering = entry.current > stage.current.gather
-      const gather = Math.max(stage.current.gather, entry.current)
+      const revealed = REVEAL_EASE(reveal.current)
+      if (revealed !== lastReveal.current) {
+        lastReveal.current = revealed
+        command.reveal = revealed
+      }
+      const gather = stage.current.gather
       const shown = gather < 1
-      // 粒子が出入りする点を、写真の枠の NDC に直す。入ってきたときは画面の中央、スクロールで集まるときは光の位置
-      // （Light が書く）。光はスクロールで上がるので、毎フレーム求める
+      // 粒子が出入りする点（光の位置。Light が書く）を、写真の枠の NDC に直す。光はスクロールで上がるので、毎フレーム求める
       const box = frameBox.current
       if (box) {
-        const {x, y} = entering ? {x: innerWidth / 2, y: innerHeight / 2} : stage.current.light
+        const {x, y} = stage.current.light
         const at: [number, number] = [((x - box.x) / box.width) * 2 - 1, 1 - ((y - box.y) / box.height) * 2]
         const last = lastGatherAt.current
         if (!last || at[0] !== last[0] || at[1] !== last[1]) {
@@ -263,9 +267,9 @@ export function Hero({
         calendarRef.current?.style.setProperty('translate', `0 ${-scrolled}px`)
       }
       // カレンダーは、粒子が集まるあいだをかけてゆっくり薄れ、ほどけ始めたら（スクロールを戻したら）粒子を待たずに早く現れる。
-      // 入ってきたときは、始まるまで隠し、始まったら数字が順に現れる（revealCalendar）ので入れ物は出しておく
-      const calendar = entering
-        ? entry.current < 1
+      // 入ってきたときは、写真が現れ始めるまで隠し、始まったら数字が順に現れる（revealCalendar）ので入れ物は出しておく
+      const calendar = revealing
+        ? reveal.current > 0
           ? 1
           : 0
         : gather > lastGather.current || gather === 1
@@ -285,8 +289,9 @@ export function Hero({
       // 行き先を読み終えるまでは遷移を始めない
       const ready = (photo: number) => library.slotOf(photo) !== null
       if (shown) {
-        // 集まり始めたら次の写真へは進めない。自動再生を切ったときと同じく、進行中の遷移は完走させる
-        if (autoplay && gather === 0) {
+        // 集まり始めたら次の写真へは進めない。自動再生を切ったときと同じく、進行中の遷移は完走させる。
+        // 入ってきたときは、写真が現れきってから進める
+        if (autoplay && gather === 0 && !revealing) {
           stateRef.current = advance(stateRef.current, delta, order, timing, ready)
         } else {
           stateRef.current = settle(stateRef.current, delta, timing, ready)
@@ -551,8 +556,31 @@ const CONTROLS_SHOWN = 0.4
 /** 粒子がほどけ始めてから、カレンダーが現れきるまでの秒数 */
 const CALENDAR_APPEAR_SECONDS = 0.5
 
-/** 入ってきたとき、画面の中央の光から粒子が飛び出して写真を結び終わるまでの秒数 */
-const ENTRY_SECONDS = 2.4
+/**
+ * 入ってきたとき、写真が下から現れきるまでの秒数。曲線は Photos の写真のワイプ（styles.css の [data-reveal-clip]）と
+ * 同じだが、トップは 1 枚を大きく見せるので、少しゆっくり現す
+ */
+const REVEAL_SECONDS = 1.5
+
+/** cubic-bezier(x1, y1, x2, y2) の曲線。t（時間の割合）から進みを返す */
+function cubicBezier(x1: number, y1: number, x2: number, y2: number) {
+  const at = (a: number, b: number, t: number) => 3 * a * t * (1 - t) ** 2 + 3 * b * t * t * (1 - t) + t ** 3
+  return (x: number) => {
+    if (x <= 0 || x >= 1) return Math.min(1, Math.max(0, x))
+    // x(t) = x を二分法で解いてから、その t の y を返す
+    let lo = 0
+    let hi = 1
+    for (let i = 0; i < 24; i++) {
+      const mid = (lo + hi) / 2
+      if (at(x1, x2, mid) < x) lo = mid
+      else hi = mid
+    }
+    return at(y1, y2, (lo + hi) / 2)
+  }
+}
+
+/** 写真が現れるワイプの曲線。Photos の写真と同じ */
+const REVEAL_EASE = cubicBezier(0.2, 0.7, 0.2, 1)
 
 /** 使える領域から、パネルに取られるぶんを引いて、3:2 を保った最大の枠を出す。幅は MAX_PHOTO_WIDTH まで */
 function fitPhoto({width, height}: {width: number; height: number}, takenX: number) {
