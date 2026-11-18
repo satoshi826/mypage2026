@@ -560,7 +560,7 @@ const CALENDAR_APPEAR_SECONDS = 0.5
  * 入ってきたとき、写真が下から現れきるまでの秒数。曲線は Photos の写真のワイプ（styles.css の [data-reveal-clip]）と
  * 同じだが、トップは 1 枚を大きく見せるので、少しゆっくり現す
  */
-const REVEAL_SECONDS = 1.5
+const REVEAL_SECONDS = 2.5
 
 /** cubic-bezier(x1, y1, x2, y2) の曲線。t（時間の割合）から進みを返す */
 function cubicBezier(x1: number, y1: number, x2: number, y2: number) {
